@@ -1,15 +1,25 @@
-import { identityDatabaseName, logicalIdentityKey, getCurrentIdentityId } from "@/lib/identity-runtime";
-import { identityLocalStorage } from "@/lib/identity-runtime";
 import { DATA_MODULES } from "./data-management/modules";
 import type { DataModuleDefinition, IndexedDbSource, KvSource, LocalStorageSource } from "./data-management/types";
 
+/** 读取守卫：调用方按自己的授权规则拦下某些库表、过滤某些 KV 文件（例如书房正文与剧透） */
+export type LocalDataGuard = {
+    /** 返回拒绝原因则整个 store 不可读、搜索时跳过 */
+    blockedStore?: (dbName: string, storeName: string) => string | null;
+    /** KV / localStorage 文件的原始文本在被读取、搜索、预览前先经过这里 */
+    filterRaw?: (key: string, raw: string) => string;
+    /** IndexedDB 单条记录在被读取、搜索前先经过这里 */
+    filterValue?: (dbName: string, storeName: string, value: unknown) => unknown;
+};
+
 export type LocalDataListInput = {
+    guard?: LocalDataGuard;
     path?: string;
     limit?: number;
     offset?: number;
 };
 
 export type LocalDataReadInput = {
+    guard?: LocalDataGuard;
     path: string;
     limit?: number;
     offset?: number;
@@ -18,6 +28,7 @@ export type LocalDataReadInput = {
 };
 
 export type LocalDataSearchInput = {
+    guard?: LocalDataGuard;
     path?: string;
     query: string;
     limit?: number;
@@ -27,6 +38,7 @@ export type LocalDataSearchInput = {
 };
 
 export type LocalDataRecordInput = {
+    guard?: LocalDataGuard;
     path: string;
     key: string;
     fields?: string[];
@@ -34,6 +46,7 @@ export type LocalDataRecordInput = {
 };
 
 export type LocalDataFieldsInput = {
+    guard?: LocalDataGuard;
     path: string;
     sample?: number;
 };
@@ -134,7 +147,7 @@ function hasLocalStorage(): boolean {
 async function openDb(dbName: string): Promise<IDBDatabase | null> {
     if (!hasIndexedDb()) return null;
     return new Promise((resolve) => {
-        const request = indexedDB.open(identityDatabaseName(dbName));
+        const request = indexedDB.open(dbName);
         request.onsuccess = () => resolve(request.result);
         request.onerror = () => resolve(null);
         request.onblocked = () => resolve(null);
@@ -208,20 +221,36 @@ async function countStore(dbName: string, storeName: string): Promise<number> {
     }
 }
 
-async function readKvRecords(source: KvSource): Promise<Array<{ key: string; value: string }>> {
+function guardRaw(guard: LocalDataGuard | undefined, key: string, raw: string): string {
+    return guard?.filterRaw ? guard.filterRaw(key, raw) : raw;
+}
+
+function guardRawOrNull(guard: LocalDataGuard | undefined, key: string, raw: string | null): string | null {
+    return raw === null ? null : guardRaw(guard, key, raw);
+}
+
+function guardValue(guard: LocalDataGuard | undefined, dbName: string, storeName: string, value: unknown): unknown {
+    return guard?.filterValue ? guard.filterValue(dbName, storeName, value) : value;
+}
+
+function storeBlockReason(guard: LocalDataGuard | undefined, dbName: string, storeName: string): string | null {
+    return guard?.blockedStore ? guard.blockedStore(dbName, storeName) : null;
+}
+
+function assertStoreAllowed(guard: LocalDataGuard | undefined, dbName: string, storeName: string): void {
+    const reason = storeBlockReason(guard, dbName, storeName);
+    if (reason) throw new Error(reason);
+}
+
+async function readKvRecords(source: KvSource, guard?: LocalDataGuard): Promise<Array<{ key: string; value: string }>> {
     const db = await openDb("AiPhoneKvDB");
     if (!db || !Array.from(db.objectStoreNames).includes("entries")) return [];
     try {
         const transaction = db.transaction("entries", "readonly");
         const records = await runRequest<Array<{ key: string; value: string }>>(transaction.objectStore("entries").getAll());
-        return records.flatMap(record => {
-            const key = logicalIdentityKey(record.key);
-            if (key === null || !matchesKey(key, source)) return [];
-            const value = key === "ai_phone_user_identities_v1"
-                ? JSON.stringify(JSON.parse(record.value).filter((identity: { id: string }) => identity.id === getCurrentIdentityId()))
-                : record.value;
-            return [{ key, value }];
-        });
+        return records
+            .filter(record => matchesKey(record.key, source))
+            .map(record => ({ key: record.key, value: guardRaw(guard, record.key, record.value) }));
     } catch {
         return [];
     } finally {
@@ -229,14 +258,14 @@ async function readKvRecords(source: KvSource): Promise<Array<{ key: string; val
     }
 }
 
-function readLocalStorageRecords(source: LocalStorageSource): Array<{ key: string; value: string }> {
+function readLocalStorageRecords(source: LocalStorageSource, guard?: LocalDataGuard): Array<{ key: string; value: string }> {
     if (!hasLocalStorage()) return [];
     const records: Array<{ key: string; value: string }> = [];
-    for (let index = 0; index < identityLocalStorage.length; index += 1) {
-        const key = identityLocalStorage.key(index);
+    for (let index = 0; index < window.localStorage.length; index += 1) {
+        const key = window.localStorage.key(index);
         if (!key || !matchesKey(key, source)) continue;
-        const value = identityLocalStorage.getItem(key);
-        if (value !== null) records.push({ key, value });
+        const value = window.localStorage.getItem(key);
+        if (value !== null) records.push({ key, value: guardRaw(guard, key, value) });
     }
     return records;
 }
@@ -421,7 +450,8 @@ function formatFieldStats(
     };
 }
 
-async function readIndexedDbSample(path: Extract<SourcePath, { kind: "indexeddbStore" }>, sample: number): Promise<unknown[]> {
+async function readIndexedDbSample(path: Extract<SourcePath, { kind: "indexeddbStore" }>, sample: number, guard?: LocalDataGuard): Promise<unknown[]> {
+    assertStoreAllowed(guard, path.dbName, path.storeName);
     const db = await openDb(path.dbName);
     if (!db) throw new Error(`无法打开 IndexedDB：${path.dbName}`);
     if (!Array.from(db.objectStoreNames).includes(path.storeName)) {
@@ -440,7 +470,7 @@ async function readIndexedDbSample(path: Extract<SourcePath, { kind: "indexeddbS
                     resolve();
                     return;
                 }
-                values.push(cursor.value);
+                values.push(guardValue(guard, path.dbName, path.storeName, cursor.value));
                 cursor.continue();
             };
             request.onerror = () => reject(request.error);
@@ -455,6 +485,7 @@ async function readIndexedDbStore(path: Extract<SourcePath, { kind: "indexeddbSt
     const limit = normalizeLimit(input.limit);
     const offset = normalizeOffset(input.offset);
     const fields = normalizeFields(input);
+    assertStoreAllowed(input.guard, path.dbName, path.storeName);
     const db = await openDb(path.dbName);
     if (!db) throw new Error(`无法打开 IndexedDB：${path.dbName}`);
     if (!Array.from(db.objectStoreNames).includes(path.storeName)) {
@@ -482,7 +513,7 @@ async function readIndexedDbStore(path: Extract<SourcePath, { kind: "indexeddbSt
                 }
                 records.push({
                     key: keyToText(cursor.primaryKey),
-                    value: projectValue(cursor.value, fields),
+                    value: projectValue(guardValue(input.guard, path.dbName, path.storeName, cursor.value), fields),
                 });
                 cursor.continue();
             };
@@ -546,6 +577,7 @@ async function searchIndexedDbStore(path: Extract<SourcePath, { kind: "indexeddb
     const limit = normalizeLimit(input.limit);
     const offset = normalizeOffset(input.offset);
     const fields = normalizeFields(input);
+    if (storeBlockReason(input.guard, path.dbName, path.storeName)) return [];
     const db = await openDb(path.dbName);
     if (!db) return [];
     if (!Array.from(db.objectStoreNames).includes(path.storeName)) {
@@ -568,7 +600,8 @@ async function searchIndexedDbStore(path: Extract<SourcePath, { kind: "indexeddb
                     return;
                 }
                 scanned += 1;
-                const sanitized = sanitizeValue(cursor.value);
+                const value = guardValue(input.guard, path.dbName, path.storeName, cursor.value);
+                const sanitized = sanitizeValue(value);
                 if (valueMatchesQuery(sanitized, input.query)) {
                     if (matchedBeforeOffset < offset) {
                         matchedBeforeOffset += 1;
@@ -578,7 +611,7 @@ async function searchIndexedDbStore(path: Extract<SourcePath, { kind: "indexeddb
                             path: normalizePath(input.path),
                             key: keyToText(cursor.primaryKey),
                             preview: preview(sanitized),
-                            value: projectValue(cursor.value, fields),
+                            value: projectValue(value, fields),
                         });
                     }
                 }
@@ -691,7 +724,7 @@ export async function listLocalDataDirectory(input: LocalDataListInput = {}): Pr
         if (path.sourceType === "kv") {
             const records = (await Promise.all(path.module.sources
                 .filter((source): source is KvSource => source.type === "kv")
-                .map(readKvRecords))).flat();
+                .map(source => readKvRecords(source, input.guard)))).flat();
             return {
                 path: normalizePath(input.path),
                 entries: records.map(record => ({
@@ -704,7 +737,7 @@ export async function listLocalDataDirectory(input: LocalDataListInput = {}): Pr
         }
         const records = path.module.sources
             .filter((source): source is LocalStorageSource => source.type === "localStorage")
-            .flatMap(readLocalStorageRecords);
+            .flatMap(source => readLocalStorageRecords(source, input.guard));
         return {
             path: normalizePath(input.path),
             entries: records.map(record => ({
@@ -725,11 +758,13 @@ export async function listLocalDataDirectory(input: LocalDataListInput = {}): Pr
                 .filter(storeName => !sourceStores || sourceStores.includes(storeName));
             const entries: DirectoryEntry[] = [];
             for (const storeName of storeNames) {
+                const blocked = storeBlockReason(input.guard, path.dbName, storeName);
                 entries.push({
                     name: storeName,
                     path: `/${path.module.id}/indexeddb/${encodeSegment(path.dbName)}/${encodeSegment(storeName)}`,
                     kind: "indexeddb-store",
                     records: await countStore(path.dbName, storeName),
+                    ...(blocked ? { description: `受保护：${blocked}` } : {}),
                 });
             }
             return { path: normalizePath(input.path), entries };
@@ -740,6 +775,7 @@ export async function listLocalDataDirectory(input: LocalDataListInput = {}): Pr
 
     if (path.kind === "indexeddbStore") {
         const read = await readIndexedDbStore(path, {
+            guard: input.guard,
             path: normalizePath(input.path),
             limit: input.limit ?? DEFAULT_LIMIT,
             offset: input.offset ?? 0,
@@ -758,7 +794,7 @@ export async function listLocalDataDirectory(input: LocalDataListInput = {}): Pr
         };
     }
 
-    return readLocalDataFile({ path: normalizePath(input.path), limit: input.limit, offset: input.offset });
+    return readLocalDataFile({ guard: input.guard, path: normalizePath(input.path), limit: input.limit, offset: input.offset });
 }
 
 export async function readLocalDataFile(input: LocalDataReadInput): Promise<unknown> {
@@ -766,15 +802,15 @@ export async function readLocalDataFile(input: LocalDataReadInput): Promise<unkn
     if (path.kind === "missing") throw new Error(path.message);
     if (path.kind === "indexeddbStore") return readIndexedDbStore(path, input);
     if (path.kind === "kvFile") {
-        const records = await readKvRecords(path.source);
+        const records = await readKvRecords(path.source, input.guard);
         const record = records.find(item => item.key === path.key);
         return readKeyValueFile("kv", path.key, record?.value ?? null, input);
     }
     if (path.kind === "localStorageFile") {
-        const raw = hasLocalStorage() ? identityLocalStorage.getItem(path.key) : null;
+        const raw = guardRawOrNull(input.guard, path.key, hasLocalStorage() ? window.localStorage.getItem(path.key) : null);
         return readKeyValueFile("localStorage", path.key, raw, input);
     }
-    return listLocalDataDirectory({ path: input.path, limit: input.limit, offset: input.offset });
+    return listLocalDataDirectory({ guard: input.guard, path: input.path, limit: input.limit, offset: input.offset });
 }
 
 export async function readLocalDataRecord(input: LocalDataRecordInput): Promise<unknown> {
@@ -783,6 +819,7 @@ export async function readLocalDataRecord(input: LocalDataRecordInput): Promise<
     if (path.kind !== "indexeddbStore") {
         throw new Error("读取单条记录只支持 IndexedDB store 路径；KV/localStorage 请用读取资料文件。");
     }
+    assertStoreAllowed(input.guard, path.dbName, path.storeName);
     const db = await openDb(path.dbName);
     if (!db) throw new Error(`无法打开 IndexedDB：${path.dbName}`);
     if (!Array.from(db.objectStoreNames).includes(path.storeName)) {
@@ -792,8 +829,9 @@ export async function readLocalDataRecord(input: LocalDataRecordInput): Promise<
     const fields = normalizeFields(input);
     try {
         const transaction = db.transaction(path.storeName, "readonly");
-        const value = await runRequest(transaction.objectStore(path.storeName).get(parseRecordKey(input.key)));
-        if (value === undefined) throw new Error(`记录不存在：${input.key}`);
+        const stored = await runRequest(transaction.objectStore(path.storeName).get(parseRecordKey(input.key)));
+        if (stored === undefined) throw new Error(`记录不存在：${input.key}`);
+        const value = guardValue(input.guard, path.dbName, path.storeName, stored);
         return {
             path: normalizePath(input.path),
             key: input.key,
@@ -813,15 +851,15 @@ export async function inspectLocalDataFields(input: LocalDataFieldsInput): Promi
     let sampleValues: unknown[] = [];
 
     if (path.kind === "indexeddbStore") {
-        sampleValues = await readIndexedDbSample(path, sample);
+        sampleValues = await readIndexedDbSample(path, sample, input.guard);
     } else if (path.kind === "kvFile") {
-        const records = await readKvRecords(path.source);
+        const records = await readKvRecords(path.source, input.guard);
         const record = records.find(item => item.key === path.key);
         if (!record) throw new Error(`KV 文件不存在：${path.key}`);
         const parsed = tryParseJson(record.value);
         sampleValues = Array.isArray(parsed) ? parsed.slice(0, sample) : [parsed];
     } else if (path.kind === "localStorageFile") {
-        const raw = hasLocalStorage() ? identityLocalStorage.getItem(path.key) : null;
+        const raw = guardRawOrNull(input.guard, path.key, hasLocalStorage() ? window.localStorage.getItem(path.key) : null);
         if (raw === null) throw new Error(`localStorage 文件不存在：${path.key}`);
         const parsed = tryParseJson(raw);
         sampleValues = Array.isArray(parsed) ? parsed.slice(0, sample) : [parsed];
@@ -838,12 +876,12 @@ async function searchPath(path: SourcePath, input: LocalDataSearchInput, remaini
     const fields = normalizeFields(input);
     if (path.kind === "indexeddbStore") return searchIndexedDbStore(path, { ...input, limit: remaining, offset: 0 });
     if (path.kind === "kvFile") {
-        const records = await readKvRecords(path.source);
+        const records = await readKvRecords(path.source, input.guard);
         const record = records.find(item => item.key === path.key);
         return record ? searchKeyValueRecord("kv", `/${path.module.id}/kv`, record.key, record.value, input.query, remaining, fields) : [];
     }
     if (path.kind === "localStorageFile") {
-        const raw = hasLocalStorage() ? identityLocalStorage.getItem(path.key) : null;
+        const raw = guardRawOrNull(input.guard, path.key, hasLocalStorage() ? window.localStorage.getItem(path.key) : null);
         return raw ? searchKeyValueRecord("localStorage", `/${path.module.id}/localStorage`, path.key, raw, input.query, remaining, fields) : [];
     }
 
@@ -864,13 +902,13 @@ async function searchPath(path: SourcePath, input: LocalDataSearchInput, remaini
         for (const source of sources) {
             if (results.length >= remaining) break;
             if (source.type === "kv") {
-                const records = await readKvRecords(source);
+                const records = await readKvRecords(source, input.guard);
                 for (const record of records) {
                     if (results.length >= remaining) break;
                     results.push(...searchKeyValueRecord("kv", `/${module.id}/kv`, record.key, record.value, input.query, remaining - results.length, fields));
                 }
             } else if (source.type === "localStorage") {
-                for (const record of readLocalStorageRecords(source)) {
+                for (const record of readLocalStorageRecords(source, input.guard)) {
                     if (results.length >= remaining) break;
                     results.push(...searchKeyValueRecord("localStorage", `/${module.id}/localStorage`, record.key, record.value, input.query, remaining - results.length, fields));
                 }

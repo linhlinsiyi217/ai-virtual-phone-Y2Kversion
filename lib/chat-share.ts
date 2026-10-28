@@ -9,6 +9,21 @@ export type MusicChatSharePayload = {
     listeningContext?: MusicListeningContext;
 };
 
+export type MusicLyricChatSharePayload = {
+    type: "music_lyric";
+    title: string;
+    artist: string;
+    lyric: string;
+    authorName?: string;
+    body?: string;
+    description?: string;
+    noteType?: "post" | "video";
+    tags?: string[];
+    imageAssetId?: string;
+    coverIcon?: string;
+    tone?: string;
+};
+
 export type XiaohongshuNoteChatSharePayload = {
     type: "xiaohongshu_note";
     authorName: string;
@@ -22,7 +37,7 @@ export type XiaohongshuNoteChatSharePayload = {
     tone?: string;
 };
 
-export type ChatSharePayload = MusicChatSharePayload | XiaohongshuNoteChatSharePayload;
+export type ChatSharePayload = MusicChatSharePayload | MusicLyricChatSharePayload | XiaohongshuNoteChatSharePayload;
 
 function compactShareText(value: string | undefined, fallback: string): string {
     const text = (value || "").replace(/\s+/g, " ").trim();

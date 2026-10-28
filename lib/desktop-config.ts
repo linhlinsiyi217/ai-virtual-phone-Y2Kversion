@@ -6,6 +6,7 @@ export type IconId =
   | "music"
   | "photos"
   | "reading"
+  | "studyroom"
   | "cocreate"
   | "story"
   | "game"
@@ -56,7 +57,7 @@ export type IconMeta = {
   path?: string;
 };
 
-export const PAGE_1_DEFAULT: IconId[] = ["chat", "diary", "music", "calendar", "checkphone", "shopping", "reading", "interview_magazine"];
+export const PAGE_1_DEFAULT: IconId[] = ["chat", "diary", "music", "calendar", "checkphone", "shopping", "reading", "studyroom", "interview_magazine"];
 
 export const PAGE_2_DEFAULT: IconId[] = [
   "cocreate",
@@ -82,6 +83,7 @@ export const ICONS: Record<IconId, IconMeta> = {
   music: { id: "music", label: "\u97F3\u4E50", tone: "var(--c-icon-coral)", placeholder: false },
   photos: { id: "photos", label: "相册", tone: "var(--c-icon-blue)", placeholder: false },
   reading: { id: "reading", label: "\u9605\u8BFB", tone: "var(--c-icon-amber)", placeholder: false },
+  studyroom: { id: "studyroom", label: "书房", tone: "var(--c-icon-violet)", placeholder: false },
   cocreate: { id: "cocreate", label: "共创", tone: "var(--c-icon-cocreate, #c8b58a)", placeholder: false },
   story: { id: "story", label: "\u5267\u60C5", tone: "var(--c-icon-story, #8b6f52)", placeholder: false },
   game: { id: "game", label: "游戏", tone: "var(--c-icon-blue)", placeholder: false },

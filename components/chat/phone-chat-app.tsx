@@ -183,6 +183,19 @@ export const PhoneChatApp = memo(function PhoneChatApp({ onClose, initialSession
                         label: `${sharePayload.title} - ${sharePayload.artist}`,
                     },
                 });
+            } else if (sharePayload.type === "music_lyric") {
+                pushChatMessage({
+                    sessionId: sess.id,
+                    role: "user",
+                    content: "",
+                    mediaType: "music_share",
+                    mediaData: {
+                        musicTitle: sharePayload.title,
+                        musicArtist: sharePayload.artist,
+                        musicLyric: sharePayload.lyric,
+                        label: `${sharePayload.title} - ${sharePayload.artist}`,
+                    },
+                });
             } else {
                 const content = formatXiaohongshuShareForPrompt({
                     author: sharePayload.authorName,

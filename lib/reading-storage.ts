@@ -1,10 +1,7 @@
-import { identityIndexedDbFactory } from "@/lib/identity-runtime";
-import { identityDatabaseName } from "./identity-runtime";
-import { protectIdentityDatabase } from "./identity-db-guard";
 // lib/reading-storage.ts — Dexie IndexedDB persistence for Reading feature.
 
 import Dexie from "dexie";
-import type { Book, BookChapter, ReadingProgress, ReadingAnnotation } from "./reading-types";
+import type { Book, BookChapter, ReadingProgress, ReadingAnnotation, ReadingBookmark, ReadingNote } from "./reading-types";
 import { kvGet, kvSet, registerKvMigration } from "./kv-db";
 import { DEFAULT_READING_BILINGUAL_PROMPT } from "./bilingual-prompt-defaults";
 
@@ -16,10 +13,11 @@ class ReadingDB extends Dexie {
     progress!: Dexie.Table<ReadingProgress, string>;
     annotations!: Dexie.Table<ReadingAnnotation, string>;
     rawFiles!: Dexie.Table<{ bookId: string; data: Blob }, string>;
+    bookmarks!: Dexie.Table<ReadingBookmark, string>;
+    notes!: Dexie.Table<ReadingNote, string>;
 
     constructor() {
-        super(identityDatabaseName("reading-db"));
-        protectIdentityDatabase(this, "reading-db");
+        super("reading-db");
         this.version(1).stores({
             books: "id",
             chapters: "id, bookId, [bookId+index]",
@@ -38,6 +36,15 @@ class ReadingDB extends Dexie {
             progress: "bookId",
             annotations: "id, [bookId+chapterIndex]",
             rawFiles: "bookId",
+        });
+        this.version(4).stores({
+            books: "id, createdAt",
+            chapters: "id, bookId, [bookId+index]",
+            progress: "bookId",
+            annotations: "id, [bookId+chapterIndex]",
+            rawFiles: "bookId",
+            bookmarks: "id, bookId",
+            notes: "id, bookId, [bookId+chapterIndex]",
         });
     }
 }
@@ -112,6 +119,19 @@ export async function hydrateReadingStorage(): Promise<void> {
     _booksCache.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 }
 
+/** 卸载书房前断开 Dexie 连接，否则 indexedDB.deleteDatabase 会被阻塞。 */
+export function closeReadingStorage(): void {
+    try {
+        db.close();
+    } catch {
+        // 已经关掉或从未打开都无所谓
+    }
+    _booksCache = [];
+    _chaptersCache = new Map();
+    _progressCache = new Map();
+    _annotationsCache = new Map();
+}
+
 // ── Books ──
 
 export function loadBooks(): Book[] {
@@ -135,6 +155,8 @@ export async function deleteBook(bookId: string): Promise<void> {
     await db.chapters.where("bookId").equals(bookId).delete();
     await db.progress.delete(bookId);
     await db.annotations.where("[bookId+chapterIndex]").between([bookId, Dexie.minKey], [bookId, Dexie.maxKey]).delete();
+    await db.bookmarks.where("bookId").equals(bookId).delete();
+    await db.notes.where("bookId").equals(bookId).delete();
     await deleteRawFile(bookId).catch(() => {});
     _booksCache = null;
     _booksCache = await db.books.orderBy("createdAt").reverse().toArray();
@@ -173,6 +195,13 @@ export async function loadProgress(bookId: string): Promise<ReadingProgress | nu
     const p = await db.progress.get(bookId);
     if (p) _progressCache.set(bookId, p);
     return p || null;
+}
+
+/** 全部书的进度（书架「最近阅读」排序与书详情使用）。 */
+export async function loadAllProgress(): Promise<ReadingProgress[]> {
+    const all = await db.progress.toArray();
+    for (const p of all) _progressCache.set(p.bookId, p);
+    return all;
 }
 
 export async function saveProgress(progress: ReadingProgress): Promise<void> {
@@ -215,6 +244,12 @@ export async function saveAnnotations(annotations: ReadingAnnotation[]): Promise
     }
 }
 
+/** 汇总全部书的批注与书摘（书房「笔记区」用，按时间倒序）。 */
+export async function loadAllAnnotations(): Promise<ReadingAnnotation[]> {
+    const all = await db.annotations.toArray();
+    return all.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+}
+
 export async function deleteAnnotation(annotationId: string): Promise<void> {
     const existing = await db.annotations.get(annotationId);
     if (!existing) return;
@@ -225,6 +260,48 @@ export async function deleteAnnotation(annotationId: string): Promise<void> {
     if (cached) {
         _annotationsCache.set(key, cached.filter((annotation) => annotation.id !== annotationId));
     }
+}
+
+// ── Bookmarks（位置书签） ──
+
+export async function loadBookmarks(bookId: string): Promise<ReadingBookmark[]> {
+    return db.bookmarks.where("bookId").equals(bookId).toArray();
+}
+
+export async function loadAllBookmarks(): Promise<ReadingBookmark[]> {
+    const all = await db.bookmarks.toArray();
+    return all.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+}
+
+export async function saveBookmark(bookmark: ReadingBookmark): Promise<void> {
+    await db.bookmarks.put(bookmark);
+}
+
+export async function deleteBookmark(bookmarkId: string): Promise<void> {
+    await db.bookmarks.delete(bookmarkId);
+}
+
+// ── Notes（用户书摘 / 批注） ──
+
+export async function loadNotes(bookId: string): Promise<ReadingNote[]> {
+    return db.notes.where("bookId").equals(bookId).toArray();
+}
+
+export async function loadChapterNotes(bookId: string, chapterIndex: number): Promise<ReadingNote[]> {
+    return db.notes.where("[bookId+chapterIndex]").equals([bookId, chapterIndex]).toArray();
+}
+
+export async function loadAllNotes(): Promise<ReadingNote[]> {
+    const all = await db.notes.toArray();
+    return all.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+}
+
+export async function saveNote(note: ReadingNote): Promise<void> {
+    await db.notes.put(note);
+}
+
+export async function deleteNote(noteId: string): Promise<void> {
+    await db.notes.delete(noteId);
 }
 
 // ── Reading Interaction Config ──
@@ -254,7 +331,7 @@ function openRawFileDatabaseAt(version?: number): Promise<IDBDatabase> {
     return new Promise((resolve, reject) => {
         let request: IDBOpenDBRequest;
         try {
-            request = version ? identityIndexedDbFactory().open(identityDatabaseName(RAW_FILE_DB_NAME), version) : identityIndexedDbFactory().open(identityDatabaseName(RAW_FILE_DB_NAME));
+            request = version ? indexedDB.open(RAW_FILE_DB_NAME, version) : indexedDB.open(RAW_FILE_DB_NAME);
         } catch (err) {
             reject(err);
             return;

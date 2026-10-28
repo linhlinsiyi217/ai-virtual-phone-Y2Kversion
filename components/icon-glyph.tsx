@@ -55,6 +55,7 @@ const MDI_PATHS: Record<IconId, string> = {
   music: mdiMusic,
   photos: mdiImageMultiple,
   reading: mdiBookOpenVariant,
+  studyroom: mdiBookOpenVariant,
   cocreate: mdiFeather,
   story: mdiMovie,
   game: mdiGamepadVariant,

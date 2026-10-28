@@ -324,7 +324,8 @@ export type ChatMessage = {
         adminTargetName?: string; // 群管理操作目标显示名
         adminMuteMinutes?: number;// 禁言时长（分钟）
         musicTitle?: string;      // 音乐标题
-        musicArtist?: string;     // 音乐歌手
+        musicArtist?: string;
+        musicLyric?: string;     // 音乐歌手
         musicCoverUrl?: string;   // Preserve the selected album art for lyric shares.
         musicTrack?: import("./music-storage").MusicTrack; // Fixed recording; never persist an expiring play URL.
         musicResolution?: "pending" | "resolved" | "unresolved";
@@ -337,6 +338,7 @@ export type ChatMessage = {
         xiaohongshuImageAssetId?: string;
         xiaohongshuCoverIcon?: string;
         xiaohongshuTone?: string;
+        studyRoomShare?: Record<string, unknown>;
         callDuration?: string;    // 通话时长（如 05:23）
         voiceDuration?: number;   // 语音条时长（秒）
         speechText?: string; // Role-authored speech directions, separate from the visible transcript.
