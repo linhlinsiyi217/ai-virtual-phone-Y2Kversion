@@ -1,0 +1,1206 @@
+/* x-app.css — X 应用（仿 X/Twitter）—— 自 wanwan/css/x-page.css 迁移，作用域收窄到 .x-app-root */
+
+.x-app-root {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  --x-bg: #000000;
+  --x-text: #e7e9ea;
+  --x-strong: #f4f6f8;
+  --x-sub: #71767b;
+  --x-border: #2f3336;
+  --x-border-strong: #536471;
+  --x-hover: rgba(231, 233, 234, 0.08);
+  --x-topbar: rgba(0, 0, 0, 0.65);
+  --x-pill-bg: #eff3f4;
+  --x-pill-text: #0f1419;
+  --x-accent: #1d9bf0;
+  background: var(--x-bg);
+  color: var(--x-text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+.x-app-root > div {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* ===== 顶部导航栏 ===== */
+.x-app-root .x-topbar {
+  flex-shrink: 0;
+  z-index: 10;
+  background: var(--x-topbar);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--x-border);
+  /* 顶部偏移只算一次：给全局状态栏让位（48px / PWA 系统安全区），
+     原来的 env(safe-area-inset-top) 在桌面窗口下是 0，标题行被状态栏盖住 */
+  padding-top: var(--page-header-safe-top, max(48px, env(safe-area-inset-top, 48px)));
+}
+
+.x-app-root .x-topbar-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 53px;
+  padding: 0 16px;
+}
+
+.x-app-root .x-topbar-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+  cursor: pointer;
+  padding: 0;
+  border: none;
+  background: transparent;
+}
+
+.x-app-root .x-topbar-avatar img {
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  object-fit: cover;
+  display: block;
+  border-radius: inherit;
+}
+
+.x-app-root .x-topbar-logo {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+}
+
+.x-app-root .x-topbar-logo svg {
+  width: 24px;
+  height: 24px;
+  fill: var(--x-text);
+}
+
+.x-app-root .x-topbar-right {
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  color: var(--x-sub);
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ===== 标签栏 ===== */
+.x-app-root .x-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--x-border);
+}
+
+.x-app-root .x-tab {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 53px;
+  font-size: 15px;
+  color: var(--x-sub);
+  font-weight: 500;
+  cursor: pointer;
+  position: relative;
+  transition: background 0.2s;
+  background: transparent;
+  border: none;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.x-app-root .x-tab:active {
+  background: var(--x-hover);
+}
+
+.x-app-root .x-tab.active {
+  color: var(--x-text);
+  font-weight: 700;
+}
+
+.x-app-root .x-tab.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 72px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--x-accent);
+}
+
+.x-app-root .x-tab-arrow {
+  display: inline-flex;
+}
+
+.x-app-root .x-tab-arrow svg {
+  width: 14px;
+  height: 14px;
+  fill: var(--x-sub);
+}
+
+/* ===== G14 搜索栏（真实过滤当前 tab） ===== */
+.x-app-root .x-searchbar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--x-border);
+  background: var(--x-bg);
+}
+
+.x-app-root .x-search-input {
+  flex: 1;
+  height: 38px;
+  border-radius: 999px;
+  border: 1px solid var(--x-border);
+  background: var(--x-hover, rgba(231, 233, 234, 0.08));
+  color: var(--x-text);
+  padding: 0 16px;
+  font-size: 15px;
+  min-width: 0;
+}
+
+.x-app-root .x-search-input:focus {
+  outline: none;
+  border-color: var(--x-accent);
+}
+
+.x-app-root .x-search-input::placeholder {
+  color: var(--x-sub);
+}
+
+.x-app-root .x-search-cancel {
+  flex-shrink: 0;
+  border: none;
+  background: none;
+  color: var(--x-accent);
+  font-size: 15px;
+  cursor: pointer;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ===== 帖子列表 ===== */
+.x-app-root .x-feed {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.x-app-root .x-feed-empty {
+  padding: 60px 24px;
+  text-align: center;
+  color: var(--x-sub);
+  font-size: 14px;
+}
+
+/* ===== 单条帖子 ===== */
+.x-app-root .x-post {
+  display: flex;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--x-border);
+  transition: background 0.15s;
+}
+
+.x-app-root .x-post:active {
+  background: var(--x-hover);
+}
+
+.x-app-root .x-post-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+  margin-right: 12px;
+  position: relative; /* G14：角色头像右下角的在线状态小点以它为基准 */
+}
+
+.x-app-root .x-post-avatar img {
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  object-fit: cover;
+  display: block;
+  border-radius: inherit;
+}
+
+.x-app-root .x-post-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.x-app-root .x-post-header {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  line-height: 20px;
+}
+
+.x-app-root .x-post-name {
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--x-text);
+}
+
+.x-app-root .x-post-verified {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.x-app-root .x-post-verified svg {
+  width: 18px;
+  height: 18px;
+  fill: #e8a819;
+}
+
+.x-app-root .x-post-handle,
+.x-app-root .x-post-time {
+  font-size: 15px;
+  color: var(--x-sub);
+  font-weight: 400;
+}
+
+.x-app-root .x-post-dot {
+  color: var(--x-sub);
+  font-size: 15px;
+}
+
+.x-app-root .x-post-more {
+  margin-left: auto;
+  padding: 0 4px;
+  color: var(--x-sub);
+  display: flex;
+  align-items: center;
+}
+
+.x-app-root .x-post-more svg {
+  width: 18.75px;
+  height: 18.75px;
+  fill: var(--x-sub);
+}
+
+.x-app-root .x-post-content {
+  margin-top: 4px;
+  font-size: 15px;
+  line-height: 1.4;
+  color: var(--x-text);
+  word-break: break-word;
+}
+
+.x-app-root .x-hashtag {
+  color: var(--x-accent);
+}
+
+/* ===== 帖子底部操作栏 ===== */
+.x-app-root .x-post-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 12px;
+  max-width: 425px;
+  gap: 2px;
+}
+
+.x-app-root .x-post-action {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--x-sub);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 0;
+  border: none;
+  background: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: color 0.15s;
+}
+
+.x-app-root .x-post-action svg {
+  width: 18.75px;
+  height: 18.75px;
+  fill: currentColor;
+}
+
+.x-app-root .x-post-action.comment:active {
+  color: var(--x-accent);
+}
+
+.x-app-root .x-post-action.retweet:active {
+  color: #00ba7c;
+}
+
+.x-app-root .x-post-action.like:active {
+  color: #f91880;
+}
+
+.x-app-root .x-post-action.like.liked {
+  color: #f91880;
+}
+
+.x-app-root .x-post-action.views:active,
+.x-app-root .x-post-action.bookmark:active,
+.x-app-root .x-post-action.share:active {
+  color: var(--x-accent);
+}
+
+/* 浏览量改成非按钮展示（G14：展示数据不做假交互） */
+.x-app-root .x-post-action.views {
+  cursor: default;
+}
+
+/* 收藏高亮（G14：收藏按钮真实化） */
+.x-app-root .x-post-action.bookmark.bookmarked {
+  color: #ffb800;
+}
+
+/* ===== G14 角色圈：活人感徽章 / 动态配图 / 在线点 ===== */
+.x-app-root .x-char-active {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--x-sub);
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.x-app-root .x-char-active.online {
+  color: #00ba7c;
+}
+
+.x-app-root .x-char-active.online::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #00ba7c;
+}
+
+.x-char-online-dot {
+  position: absolute;
+  /* .x-post-avatar 有 overflow:hidden，小点完全收在头像右下角内 */
+  right: 0;
+  bottom: 0;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #00ba7c;
+  border: 2px solid var(--x-bg, #fff);
+}
+
+.x-app-root .x-char-photo {
+  display: block;
+  width: 100%;
+  max-width: 320px;
+  max-height: 320px;
+  object-fit: cover;
+  border-radius: 16px;
+  margin-top: 10px;
+  border: 1px solid var(--x-border);
+}
+
+/* ===== G14 评论区（本机帖 + 角色圈共用） ===== */
+.x-app-root .x-comment-panel {
+  margin-top: 10px;
+  border-top: 1px solid var(--x-border);
+  padding-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.x-app-root .x-comment-input-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.x-app-root .x-comment-input {
+  flex: 1;
+  height: 34px;
+  border: 1px solid var(--x-border);
+  border-radius: 999px;
+  padding: 0 14px;
+  font-size: 13px;
+  color: var(--x-text);
+  background: var(--x-hover, rgba(0, 0, 0, 0.03));
+}
+
+.x-app-root .x-comment-input:focus {
+  outline: none;
+  border-color: var(--x-accent);
+}
+
+.x-app-root .x-comment-send {
+  flex-shrink: 0;
+  height: 34px;
+  padding: 0 14px;
+  border: none;
+  border-radius: 999px;
+  background: var(--x-accent);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.x-app-root .x-comment-send:active {
+  opacity: 0.85;
+}
+
+.x-app-root .x-comment-empty {
+  font-size: 12px;
+  color: var(--x-sub);
+  padding: 2px 2px 0;
+}
+
+.x-app-root .x-comment-item {
+  display: flex;
+  gap: 8px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.x-app-root .x-comment-author {
+  flex-shrink: 0;
+  font-weight: 700;
+  color: var(--x-text);
+}
+
+.x-app-root .x-comment-text {
+  color: var(--x-text);
+  overflow-wrap: anywhere;
+}
+
+/* ===== 头像占位 ===== */
+.x-app-root .x-avatar-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--x-accent);
+  color: #fff;
+  font-size: 20px;
+  font-weight: 500;
+}
+
+/* ===== 发帖按钮 (FAB) ===== */
+.x-app-root .x-fab {
+  position: absolute;
+  bottom: calc(60px + env(safe-area-inset-bottom, 0px) + 16px);
+  right: 20px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--x-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(29, 155, 240, 0.3);
+  cursor: pointer;
+  z-index: 5;
+  border: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s;
+}
+
+.x-app-root .x-fab:active {
+  background: #1a8cd8;
+}
+
+.x-app-root .x-fab svg {
+  width: 24px;
+  height: 24px;
+  fill: #fff;
+}
+
+/* ===== 底部导航栏 ===== */
+.x-app-root .x-bottombar {
+  flex-shrink: 0;
+  background: var(--x-bg);
+  border-top: 1px solid var(--x-border);
+  display: flex;
+  align-items: stretch;
+  padding-bottom: env(safe-area-inset-bottom, 0);
+  z-index: 10;
+}
+
+.x-app-root .x-bottombar-item {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 53px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s;
+}
+
+.x-app-root .x-bottombar-item:active {
+  background: var(--x-hover);
+}
+
+.x-app-root .x-bottombar-item svg {
+  width: 26px;
+  height: 26px;
+  fill: var(--x-text);
+  transition: fill 0.15s;
+}
+
+.x-app-root .x-bottombar-item .icon-default {
+  display: block;
+  display: flex;
+}
+
+.x-app-root .x-bottombar-item .icon-active {
+  display: none;
+}
+
+.x-app-root .x-bottombar-item.active .icon-default {
+  display: none;
+}
+
+.x-app-root .x-bottombar-item.active .icon-active {
+  display: block;
+  display: flex;
+}
+
+.x-app-root .x-bottombar-item.active svg {
+  fill: var(--x-accent);
+}
+
+/* ===== 发帖页面 ===== */
+.x-app-root .x-compose-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: calc(10px + env(safe-area-inset-top, 0)) 16px 10px;
+  flex-shrink: 0;
+}
+
+.x-app-root .x-compose-cancel {
+  background: none;
+  border: none;
+  color: var(--x-text);
+  font-size: 15px;
+  font-weight: 400;
+  cursor: pointer;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.x-app-root .x-compose-publish {
+  background: var(--x-accent);
+  border: none;
+  color: #fff;
+  font-size: 14.5px;
+  font-weight: 700;
+  border-radius: 9999px;
+  padding: 7px 18px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.x-app-root .x-compose-body {
+  flex: 1;
+  display: flex;
+  align-items: flex-start;
+  padding: 16px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.x-app-root .x-compose-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+  margin-right: 12px;
+}
+
+.x-app-root .x-compose-avatar img {
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  object-fit: cover;
+  display: block;
+  border-radius: inherit;
+}
+
+.x-app-root .x-compose-input {
+  flex: 1;
+  font-size: 20px;
+  line-height: 1.4;
+  color: var(--x-text);
+  outline: none;
+  min-height: 80px;
+  word-break: break-word;
+  background: transparent;
+  border: none;
+  resize: none;
+  padding: 6px 0 0;
+  font-family: inherit;
+}
+
+.x-app-root .x-compose-input::placeholder {
+  color: var(--x-sub);
+}
+
+.x-app-root .x-compose-footer {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  border-top: 1px solid var(--x-border);
+  padding-bottom: calc(8px + env(safe-area-inset-bottom, 0));
+}
+
+.x-app-root .x-compose-tools {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.x-app-root .x-compose-tool {
+  background: none;
+  border: none;
+  padding: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--x-accent);
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ===== X 登录页 ===== */
+.x-app-root .x-login-page {
+  background: var(--x-bg);
+  color: var(--x-text);
+  z-index: 60;
+  overflow: hidden;
+}
+
+.x-app-root .x-login-close {
+  position: absolute;
+  top: var(--page-header-safe-top, max(48px, env(safe-area-inset-top, 48px)));
+  left: 12px;
+  width: 38px;
+  height: 38px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--x-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.x-app-root .x-login-close:active {
+  background: var(--x-hover);
+}
+
+.x-app-root .x-login-shell {
+  width: 100%;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: calc(58px + env(safe-area-inset-top, 0)) 32px calc(32px + env(safe-area-inset-bottom, 0));
+}
+
+.x-app-root .x-login-logo {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 34px;
+}
+
+.x-app-root .x-login-logo svg {
+  width: 34px;
+  height: 34px;
+  fill: var(--x-text);
+}
+
+.x-app-root .x-login-title {
+  font-size: 30px;
+  line-height: 1.15;
+  font-weight: 800;
+  margin-bottom: 8px;
+}
+
+.x-app-root .x-login-subtitle {
+  color: var(--x-sub);
+  font-size: 15px;
+  line-height: 1.45;
+  margin-bottom: 28px;
+}
+
+.x-app-root .x-login-wechat {
+  width: 100%;
+  min-height: 52px;
+  border-radius: 999px;
+  border: 1px solid var(--x-border-strong);
+  background: var(--x-pill-bg);
+  color: var(--x-pill-text);
+  font-size: 15px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 0 18px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.x-app-root .x-login-wechat:active {
+  opacity: 0.88;
+}
+
+.x-app-root .x-login-users {
+  margin-top: 18px;
+  border-top: 1px solid var(--x-border);
+  max-height: min(320px, 38vh);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.x-app-root .x-login-user {
+  width: 100%;
+  min-height: 66px;
+  border: 0;
+  border-bottom: 1px solid var(--x-border);
+  background: transparent;
+  color: var(--x-text);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.x-app-root .x-login-user:active {
+  background: var(--x-hover);
+}
+
+.x-app-root .x-login-user-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+  display: flex;
+}
+
+.x-app-root .x-login-user-avatar img {
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  object-fit: cover;
+  display: block;
+  border-radius: inherit;
+}
+
+.x-app-root .x-login-user-main {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.x-app-root .x-login-user-name {
+  color: var(--x-text);
+  font-size: 15px;
+  line-height: 1.35;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.x-app-root .x-login-user-account {
+  color: var(--x-sub);
+  font-size: 13px;
+  line-height: 1.35;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.x-app-root .x-login-user > svg {
+  color: var(--x-sub);
+  flex-shrink: 0;
+}
+
+.x-app-root .x-login-empty {
+  min-height: 92px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: var(--x-sub);
+  font-size: 14px;
+  text-align: center;
+}
+
+.x-app-root .x-login-empty span {
+  font-size: 12px;
+  color: var(--x-border-strong);
+}
+
+/* ===== X 个人主页 ===== */
+.x-app-root .x-profile-page {
+  background: var(--x-bg);
+  color: var(--x-text);
+  z-index: 60;
+  overflow: hidden;
+}
+
+.x-app-root .x-profile-cover {
+  position: relative;
+  height: min(28vh, 188px);
+  min-height: 154px;
+  flex-shrink: 0;
+  overflow: hidden;
+  background: var(--x-accent);
+  background-size: cover;
+  background-position: center;
+}
+
+.x-app-root .x-profile-circle-btn {
+  position: absolute;
+  top: calc(10px + env(safe-area-inset-top, 0));
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 0;
+  background: rgba(15, 43, 67, 0.88);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.x-app-root .x-profile-circle-btn:active {
+  background: rgba(15, 43, 67, 0.72);
+}
+
+.x-app-root .x-profile-back {
+  left: 14px;
+}
+
+.x-app-root .x-profile-edit {
+  right: 58px;
+}
+
+.x-app-root .x-profile-switch {
+  right: 14px;
+}
+
+.x-app-root .x-profile-main {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  background: var(--x-bg);
+  padding: 58px 20px 28px;
+}
+
+.x-app-root .x-profile-avatar {
+  position: absolute;
+  top: -34px;
+  left: 20px;
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 6px solid var(--x-bg);
+  background: var(--x-accent);
+  display: flex;
+}
+
+.x-app-root .x-profile-avatar img {
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  object-fit: cover;
+  display: block;
+  border-radius: inherit;
+}
+
+.x-app-root .x-profile-name {
+  color: var(--x-strong);
+  font-size: 24px;
+  line-height: 1.12;
+  font-weight: 800;
+  word-break: break-word;
+}
+
+.x-app-root .x-profile-handle {
+  margin-top: 5px;
+  color: var(--x-sub);
+  font-size: 15px;
+  line-height: 1.25;
+  font-weight: 600;
+  word-break: break-word;
+}
+
+.x-app-root .x-profile-joined {
+  margin-top: 22px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--x-sub);
+  font-size: 14px;
+  line-height: 1.25;
+  font-weight: 600;
+}
+
+.x-app-root .x-profile-stats {
+  margin-top: 18px;
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  color: var(--x-sub);
+  font-size: 15px;
+  line-height: 1.25;
+  font-weight: 600;
+}
+
+.x-app-root .x-profile-stats strong {
+  color: var(--x-text);
+  font-size: 15px;
+  font-weight: 800;
+}
+
+@media (max-width: 380px) {
+  .x-app-root .x-profile-cover {
+    min-height: 146px;
+  }
+
+  .x-app-root .x-profile-main {
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+
+  .x-app-root .x-profile-avatar {
+    left: 18px;
+    width: 82px;
+    height: 82px;
+  }
+
+  .x-app-root .x-profile-name {
+    font-size: 23px;
+  }
+
+  .x-app-root .x-profile-handle,
+  .x-app-root .x-profile-stats,
+  .x-app-root .x-profile-stats strong {
+    font-size: 14px;
+  }
+
+  .x-app-root .x-profile-joined {
+    font-size: 13px;
+  }
+}
+
+/* ===== X 个人主页编辑页 ===== */
+.x-app-root .x-profile-edit-page {
+  background: var(--x-bg);
+  color: var(--x-text);
+  z-index: 61;
+  overflow: hidden;
+}
+
+.x-app-root .x-profile-edit-header {
+  min-height: 56px;
+  padding: calc(10px + env(safe-area-inset-top, 0)) 14px 10px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid var(--x-border);
+  flex-shrink: 0;
+}
+
+.x-app-root .x-profile-edit-back {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  color: var(--x-text);
+  background: transparent;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.x-app-root .x-profile-edit-back:active {
+  background: var(--x-hover);
+}
+
+.x-app-root .x-profile-edit-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 17px;
+  line-height: 1.2;
+  font-weight: 700;
+}
+
+.x-app-root .x-profile-edit-save {
+  min-width: 58px;
+  height: 34px;
+  border-radius: 999px;
+  background: var(--x-pill-bg);
+  color: var(--x-pill-text);
+  font-size: 14px;
+  font-weight: 700;
+  padding: 0 14px;
+  border: none;
+  cursor: pointer;
+}
+
+.x-app-root .x-profile-edit-save:active {
+  opacity: 0.88;
+}
+
+.x-app-root .x-profile-edit-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 16px 18px calc(28px + env(safe-area-inset-bottom, 0));
+}
+
+.x-app-root .x-profile-edit-cover {
+  width: 100%;
+  height: 132px;
+  border-radius: 8px;
+  background: var(--x-accent);
+  background-size: cover;
+  background-position: center;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  margin-bottom: 0;
+  border: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.x-app-root .x-profile-edit-cover span {
+  min-height: 34px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: rgba(15, 43, 67, 0.78);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.x-app-root .x-profile-edit-avatar {
+  width: 78px;
+  height: 78px;
+  border-radius: 50%;
+  border: 5px solid var(--x-bg);
+  background: var(--x-accent);
+  overflow: hidden;
+  margin: -34px 0 16px 12px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 0;
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+}
+
+.x-app-root .x-profile-edit-avatar img {
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  object-fit: cover;
+  display: block;
+  border-radius: inherit;
+}
+
+.x-app-root .x-profile-edit-field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  color: var(--x-sub);
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 14px;
+}
+
+.x-app-root .x-profile-edit-field .input-field {
+  width: 100%;
+  min-height: 46px;
+  border-radius: 8px;
+  border: 1px solid var(--x-border);
+  background: var(--x-bg);
+  color: var(--x-text);
+  font-size: 15px;
+  padding: 0 12px;
+}
+
+.x-app-root .x-profile-edit-field .input-field:focus {
+  border-color: var(--x-accent);
+  outline: none;
+}
+
+.x-app-root .x-profile-edit-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+@media (max-width: 380px) {
+  .x-app-root .x-profile-edit-scroll {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .x-app-root .x-profile-edit-grid {
+    gap: 10px;
+  }
+}
