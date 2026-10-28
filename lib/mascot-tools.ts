@@ -1185,6 +1185,7 @@ function numberOption(value: unknown, fallback: number): number {
 // ── 原生协议下的工具定义 ─────────────────────────────────
 
 const MASCOT_NATIVE_TOOL_NAMES: Record<string, string> = {
+    "读取审美规范": "mascot_read_aesthetic_guide",
     "导航": "mascot_navigate",
     "读取CSS": "mascot_read_css",
     "覆写CSS": "mascot_write_css",
@@ -1251,6 +1252,7 @@ const MASCOT_NATIVE_TOOL_NAMES: Record<string, string> = {
 };
 
 const MASCOT_NATIVE_LOADER_NAMES: Record<string, string> = {
+    aesthetic_pack: "mascot_load_aesthetic_pack",
     css_pack: "mascot_load_css_pack",
     image_pack: "mascot_load_image_pack",
     character_pack: "mascot_load_character_pack",
