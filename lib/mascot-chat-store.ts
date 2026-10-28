@@ -106,6 +106,24 @@ function normalizeMessages(nextMessages: MascotMsg[]): MascotMsg[] {
     return nextMessages.map(withTimestamp).slice(-MAX_STORED_MASCOT_MESSAGES);
 }
 
+function inferMascotPackagesForIntent(text: string, current: string[]): string[] {
+    const value = text.toLowerCase();
+    const rules: Array<[string, RegExp]> = [
+        ["character_pack", /(创建|新建|添加|修改|更新|删除|读取).{0,8}(角色|角色卡)|角色卡/],
+        ["preset_pack", /(创建|新建|写|修改|更新|读取|克隆|复制).{0,8}(预设|prompt)|预设/],
+        ["worldbook_pack", /(创建|新建|修改|更新|读取|删除).{0,8}(世界书|词条)|世界书/],
+        ["regex_pack", /(创建|新建|修改|更新|读取|删除).{0,8}(正则)|正则/],
+        ["css_pack", /(修改|美化|读取|覆写|清除).{0,8}(css|样式|界面)|css|样式|美化/],
+        ["image_pack", /(图片|图像|生图|图床|素材|头像)/],
+        ["aesthetic_pack", /(审美|美学|视觉规范|风格规范)/],
+    ];
+    let next = current;
+    for (const [packageId, pattern] of rules) {
+        if (pattern.test(value)) next = touchExpandedPackage(next, packageId);
+    }
+    return next;
+}
+
 export type ClearMascotToolHistoryResult = {
     messages: MascotMsg[];
     deletedMessages: number;
@@ -521,6 +539,13 @@ export async function generateMascotReply({
     const controller = new AbortController();
     abortController = controller;
     let expandedPackageIds = loadExpandedPackages();
+    // 用户明确提出写入型请求时，先把对应套件展开，让原生协议直接拿到真实工具；
+    // 这样“创建角色/写预设”不会退化成只在聊天里输出一张草稿卡。
+    const inferredPackages = inferMascotPackagesForIntent(latestVisibleMessage?.text || "", expandedPackageIds);
+    if (inferredPackages.join("|") !== expandedPackageIds.join("|")) {
+        expandedPackageIds = inferredPackages;
+        saveExpandedPackages(expandedPackageIds);
+    }
     // 每次用户发送消息就是一次独立任务；最多 8 轮工具调用共享同一备份集合。
     const toolCtx: MascotToolContext = {
         pageContext: context,
