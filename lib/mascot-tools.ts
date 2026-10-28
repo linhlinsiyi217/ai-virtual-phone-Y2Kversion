@@ -83,6 +83,24 @@ const CLEAR_CSS_SCHEMA = {
     additionalProperties: false,
 };
 
+// ── 审美规范工具 ──
+const AESTHETIC_GUIDE_SCHEMA = {
+    type: "object",
+    properties: {
+        target: { type: "string", enum: ["chat", "character", "studyroom", "image", "desktop"], description: "目标：聊天、角色卡、书房、图片素材或桌面；不传则返回总规范。" },
+    },
+    additionalProperties: false,
+};
+
+const AESTHETIC_GUIDE: Record<string, string> = {
+    all: "统一原则：先保证信息层级和可读性，再做装饰；主色不超过三种，强调色只用于可操作状态；圆角、阴影、留白和字体粗细保持同一套节奏；不要为了好看牺牲按钮触达、滚动和安全区。素材要有明确用途、尺寸和对比度，避免随机渐变、过量玻璃和无意义装饰。",
+    chat: "聊天审美：气泡优先保证长文本阅读、引用层级和头像识别；用户消息、角色消息、系统提示要有稳定的颜色与间距规则；图片、语音、歌词卡使用同一套卡片边界，不把重要文字压在复杂背景上。",
+    character: "角色卡审美：角色头像构图要保留脸部和辨识特征，拍立得比例与位置要稳定；角色名、标签、人设摘要形成清晰层级；装饰服务于角色气质，不能遮挡头像、拖拽区域或编辑入口。",
+    studyroom: "书房审美：正文保持纸感和高对比，书架卡片保持安静、克制、留白充足；阅读器、书友圈、书桌共享同一套标题、分组和按钮规则；底部 Dock 必须避开内容，弹层必须有遮罩、层级和安全区。",
+    image: "图片素材审美：先确定用途（气泡、图标、纹理、背景），再决定尺寸、透明度和边缘；生成气泡或图标时保留主体四周留白，避免文字、水印和随机边框；上传图床前先压缩并确认公开 URL 可用。",
+    desktop: "桌面审美：图标标签、组件和壁纸形成稳定的网格关系；动效只提示状态变化，不持续打扰；浅色和深色主题都要保持文字对比度与触控面积。",
+};
+
 // ── 图像处理工具 ──
 const IMAGE_ASSET_KIND_ENUM = ["bubble", "icon", "texture", "background", "misc"];
 
@@ -916,6 +934,15 @@ const MIX_SAVE_RECIPE_SCHEMA = {
 
 export const MASCOT_TOOL_PACKAGES: MascotToolPackage[] = [
     {
+        id: "aesthetic_pack",
+        label: "审美规范套件",
+        description: "在修改界面、角色卡、书房或图片素材前读取统一的视觉与交互规则，避免局部好看但整体失控。",
+        subTools: [
+            { name: "读取审美规范", description: "返回指定目标的审美、层级、留白、对比度和可用性规则。做视觉修改前先读取。", parameterSchema: AESTHETIC_GUIDE_SCHEMA },
+        ],
+        usageGuide: "先读取对应目标的审美规范，再读取现有 CSS 或素材状态；修改时保留原有功能、触控区域、滚动和安全区。",
+    },
+    {
         id: "css_pack",
         label: "CSS样式套件",
         description: "查看 / 覆写 / 清除 各页面的自定义 CSS。工作流：先 读取CSS 拿到当前内容和可用选择器，再把（要保留的旧内容 + 要修改的部分）拼成完整新内容，最后 覆写CSS 写回。",
@@ -1316,6 +1343,9 @@ export type MascotToolContext = {
 export async function executeMascotToolCall(call: ToolCall, ctx: MascotToolContext): Promise<ToolResult> {
     try {
         switch (call.name) {
+            // ─── 审美规范 ───
+            case "读取审美规范": return handleReadAestheticGuide(call.args);
+
             // ─── CSS ───
             case "读取CSS": return await handleReadCss(call.args, ctx);
             case "覆写CSS": return await handleOverwriteCss(call.args, ctx);
@@ -1412,6 +1442,11 @@ export async function executeMascotToolCall(call: ToolCall, ctx: MascotToolConte
     } catch (err) {
         return { name: call.name, success: false, error: (err as Error).message };
     }
+}
+
+function handleReadAestheticGuide(args: Record<string, unknown>): ToolResult {
+    const target = typeof args.target === "string" && Object.prototype.hasOwnProperty.call(AESTHETIC_GUIDE, args.target) ? args.target : "all";
+    return { name: "读取审美规范", success: true, data: JSON.stringify({ target, guide: AESTHETIC_GUIDE[target] }) };
 }
 
 // ── Image Asset Handlers ───────────────────────
