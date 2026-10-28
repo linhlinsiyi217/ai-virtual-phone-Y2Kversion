@@ -1,6 +1,7 @@
 import { identityIndexedDbFactory, identityDatabaseName } from "@/lib/identity-runtime";
 import { getMascotContext, type MascotPageContext } from "./mascot-context";
 import { mascotFillField } from "./mascot-events";
+import type { ToolCall } from "./tool-executor";
 import {
     mascotChatWithTools,
     type MascotMsg,
@@ -104,6 +105,35 @@ function withTimestamp(msg: MascotMsg): MascotMsg {
 
 function normalizeMessages(nextMessages: MascotMsg[]): MascotMsg[] {
     return nextMessages.map(withTimestamp).slice(-MAX_STORED_MASCOT_MESSAGES);
+}
+
+
+function extractFallbackCharacterName(input: string, assistant: string): string | null {
+    const text = `${input}\n${assistant}`;
+    const patterns = [
+        /(?:角色名称|角色名|姓名)\s*[:：]\s*([^\n，。,；;]+)/,
+        /名字叫(?:做|作)?\s*([^\s，。,；;]+)/,
+        /叫做\s*([^\s，。,；;]+)/,
+    ];
+    for (const pattern of patterns) {
+        const match = text.match(pattern);
+        const value = match?.[1]?.trim();
+        if (value && value.length <= 40) return value;
+    }
+    return null;
+}
+
+function buildFallbackCharacterCall(input: string, assistant: string): ToolCall | null {
+    if (!/(帮我|请|想要|我要|给我|直接).{0,12}(创建|新建|添加).{0,12}(角色|角色卡)/.test(input) && !/(创建|新建|添加)一个?角色/.test(input)) return null;
+    const name = extractFallbackCharacterName(input, assistant);
+    if (!name) return null;
+    const persona = [input.trim(), assistant.trim()].filter(Boolean).join("\n\n");
+    const personalityMatch = assistant.match(/(?:性格特质|性格|人格特征)\s*[:：]?\s*([\s\S]{0,900}?)(?=\n(?:语言风格|说话风格|表达限制|角色卡|$))/);
+    const personality = personalityMatch?.[1]?.trim() || input.slice(0, 500).trim() || "按照用户提供的角色设定行动";
+    return {
+        name: "创建角色",
+        args: { name, persona, personality },
+    };
 }
 
 function inferMascotPackagesForIntent(text: string, current: string[]): string[] {
@@ -552,6 +582,7 @@ export async function generateMascotReply({
         history: workingMessages,
         characterBackupIds: new Set<string>(),
     };
+    let fallbackHandled = false;
 
     try {
         for (let round = 0; round < MAX_ROUNDS; round += 1) {
@@ -614,6 +645,36 @@ export async function generateMascotReply({
                 },
             );
             if (streamedDisplay) await paintStream(true);
+
+            // 有些模型会把“创建角色”误答成一张文本角色卡而不发 tool call。
+            // 明确写入请求不能停在草稿：从用户请求 + 模型草稿提取最小字段，直接执行真实工具。
+            const fallbackCall = !fallbackHandled && response.toolCalls.length === 0 && response.toolFetches.length === 0
+                ? buildFallbackCharacterCall(latestVisibleMessage.text || "", response.rawAssistant)
+                : null;
+            if (fallbackCall) {
+                fallbackHandled = true;
+                toolCtx.history = workingMessages;
+                const result = await executeMascotToolCall(fallbackCall, toolCtx);
+                if (result.success) mascotFillField({ field: fallbackCall.name, value: result.data || "" });
+                const assistantMsg: MascotMsg = {
+                    role: "mascot",
+                    text: response.rawAssistant,
+                    displayText: response.reply.join("\n") || "我先把角色设定整理好，正在写入角色卡…",
+                    createdAt: new Date().toISOString(),
+                };
+                workingMessages = normalizeMessages([...workingMessages, assistantMsg, {
+                    role: "tool",
+                    text: result.success ? (result.data || "已创建角色") : (result.error || "创建角色失败"),
+                    hidden: false,
+                    displayText: result.success ? (result.data || "已创建角色") : (result.error || "创建角色失败"),
+                    toolName: fallbackCall.name,
+                    toolDisplayName: fallbackCall.name,
+                    toolSuccess: result.success,
+                    createdAt: new Date().toISOString(),
+                }]);
+                publishMessages(workingMessages);
+                continue;
+            }
 
             const displayReply = response.reply.join("\n");
             const assistantMsg: MascotMsg = {
