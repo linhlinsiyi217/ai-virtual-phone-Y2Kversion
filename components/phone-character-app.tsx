@@ -53,6 +53,7 @@ import {
 import { notifyMascotPageContext } from "@/lib/mascot-events";
 import { kvGet, kvSet } from "@/lib/kv-db";
 import { normalizeTimeZone } from "@/lib/character-time";
+import { removeCharacterChatReferences } from "@/lib/character-chat-cleanup";
 
 type ViewType = "list" | "detail";
 
@@ -309,10 +310,12 @@ export function PhoneCharacterApp({ onClose, onNotice }: PhoneCharacterAppProps)
               setView({ type: "detail", id: existing.id, isEditing: false });
               onNotice(`已切换到 V${activeVersion}，未创建新版本`);
             }}
-            onDelete={() => {
-              if (view.id) {
-                clearCharacterVersions(view.id);
-                updateChars(characters.filter((c) => c.id !== view.id));
+            onDelete={async () => {
+              const characterId = view.id;
+              if (characterId) {
+                await removeCharacterChatReferences(characterId);
+                clearCharacterVersions(characterId);
+                updateChars(characters.filter((c) => c.id !== characterId));
               }
               setView({ type: "list", id: null, isEditing: false });
               onNotice("已删除档案");
