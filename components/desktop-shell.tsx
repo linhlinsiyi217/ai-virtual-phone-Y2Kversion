@@ -34,6 +34,8 @@ import { StoryApp } from "@/components/story/story-app";
 import { VnApp } from "@/components/vn/vn-app";
 import ReadingApp from "@/components/reading/reading-app";
 import { XApp } from "@/components/x/x-app";
+import { DeepTalkApp } from "@/components/deep-talk/deep-talk-app";
+import { PerceptionBootstrap } from "@/components/perception/perception-bootstrap";
 import StudyRoomApp from "@/components/study-room/study-room-app";
 import MapApp from "@/components/map/map-app";
 import { DwellingApp } from "@/components/dwelling/dwelling-app";
@@ -1044,6 +1046,7 @@ const MusicShellOverlays = memo(function MusicShellOverlays({
 
   return (
     <>
+      <PerceptionBootstrap />
       {musicPlayer?.showFullPlayer && musicPlayer.currentTrack && <MusicPlayer />}
       <MusicFloat hidden={activeApp === "music" || musicPlayer?.showFullPlayer} />
       <ListeningGlow />
@@ -4112,6 +4115,10 @@ html,body{margin:0;padding:0;width:100%;height:100%;background:#121110;color:rgb
 
     if (activeApp === "x") {
       return <XApp onClose={() => setActiveApp(null)} onNotice={setNotice} />;
+    }
+
+    if (activeApp === "deep_talk") {
+      return <DeepTalkApp onClose={() => setActiveApp(null)} onNotice={setNotice} onOpenChatSession={openChatSessionFromNotice} />;
     }
 
     if (activeApp === "studyroom") {

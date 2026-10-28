@@ -7,6 +7,7 @@ import type { MomentComment, MomentLike, MomentPost } from "./moments-types";
 const CHARACTER_WORLDS_KEY = "ai_phone_character_worlds_v1";
 export const CHARACTER_WORLDS_UPDATED_EVENT = "character-worlds-updated";
 export const DEFAULT_CHARACTER_WORLD_ID = "world_default";
+export const CHARACTER_WORLD_USER_NODE_PREFIX = "__user_identity__:";
 
 registerKvMigration(CHARACTER_WORLDS_KEY);
 
@@ -379,4 +380,10 @@ export function formatCharacterRelationsForPrompt(characterId: string): string {
     }
 
     return lines.join("\n");
+}export function getCharacterWorldUserIdentityId(nodeId: string): string | null {
+    return nodeId.startsWith(CHARACTER_WORLD_USER_NODE_PREFIX)
+        ? nodeId.slice(CHARACTER_WORLD_USER_NODE_PREFIX.length) || null
+        : null;
 }
+
+

@@ -13,6 +13,7 @@ export type IconId =
   | "appmarket"
   | "xiaohongshu"
   | "x"
+  | "deep_talk"
   | "dwelling"
   | "checkphone"
   | "shopping"
@@ -66,6 +67,7 @@ export const PAGE_2_DEFAULT: IconId[] = [
   "appmarket",
   "xiaohongshu",
   "x",
+  "deep_talk",
   "dwelling",
   "story",
   "vnmode",
@@ -91,6 +93,7 @@ export const ICONS: Record<IconId, IconMeta> = {
   game: { id: "game", label: "游戏", tone: "var(--c-icon-blue)", placeholder: false },
   appmarket: { id: "appmarket", label: "应用市场", tone: "var(--c-icon-teal)", placeholder: false },
   x: { id: "x", label: "X", tone: "var(--c-icon-slate)", placeholder: false },
+  deep_talk: { id: "deep_talk", label: "深谈", tone: "var(--c-icon-violet)", placeholder: false },
   xiaohongshu: {
     id: "xiaohongshu",
     label: "\u5C0F\u7EA2\u4E66",

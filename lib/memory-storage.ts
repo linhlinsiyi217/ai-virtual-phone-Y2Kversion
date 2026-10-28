@@ -91,6 +91,15 @@ export async function loadMemoryEntries(characterId: string): Promise<MemoryEntr
     }
 }
 
+export function memoryEntryInAccount(_entry: MemoryEntry, chatAccountId: string | null): boolean {
+    // 旧版记忆数据没有账号字段，全部属于当前唯一账号。
+    return chatAccountId === null;
+}
+
+export function resolveMemoryAccountScope(chatAccountId?: string | null): string | null {
+    return chatAccountId === undefined ? null : (chatAccountId || null);
+}
+
 export async function loadMemoryEntriesByType(
     characterId: string,
     type: MemoryEntry["type"],

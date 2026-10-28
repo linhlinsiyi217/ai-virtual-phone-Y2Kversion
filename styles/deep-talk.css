@@ -1,0 +1,246 @@
+/* 深谈空间（G3） */
+
+.deep-talk-main {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.deep-talk-intro {
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--c-text-secondary, rgba(60, 60, 67, 0.6));
+    margin: 0;
+}
+
+.deep-talk-empty {
+    text-align: center;
+    font-size: 14px;
+    color: var(--c-text-secondary, rgba(60, 60, 67, 0.6));
+    margin-top: 40px;
+}
+
+.deep-talk-char-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.deep-talk-char-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 12px 14px;
+    border: none;
+    border-radius: 16px;
+    background: var(--c-card-bg, rgba(255, 255, 255, 0.72));
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+    cursor: pointer;
+    text-align: left;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.deep-talk-char-row:active {
+    transform: scale(0.98);
+}
+
+.deep-talk-char-meta {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.deep-talk-char-name {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--c-text, #1c1c1e);
+}
+
+.deep-talk-char-sub {
+    font-size: 12px;
+    color: var(--c-text-secondary, rgba(60, 60, 67, 0.6));
+}
+
+.deep-talk-char-chevron {
+    color: var(--c-text-secondary, rgba(60, 60, 67, 0.4));
+    flex-shrink: 0;
+}
+
+.deep-talk-detail {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.deep-talk-card {
+    border-radius: 16px;
+    background: var(--c-card-bg, rgba(255, 255, 255, 0.72));
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.deep-talk-card-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--c-text, #1c1c1e);
+}
+
+.deep-talk-card-head h3 {
+    font-size: 15px;
+    font-weight: 600;
+    margin: 0;
+    flex: 0 0 auto;
+}
+
+.deep-talk-card-badge {
+    margin-left: auto;
+    font-size: 11px;
+    color: var(--c-text-secondary, rgba(60, 60, 67, 0.6));
+    background: rgba(0, 0, 0, 0.05);
+    border-radius: 999px;
+    padding: 2px 8px;
+    white-space: nowrap;
+}
+
+.deep-talk-card-desc {
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--c-text-secondary, rgba(60, 60, 67, 0.6));
+    margin: 0;
+}
+
+.deep-talk-primary-btn,
+.deep-talk-secondary-btn {
+    border: none;
+    border-radius: 12px;
+    padding: 10px 14px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.deep-talk-primary-btn {
+    background: var(--c-accent, #5b4ddb);
+    color: #fff;
+    font-weight: 600;
+}
+
+.deep-talk-secondary-btn {
+    background: rgba(0, 0, 0, 0.06);
+    color: var(--c-text, #1c1c1e);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.deep-talk-primary-btn:disabled,
+.deep-talk-secondary-btn:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
+.deep-talk-primary-btn:not(:disabled):active,
+.deep-talk-secondary-btn:not(:disabled):active {
+    transform: scale(0.97);
+}
+
+.deep-talk-memory-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.deep-talk-memory-item {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 8px 10px;
+    border-radius: 10px;
+    background: rgba(0, 0, 0, 0.03);
+}
+
+.deep-talk-memory-tag {
+    font-size: 11px;
+    color: var(--c-text-secondary, rgba(60, 60, 67, 0.6));
+}
+
+.deep-talk-memory-tag.core {
+    color: var(--c-accent, #5b4ddb);
+    font-weight: 600;
+}
+
+.deep-talk-memory-text {
+    font-size: 13px;
+    line-height: 1.55;
+    color: var(--c-text, #1c1c1e);
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.deep-talk-recall-bar {
+    display: flex;
+    gap: 8px;
+}
+
+.deep-talk-recall-input {
+    flex: 1;
+    border: none;
+    border-radius: 12px;
+    padding: 10px 12px;
+    font-size: 14px;
+    background: rgba(0, 0, 0, 0.05);
+    color: var(--c-text, #1c1c1e);
+    outline: none;
+}
+
+.deep-talk-recall-input:focus {
+    box-shadow: 0 0 0 2px var(--c-accent, #5b4ddb) inset;
+}
+
+.deep-talk-relation-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.deep-talk-relation-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    padding: 8px 10px;
+    border-radius: 10px;
+    background: rgba(0, 0, 0, 0.03);
+    flex-wrap: wrap;
+}
+
+.deep-talk-relation-name {
+    font-weight: 600;
+    color: var(--c-text, #1c1c1e);
+}
+
+.deep-talk-relation-label {
+    font-size: 11px;
+    color: var(--c-accent, #5b4ddb);
+    background: rgba(91, 77, 219, 0.1);
+    border-radius: 999px;
+    padding: 2px 8px;
+}

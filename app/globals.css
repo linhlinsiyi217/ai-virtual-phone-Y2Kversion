@@ -34,6 +34,8 @@
 
 @import "../styles/study-room.css";
 @import "../styles/x-app.css";
+@import "../styles/deep-talk.css";
+@import "../styles/chat-ui-mode.css";
 @import "../styles/update-log.css";
 
 @theme {
