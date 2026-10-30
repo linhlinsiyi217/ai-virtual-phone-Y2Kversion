@@ -1,32 +1,32 @@
 /* Scoped to the two social tabs; navigation geometry and chat rooms stay unchanged. */
-.moments-section-label { text-align:center; font-size:12px; line-height:1.4; letter-spacing:.22em; font-weight:600; color:var(--c-text); }
-.apple-social-page.moments-feed-page > .page-header .page-header-content { position:relative; }
-.apple-social-page.moments-feed-page > .page-header .page-title {
+:is(.chat-app[data-chat-ui-mode="y2k"], .imessage26-dev-shell) .moments-section-label{ text-align:center; font-size:12px; line-height:1.4; letter-spacing:.22em; font-weight:600; color:var(--c-text); }
+:is(.chat-app[data-chat-ui-mode="y2k"], .imessage26-dev-shell) .apple-social-page.moments-feed-page > .page-header .page-header-content{ position:relative; }
+:is(.chat-app[data-chat-ui-mode="y2k"], .imessage26-dev-shell) .apple-social-page.moments-feed-page > .page-header .page-title{
   display:block; opacity:1; position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
   width:calc(100% - 144px); text-align:center; pointer-events:none; margin:0;
 }
-.chat-main-content[data-social-pages] .page-shell > .page-header {
+:is(.chat-app[data-chat-ui-mode="y2k"], .imessage26-dev-shell) .chat-main-content[data-social-pages] .page-shell > .page-header{
   background:transparent !important; border:0 !important; box-shadow:none !important;
   backdrop-filter:none !important; -webkit-backdrop-filter:none !important;
 }
-.chat-main-content[data-social-pages] .page-shell > .page-header .page-back-btn,
-.chat-main-content[data-social-pages] .compose-header-icon {
+:is(.chat-app[data-chat-ui-mode="y2k"], .imessage26-dev-shell) .chat-main-content[data-social-pages] .page-shell > .page-header .page-back-btn,
+:is(.chat-app[data-chat-ui-mode="y2k"], .imessage26-dev-shell) .chat-main-content[data-social-pages] .compose-header-icon{
   width:44px; height:44px; flex-shrink:0; display:grid; place-items:center; padding:0;
   border-radius:50%; border:1px solid rgba(255,255,255,.9); color:var(--c-text-title);
   background:color-mix(in srgb,var(--c-card) 65%,transparent);
   box-shadow:0 2px 7px rgba(53,61,73,.05),inset 0 1px 0 rgba(255,255,255,.4);
   backdrop-filter:blur(22px) saturate(160%); -webkit-backdrop-filter:blur(22px) saturate(160%);
 }
-.chat-main-content[data-social-pages] .page-shell > .page-header .page-back-btn svg { width:27px; height:27px; stroke-width:1.5; }
-.chat-main-content[data-social-pages] .page-shell:not(.apple-social-page) > .page-header .page-title { font-size:17px; font-weight:600; color:var(--c-text-title); }
-.chat-main-content[data-social-pages] .compose-modal-header { background:transparent; border-bottom:0; box-shadow:none; }
+:is(.chat-app[data-chat-ui-mode="y2k"], .imessage26-dev-shell) .chat-main-content[data-social-pages] .page-shell > .page-header .page-back-btn svg{ width:27px; height:27px; stroke-width:1.5; }
+:is(.chat-app[data-chat-ui-mode="y2k"], .imessage26-dev-shell) .chat-main-content[data-social-pages] .page-shell:not(.apple-social-page) > .page-header .page-title{ font-size:17px; font-weight:600; color:var(--c-text-title); }
+:is(.chat-app[data-chat-ui-mode="y2k"], .imessage26-dev-shell) .chat-main-content[data-social-pages] .compose-modal-header{ background:transparent; border-bottom:0; box-shadow:none; }
 @media(prefers-color-scheme:dark) {
-  .chat-main-content[data-social-pages] .page-shell > .page-header .page-back-btn,
-  .chat-main-content[data-social-pages] .compose-header-icon { border-color:rgba(255,255,255,.22); box-shadow:inset 0 1px 0 rgba(255,255,255,.12); }
+  :is(.chat-app[data-chat-ui-mode="y2k"], .imessage26-dev-shell) .chat-main-content[data-social-pages] .page-shell > .page-header .page-back-btn,
+:is(.chat-app[data-chat-ui-mode="y2k"], .imessage26-dev-shell) .chat-main-content[data-social-pages] .compose-header-icon{ border-color:rgba(255,255,255,.22); box-shadow:inset 0 1px 0 rgba(255,255,255,.12); }
 }
 /* The chat module follows the same system appearance as the conversation view. */
 @media (prefers-color-scheme: dark) {
-  .chat-app {
+  :is(.chat-app[data-chat-ui-mode="y2k"], .imessage26-dev-shell){
     color-scheme: dark;
     --c-header-bg: #101012;
     --c-panel-border: #38383a;
@@ -46,33 +46,33 @@
     --c-border: #38383a;
     background: #101012;
   }
-  :is(.imessage-list-page, .imessage-contacts-page) {
+  :is(.chat-app[data-chat-ui-mode="y2k"], .imessage26-dev-shell) :is(.imessage-list-page, .imessage-contacts-page){
     --list-glass: rgba(38,38,42,.82);
     --list-edge: rgba(255,255,255,.22);
     --list-shadow: 0 6px 20px rgba(0,0,0,.2);
     --c-success: #f5f5f7;
   }
-  .imessage-list-page .imessage-list-popover { background: rgba(38,38,42,.94); }
-  .imessage-list-page .minimal-list-item::after { background: rgba(235,235,245,.16); }
-  .imessage-list-page .imessage-filter-option[aria-pressed="true"] { color: #fff; }
-  .chat-app > .chat-tab-bar.chat-bottom-glass-bar {
+  :is(.chat-app[data-chat-ui-mode="y2k"], .imessage26-dev-shell) .imessage-list-page .imessage-list-popover{ background: rgba(38,38,42,.94); }
+  :is(.chat-app[data-chat-ui-mode="y2k"], .imessage26-dev-shell) .imessage-list-page .minimal-list-item::after{ background: rgba(235,235,245,.16); }
+  :is(.chat-app[data-chat-ui-mode="y2k"], .imessage26-dev-shell) .imessage-list-page .imessage-filter-option[aria-pressed="true"]{ color: #fff; }
+  :is(.chat-app[data-chat-ui-mode="y2k"], .imessage26-dev-shell) > .chat-tab-bar.chat-bottom-glass-bar{
     background: linear-gradient(145deg,rgba(44,44,48,.85),rgba(28,28,30,.72));
     border-color: rgba(255,255,255,.22);
     box-shadow: 0 8px 22px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.16);
   }
-  .chat-app > .chat-tab-bar .chat-tab { color: #a4a4ac; }
-  .chat-app > .chat-tab-bar .chat-tab-active {
+  :is(.chat-app[data-chat-ui-mode="y2k"], .imessage26-dev-shell) > .chat-tab-bar .chat-tab{ color: #a4a4ac; }
+  :is(.chat-app[data-chat-ui-mode="y2k"], .imessage26-dev-shell) > .chat-tab-bar .chat-tab-active{
     color: #fff; background: rgba(255,255,255,.12);
     box-shadow: inset 0 1px 0 rgba(255,255,255,.12);
   }
 }
-.apple-profile-content > .apple-profile-identity { position: relative; }
-.user-profile-page-root.apple-social-page > .page-body {
+:is(.chat-app[data-chat-ui-mode="y2k"], .imessage26-dev-shell) .apple-profile-content > .apple-profile-identity{ position: relative; }
+:is(.chat-app[data-chat-ui-mode="y2k"], .imessage26-dev-shell) .user-profile-page-root.apple-social-page > .page-body{
   /* Let the scroll canvas reach behind the fixed header; keep content in place. */
   top: 0;
   padding-top: calc(var(--page-header-safe-top, 48px) + var(--page-header-content-height, 54px)) !important;
 }
-.profile-cover-image {
+:is(.chat-app[data-chat-ui-mode="y2k"], .imessage26-dev-shell) .profile-cover-image{
   position: absolute;
   inset: calc(-1 * (var(--page-header-safe-top, 48px) + var(--page-header-content-height, 54px))) -20px 0;
   z-index: 0; pointer-events: none;
@@ -80,11 +80,11 @@
   mask-image: linear-gradient(to bottom, #000 0%, rgba(0,0,0,.8) 30%, rgba(0,0,0,.25) 66%, transparent 100%);
   -webkit-mask-image: linear-gradient(to bottom, #000 0%, rgba(0,0,0,.8) 30%, rgba(0,0,0,.25) 66%, transparent 100%);
 }
-.profile-cover-upload { position: absolute; inset: 0 -20px; z-index: 1; border: 0; background: none; cursor: pointer; }
-.profile-cover-upload:focus-visible { outline: 2px solid var(--c-action-blue, #007aff); outline-offset: -4px; border-radius: 20px; }
-.apple-profile-identity > :is(.shrink-0, .min-w-0) { position: relative; z-index: 2; }
-.profile-cover-error { position: relative; z-index: 2; font-size: 12px; color: var(--c-danger, #d03030); }
-.apple-social-page {
+:is(.chat-app[data-chat-ui-mode="y2k"], .imessage26-dev-shell) .profile-cover-upload{ position: absolute; inset: 0 -20px; z-index: 1; border: 0; background: none; cursor: pointer; }
+:is(.chat-app[data-chat-ui-mode="y2k"], .imessage26-dev-shell) .profile-cover-upload:focus-visible{ outline: 2px solid var(--c-action-blue, #007aff); outline-offset: -4px; border-radius: 20px; }
+:is(.chat-app[data-chat-ui-mode="y2k"], .imessage26-dev-shell) .apple-profile-identity > :is(.shrink-0, .min-w-0){ position: relative; z-index: 2; }
+:is(.chat-app[data-chat-ui-mode="y2k"], .imessage26-dev-shell) .profile-cover-error{ position: relative; z-index: 2; font-size: 12px; color: var(--c-danger, #d03030); }
+:is(.chat-app[data-chat-ui-mode="y2k"], .imessage26-dev-shell) .apple-social-page{
   --social-surface: var(--c-card, #fff);
   --social-ink: var(--c-text-title, #1c1c1e);
   --social-secondary: var(--c-text, #636366);
@@ -92,7 +92,7 @@
   color: var(--social-ink);
   background: var(--c-page-body-bg, #f2f2f7);
 }
-.apple-social-page > .page-header {
+:is(.chat-app[data-chat-ui-mode="y2k"], .imessage26-dev-shell) .apple-social-page > .page-header{
   background: transparent !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
@@ -100,7 +100,7 @@
   box-shadow: none;
   z-index: 30;
 }
-.apple-social-page > .page-header .page-back-btn {
+:is(.chat-app[data-chat-ui-mode="y2k"], .imessage26-dev-shell) .apple-social-page > .page-header .page-back-btn{
   background: color-mix(in srgb, var(--social-surface) 70%, transparent);
   border: 1px solid rgba(255,255,255,.65);
   color: var(--social-ink);
@@ -109,7 +109,7 @@
   border-radius: 50%;
   box-shadow: 0 2px 7px rgba(30,35,45,.05);
 }
-.apple-social-title {
+:is(.chat-app[data-chat-ui-mode="y2k"], .imessage26-dev-shell) .apple-social-title{
   flex-shrink: 0;
   margin: 0;
   padding: 4px 20px 18px;
@@ -119,9 +119,9 @@
   letter-spacing: -.6px;
   color: var(--social-ink);
 }
-.user-profile-page-root.apple-social-page::before { display: none; }
-.apple-profile-content > :is(div, button).mx-4,
-.apple-profile-content > .apple-profile-identity {
+:is(.chat-app[data-chat-ui-mode="y2k"], .imessage26-dev-shell) .user-profile-page-root.apple-social-page::before{ display: none; }
+:is(.chat-app[data-chat-ui-mode="y2k"], .imessage26-dev-shell) .apple-profile-content > :is(div, button).mx-4,
+:is(.chat-app[data-chat-ui-mode="y2k"], .imessage26-dev-shell) .apple-profile-content > .apple-profile-identity{
   background: var(--social-surface);
   color: var(--social-ink);
   border: 0;
@@ -129,17 +129,17 @@
   box-shadow: none !important;
   margin: 0 20px 16px;
 }
-.apple-profile-content > .apple-profile-identity { padding: 12px 16px 24px; gap: 12px; flex-direction: column; background: transparent; text-align: center; }
-.apple-profile-identity > .shrink-0 > div { width: 88px; height: 88px; box-shadow: none !important; }
-.apple-profile-identity > .min-w-0 { width: 100%; max-width: 300px; align-items: center; }
-.apple-profile-name-row { max-width: 100%; }
-.apple-profile-id { font-size: 12px; color: var(--social-secondary); overflow-wrap: anywhere; }
-.apple-profile-identity .ts-22 { font-size: calc(20px * var(--app-text-scale, 1)); line-height: 1.3; }
-.apple-profile-wallet { padding: 18px 20px; gap: 16px; min-height: 128px; }
-.apple-wallet-amount { font-variant-numeric: tabular-nums; letter-spacing: -.8px; }
-.apple-profile-content .menu-label { color: var(--social-ink); }
-.apple-profile-content .menu-desc { color: var(--social-secondary); }
-.apple-social-page.moments-feed-page > .page-body {
+:is(.chat-app[data-chat-ui-mode="y2k"], .imessage26-dev-shell) .apple-profile-content > .apple-profile-identity{ padding: 12px 16px 24px; gap: 12px; flex-direction: column; background: transparent; text-align: center; }
+:is(.chat-app[data-chat-ui-mode="y2k"], .imessage26-dev-shell) .apple-profile-identity > .shrink-0 > div{ width: 88px; height: 88px; box-shadow: none !important; }
+:is(.chat-app[data-chat-ui-mode="y2k"], .imessage26-dev-shell) .apple-profile-identity > .min-w-0{ width: 100%; max-width: 300px; align-items: center; }
+:is(.chat-app[data-chat-ui-mode="y2k"], .imessage26-dev-shell) .apple-profile-name-row{ max-width: 100%; }
+:is(.chat-app[data-chat-ui-mode="y2k"], .imessage26-dev-shell) .apple-profile-id{ font-size: 12px; color: var(--social-secondary); overflow-wrap: anywhere; }
+:is(.chat-app[data-chat-ui-mode="y2k"], .imessage26-dev-shell) .apple-profile-identity .ts-22{ font-size: calc(20px * var(--app-text-scale, 1)); line-height: 1.3; }
+:is(.chat-app[data-chat-ui-mode="y2k"], .imessage26-dev-shell) .apple-profile-wallet{ padding: 18px 20px; gap: 16px; min-height: 128px; }
+:is(.chat-app[data-chat-ui-mode="y2k"], .imessage26-dev-shell) .apple-wallet-amount{ font-variant-numeric: tabular-nums; letter-spacing: -.8px; }
+:is(.chat-app[data-chat-ui-mode="y2k"], .imessage26-dev-shell) .apple-profile-content .menu-label{ color: var(--social-ink); }
+:is(.chat-app[data-chat-ui-mode="y2k"], .imessage26-dev-shell) .apple-profile-content .menu-desc{ color: var(--social-secondary); }
+:is(.chat-app[data-chat-ui-mode="y2k"], .imessage26-dev-shell) .apple-social-page.moments-feed-page > .page-body{
   position: absolute;
   top: calc(var(--page-header-safe-top, 48px) + var(--page-header-content-height, 54px));
   left: 0;
@@ -149,14 +149,14 @@
 }
 
 /* One navigation treatment for Messages, Contacts, Feed and Profile. */
-:is(.imessage-list-page > .page-shell, .imessage-contacts-page > .page-shell, .apple-social-page) > .page-header {
+:is(.chat-app[data-chat-ui-mode="y2k"], .imessage26-dev-shell) :is(.imessage-list-page > .page-shell, .imessage-contacts-page > .page-shell, .apple-social-page) > .page-header{
   background: transparent !important;
   border: 0;
   box-shadow: none;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
 }
-:is(.imessage-list-page > .page-shell, .imessage-contacts-page > .page-shell, .apple-social-page) > .page-header .page-header-content {
+:is(.chat-app[data-chat-ui-mode="y2k"], .imessage26-dev-shell) :is(.imessage-list-page > .page-shell, .imessage-contacts-page > .page-shell, .apple-social-page) > .page-header .page-header-content{
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -164,9 +164,9 @@
   padding: 1px 14px;
   min-height: var(--page-header-content-height, 54px);
 }
-:is(.imessage-list-page > .page-shell, .imessage-contacts-page > .page-shell, .apple-social-page) > .page-header .page-title:empty { display: none; }
-:is(.imessage-list-page > .page-shell, .imessage-contacts-page > .page-shell, .apple-social-page) > .page-header .page-header-right { margin-left: auto; }
-:is(.imessage-list-page > .page-shell, .imessage-contacts-page > .page-shell, .apple-social-page) > .page-header :is(.page-back-btn, .imessage-list-actions) {
+:is(.chat-app[data-chat-ui-mode="y2k"], .imessage26-dev-shell) :is(.imessage-list-page > .page-shell, .imessage-contacts-page > .page-shell, .apple-social-page) > .page-header .page-title:empty{ display: none; }
+:is(.chat-app[data-chat-ui-mode="y2k"], .imessage26-dev-shell) :is(.imessage-list-page > .page-shell, .imessage-contacts-page > .page-shell, .apple-social-page) > .page-header .page-header-right{ margin-left: auto; }
+:is(.chat-app[data-chat-ui-mode="y2k"], .imessage26-dev-shell) :is(.imessage-list-page > .page-shell, .imessage-contacts-page > .page-shell, .apple-social-page) > .page-header :is(.page-back-btn, .imessage-list-actions){
   color: var(--c-text-title, #101012);
   background: rgba(250,250,252,.62);
   border: 1px solid rgba(255,255,255,.9);
@@ -174,25 +174,25 @@
   backdrop-filter: blur(22px) saturate(160%);
   -webkit-backdrop-filter: blur(22px) saturate(160%);
 }
-:is(.imessage-list-page > .page-shell, .imessage-contacts-page > .page-shell, .apple-social-page) > .page-header :is(.page-back-btn, .imessage-list-action) {
+:is(.chat-app[data-chat-ui-mode="y2k"], .imessage26-dev-shell) :is(.imessage-list-page > .page-shell, .imessage-contacts-page > .page-shell, .apple-social-page) > .page-header :is(.page-back-btn, .imessage-list-action){
   width: 44px; height: 44px; flex-shrink: 0; border-radius: 50%; padding: 0;
   display: grid; place-items: center; color: var(--c-text-title, #101012);
 }
-:is(.imessage-list-page > .page-shell, .imessage-contacts-page > .page-shell, .apple-social-page) > .page-header :is(.page-back-btn, .imessage-list-action) svg {
+:is(.chat-app[data-chat-ui-mode="y2k"], .imessage26-dev-shell) :is(.imessage-list-page > .page-shell, .imessage-contacts-page > .page-shell, .apple-social-page) > .page-header :is(.page-back-btn, .imessage-list-action) svg{
   width: 27px; height: 27px; stroke-width: 2.2;
 }
-.apple-social-page.moments-feed-page > .page-header .page-back-btn svg.feed-compose-camera {
+:is(.chat-app[data-chat-ui-mode="y2k"], .imessage26-dev-shell) .apple-social-page.moments-feed-page > .page-header .page-back-btn svg.feed-compose-camera{
   stroke-width: 1.5;
 }
 @media (prefers-color-scheme: dark) {
-  :is(.imessage-list-page > .page-shell, .imessage-contacts-page > .page-shell, .apple-social-page) > .page-header :is(.page-back-btn, .imessage-list-actions) {
+  :is(.chat-app[data-chat-ui-mode="y2k"], .imessage26-dev-shell) :is(.imessage-list-page > .page-shell, .imessage-contacts-page > .page-shell, .apple-social-page) > .page-header :is(.page-back-btn, .imessage-list-actions){
     background: rgba(38,38,42,.72); border-color: rgba(255,255,255,.22);
     box-shadow: 0 2px 7px rgba(0,0,0,.12), inset 0 1px 0 rgba(255,255,255,.12);
     color: #f5f5f7;
   }
-  :is(.imessage-list-page > .page-shell, .imessage-contacts-page > .page-shell, .apple-social-page) > .page-header .imessage-list-action { color: #f5f5f7; }
+  :is(.chat-app[data-chat-ui-mode="y2k"], .imessage26-dev-shell) :is(.imessage-list-page > .page-shell, .imessage-contacts-page > .page-shell, .apple-social-page) > .page-header .imessage-list-action{ color: #f5f5f7; }
 }
-.apple-social-page .feed-cover-shell {
+:is(.chat-app[data-chat-ui-mode="y2k"], .imessage26-dev-shell) .apple-social-page .feed-cover-shell{
   flex-shrink: 0;
   width: calc(100% - 40px);
   margin: 0 20px 24px;
@@ -200,19 +200,19 @@
   background: var(--social-surface);
   isolation: isolate;
 }
-.apple-social-page .feed-cover-bg { height: 112px; border-radius: 22px 22px 0 0; overflow: hidden; }
-.apple-social-page .feed-profile { padding: 84px 16px 18px; }
-.apple-social-page .feed-profile-avatar { width: 56px; height: 56px; border-color: var(--social-surface); transform: none; }
-.apple-social-page .feed-profile-info { margin: 10px 0 0; gap: 4px; }
-.apple-social-page .feed-profile-name { font-size: calc(18px * var(--app-text-scale, 1)); letter-spacing: -.3px; }
-.apple-social-page .feed-post { padding: 0 20px 24px; margin: 0 0 24px; border-bottom: .5px solid var(--social-line); }
-.apple-social-page .feed-post-author-name { font-weight: 600; }
-.apple-social-page .feed-post-content { font-size: calc(15px * var(--app-text-scale, 1)); line-height: 1.65; }
-.apple-social-page .feed-post-media img { border-radius: 16px; }
-.apple-social-page .feed-post-more-btn { min-width: 32px; min-height: 32px; }
-.apple-social-page .feed-notif-banner { margin-inline: 20px; border-radius: 16px; box-shadow: none; }
+:is(.chat-app[data-chat-ui-mode="y2k"], .imessage26-dev-shell) .apple-social-page .feed-cover-bg{ height: 112px; border-radius: 22px 22px 0 0; overflow: hidden; }
+:is(.chat-app[data-chat-ui-mode="y2k"], .imessage26-dev-shell) .apple-social-page .feed-profile{ padding: 84px 16px 18px; }
+:is(.chat-app[data-chat-ui-mode="y2k"], .imessage26-dev-shell) .apple-social-page .feed-profile-avatar{ width: 56px; height: 56px; border-color: var(--social-surface); transform: none; }
+:is(.chat-app[data-chat-ui-mode="y2k"], .imessage26-dev-shell) .apple-social-page .feed-profile-info{ margin: 10px 0 0; gap: 4px; }
+:is(.chat-app[data-chat-ui-mode="y2k"], .imessage26-dev-shell) .apple-social-page .feed-profile-name{ font-size: calc(18px * var(--app-text-scale, 1)); letter-spacing: -.3px; }
+:is(.chat-app[data-chat-ui-mode="y2k"], .imessage26-dev-shell) .apple-social-page .feed-post{ padding: 0 20px 24px; margin: 0 0 24px; border-bottom: .5px solid var(--social-line); }
+:is(.chat-app[data-chat-ui-mode="y2k"], .imessage26-dev-shell) .apple-social-page .feed-post-author-name{ font-weight: 600; }
+:is(.chat-app[data-chat-ui-mode="y2k"], .imessage26-dev-shell) .apple-social-page .feed-post-content{ font-size: calc(15px * var(--app-text-scale, 1)); line-height: 1.65; }
+:is(.chat-app[data-chat-ui-mode="y2k"], .imessage26-dev-shell) .apple-social-page .feed-post-media img{ border-radius: 16px; }
+:is(.chat-app[data-chat-ui-mode="y2k"], .imessage26-dev-shell) .apple-social-page .feed-post-more-btn{ min-width: 32px; min-height: 32px; }
+:is(.chat-app[data-chat-ui-mode="y2k"], .imessage26-dev-shell) .apple-social-page .feed-notif-banner{ margin-inline: 20px; border-radius: 16px; box-shadow: none; }
 @media (prefers-color-scheme: dark) {
-  .apple-social-page {
+  :is(.chat-app[data-chat-ui-mode="y2k"], .imessage26-dev-shell) .apple-social-page{
     --social-surface: #1c1c1e;
     --social-ink: #f5f5f7;
     --social-secondary: #a4a4ac;
@@ -224,11 +224,11 @@
     --c-icon: #a4a4ac;
     --c-card-border: #38383a;
   }
-  .apple-social-page > .page-header .page-back-btn { border-color: rgba(255,255,255,.22); }
+  :is(.chat-app[data-chat-ui-mode="y2k"], .imessage26-dev-shell) .apple-social-page > .page-header .page-back-btn{ border-color: rgba(255,255,255,.22); }
 }
 
 /* Compact chat dock: wide capsule, evenly spaced slots, and a quiet active pill. */
-.chat-app > .chat-tab-bar.chat-bottom-glass-bar {
+:is(.chat-app[data-chat-ui-mode="y2k"], .imessage26-dev-shell) > .chat-tab-bar.chat-bottom-glass-bar{
   left:50%; right:auto; transform:translateX(-50%);
   width:min(calc(100% - 44px), 360px); height:68px; min-height:68px;
   bottom:max(12px, env(safe-area-inset-bottom, 0px));
@@ -239,7 +239,7 @@
   -webkit-backdrop-filter:blur(18px) saturate(155%);
   box-shadow:0 8px 22px rgba(53,61,73,.10), inset 0 1px 0 rgba(255,255,255,.88);
 }
-.chat-app > .chat-tab-bar.chat-bottom-glass-bar::before {
+:is(.chat-app[data-chat-ui-mode="y2k"], .imessage26-dev-shell) > .chat-tab-bar.chat-bottom-glass-bar::before{
   content:"";
   position:absolute;
   z-index:0;
@@ -253,46 +253,46 @@
   pointer-events:none;
   transition:transform 380ms cubic-bezier(.22,1,.36,1), background-color 220ms ease, box-shadow 220ms ease;
 }
-.chat-app > .chat-tab-bar.chat-bottom-glass-bar[data-active-tab="contacts"]::before { transform:translateX(100%); }
-.chat-app > .chat-tab-bar.chat-bottom-glass-bar[data-active-tab="feeds"]::before { transform:translateX(200%); }
-.chat-app > .chat-tab-bar.chat-bottom-glass-bar[data-active-tab="me"]::before { transform:translateX(300%); }
-.chat-app > .chat-tab-bar.chat-bottom-glass-bar .chat-tab {
+:is(.chat-app[data-chat-ui-mode="y2k"], .imessage26-dev-shell) > .chat-tab-bar.chat-bottom-glass-bar[data-active-tab="contacts"]::before{ transform:translateX(100%); }
+:is(.chat-app[data-chat-ui-mode="y2k"], .imessage26-dev-shell) > .chat-tab-bar.chat-bottom-glass-bar[data-active-tab="feeds"]::before{ transform:translateX(200%); }
+:is(.chat-app[data-chat-ui-mode="y2k"], .imessage26-dev-shell) > .chat-tab-bar.chat-bottom-glass-bar[data-active-tab="me"]::before{ transform:translateX(300%); }
+:is(.chat-app[data-chat-ui-mode="y2k"], .imessage26-dev-shell) > .chat-tab-bar.chat-bottom-glass-bar .chat-tab{
   min-width:0; min-height:0; padding:4px 0; gap:3px; border-radius:26px;
   position:relative; z-index:1; background:transparent; box-shadow:none; color:#727782;
   transition:transform 160ms ease, background-color 160ms ease, color 160ms ease, box-shadow 160ms ease;
 }
-.chat-app > .chat-tab-bar.chat-bottom-glass-bar .chat-tab > svg { width:26px; height:26px; stroke-width:1.6; transition:transform 360ms cubic-bezier(.22,1,.36,1), filter 220ms ease; }
-.chat-app > .chat-tab-bar.chat-bottom-glass-bar .chat-tab > svg.chat-tab-svg { fill:none; stroke:currentColor; stroke-linecap:round; stroke-linejoin:round; }
-.chat-app > .chat-tab-bar.chat-bottom-glass-bar .chat-tab span { font-size:10px; line-height:1.2; }
-.chat-app > .chat-tab-bar.chat-bottom-glass-bar .chat-tab-active {
+:is(.chat-app[data-chat-ui-mode="y2k"], .imessage26-dev-shell) > .chat-tab-bar.chat-bottom-glass-bar .chat-tab > svg{ width:26px; height:26px; stroke-width:1.6; transition:transform 360ms cubic-bezier(.22,1,.36,1), filter 220ms ease; }
+:is(.chat-app[data-chat-ui-mode="y2k"], .imessage26-dev-shell) > .chat-tab-bar.chat-bottom-glass-bar .chat-tab > svg.chat-tab-svg{ fill:none; stroke:currentColor; stroke-linecap:round; stroke-linejoin:round; }
+:is(.chat-app[data-chat-ui-mode="y2k"], .imessage26-dev-shell) > .chat-tab-bar.chat-bottom-glass-bar .chat-tab span{ font-size:10px; line-height:1.2; }
+:is(.chat-app[data-chat-ui-mode="y2k"], .imessage26-dev-shell) > .chat-tab-bar.chat-bottom-glass-bar .chat-tab-active{
   color:#20242b; font-weight:600;
   background:transparent;
   box-shadow:none;
 }
-.chat-app > .chat-tab-bar.chat-bottom-glass-bar .chat-tab-active > svg {
+:is(.chat-app[data-chat-ui-mode="y2k"], .imessage26-dev-shell) > .chat-tab-bar.chat-bottom-glass-bar .chat-tab-active > svg{
   transform:scale(1.14);
   filter:drop-shadow(0 1px 1px rgba(30,35,45,.10));
 }
-.chat-app > .chat-tab-bar.chat-bottom-glass-bar[data-active-tab="messages"] .chat-tab:nth-child(2) > svg,
-.chat-app > .chat-tab-bar.chat-bottom-glass-bar[data-active-tab="contacts"] .chat-tab:nth-child(1) > svg,
-.chat-app > .chat-tab-bar.chat-bottom-glass-bar[data-active-tab="contacts"] .chat-tab:nth-child(3) > svg,
-.chat-app > .chat-tab-bar.chat-bottom-glass-bar[data-active-tab="feeds"] .chat-tab:nth-child(2) > svg,
-.chat-app > .chat-tab-bar.chat-bottom-glass-bar[data-active-tab="feeds"] .chat-tab:nth-child(4) > svg,
-.chat-app > .chat-tab-bar.chat-bottom-glass-bar[data-active-tab="me"] .chat-tab:nth-child(3) > svg {
+:is(.chat-app[data-chat-ui-mode="y2k"], .imessage26-dev-shell) > .chat-tab-bar.chat-bottom-glass-bar[data-active-tab="messages"] .chat-tab:nth-child(2) > svg,
+:is(.chat-app[data-chat-ui-mode="y2k"], .imessage26-dev-shell) > .chat-tab-bar.chat-bottom-glass-bar[data-active-tab="contacts"] .chat-tab:nth-child(1) > svg,
+:is(.chat-app[data-chat-ui-mode="y2k"], .imessage26-dev-shell) > .chat-tab-bar.chat-bottom-glass-bar[data-active-tab="contacts"] .chat-tab:nth-child(3) > svg,
+:is(.chat-app[data-chat-ui-mode="y2k"], .imessage26-dev-shell) > .chat-tab-bar.chat-bottom-glass-bar[data-active-tab="feeds"] .chat-tab:nth-child(2) > svg,
+:is(.chat-app[data-chat-ui-mode="y2k"], .imessage26-dev-shell) > .chat-tab-bar.chat-bottom-glass-bar[data-active-tab="feeds"] .chat-tab:nth-child(4) > svg,
+:is(.chat-app[data-chat-ui-mode="y2k"], .imessage26-dev-shell) > .chat-tab-bar.chat-bottom-glass-bar[data-active-tab="me"] .chat-tab:nth-child(3) > svg{
   transform:scale(1.06);
 }
-.chat-app > .chat-tab-bar.chat-bottom-glass-bar .chat-tab:active { transform:scale(.96); }
+:is(.chat-app[data-chat-ui-mode="y2k"], .imessage26-dev-shell) > .chat-tab-bar.chat-bottom-glass-bar .chat-tab:active{ transform:scale(.96); }
 @media (hover:hover) and (pointer:fine) {
-  .chat-app > .chat-tab-bar.chat-bottom-glass-bar .chat-tab:not(.chat-tab-active):hover {
+  :is(.chat-app[data-chat-ui-mode="y2k"], .imessage26-dev-shell) > .chat-tab-bar.chat-bottom-glass-bar .chat-tab:not(.chat-tab-active):hover{
     background:rgba(120,120,128,.07);
   }
 }
 @media(prefers-color-scheme:dark) {
-  .chat-app > .chat-tab-bar.chat-bottom-glass-bar {
+  :is(.chat-app[data-chat-ui-mode="y2k"], .imessage26-dev-shell) > .chat-tab-bar.chat-bottom-glass-bar{
     background:rgba(38,38,42,.66); border-color:rgba(255,255,255,.22);
     box-shadow:0 8px 22px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.12);
   }
-  .chat-app > .chat-tab-bar.chat-bottom-glass-bar .chat-tab { color:#a2a5ae; }
-  .chat-app > .chat-tab-bar.chat-bottom-glass-bar::before { background:rgba(255,255,255,.14); box-shadow:inset 0 1px 1px rgba(255,255,255,.12), 0 1px 3px rgba(0,0,0,.12); }
-  .chat-app > .chat-tab-bar.chat-bottom-glass-bar .chat-tab-active { color:#fff; background:transparent; }
+  :is(.chat-app[data-chat-ui-mode="y2k"], .imessage26-dev-shell) > .chat-tab-bar.chat-bottom-glass-bar .chat-tab{ color:#a2a5ae; }
+  :is(.chat-app[data-chat-ui-mode="y2k"], .imessage26-dev-shell) > .chat-tab-bar.chat-bottom-glass-bar::before{ background:rgba(255,255,255,.14); box-shadow:inset 0 1px 1px rgba(255,255,255,.12), 0 1px 3px rgba(0,0,0,.12); }
+  :is(.chat-app[data-chat-ui-mode="y2k"], .imessage26-dev-shell) > .chat-tab-bar.chat-bottom-glass-bar .chat-tab-active{ color:#fff; background:transparent; }
 }

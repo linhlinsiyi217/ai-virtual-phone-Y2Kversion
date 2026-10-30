@@ -1,49 +1,253 @@
-/* Chat UI switch: changes presentation only; messages, sessions and actions stay shared. */
+/*
+ * The mode switch is intentionally owned by the mascot chat header. The
+ * value is stored on the chat-app root so every chat surface reacts together
+ * (messages, contacts, feeds, profile, room and dock).
+ */
 .chat-ui-mode-switch {
-  position: absolute;
-  top: calc(var(--page-header-safe-top, 48px) + 9px);
-  right: 12px;
-  z-index: 120;
+  position: static;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 5px;
-  min-height: 30px;
+  min-width: 58px;
+  min-height: 32px;
   padding: 0 10px;
   border: 0.5px solid color-mix(in srgb, var(--c-card-border) 80%, transparent);
   border-radius: 999px;
-  background: color-mix(in srgb, var(--c-panel, #fff) 72%, transparent);
+  background: color-mix(in srgb, var(--c-panel, #fff) 78%, transparent);
   color: var(--c-text-title);
-  box-shadow: 0 4px 14px rgba(30, 36, 48, 0.1), inset 0 1px 0 rgba(255,255,255,.7);
+  box-shadow: 0 2px 7px rgba(30, 36, 48, 0.10), inset 0 1px 0 rgba(255,255,255,.7);
   backdrop-filter: blur(18px) saturate(140%);
   -webkit-backdrop-filter: blur(18px) saturate(140%);
+  font: inherit;
   font-size: 11px;
   font-weight: 600;
+  line-height: 1;
   cursor: pointer;
+  white-space: nowrap;
 }
+
 .chat-ui-mode-switch:active { transform: scale(.96); }
-.chat-app[data-chat-ui-mode="original"] {
-  --c-page-body-bg: #f2f2f7;
-  --c-header-bg: #f8f8fa;
-  --c-panel: #ffffff;
-  --c-card: #ffffff;
-  --c-card-border: rgba(60,60,67,.16);
-  --c-text-title: #1c1c1e;
-  --c-text: #636366;
-  --c-icon: #8e8e93;
-  --c-icon-active: #007aff;
-  background: #f2f2f7;
+.mascot-header-actions { gap: 6px; }
+.mascot-header-actions .page-back-btn { flex: 0 0 40px; }
+.mascot-chat-session .page-header-content {
+  grid-template-columns: 40px minmax(0, 1fr) auto;
 }
-.chat-app[data-chat-ui-mode="original"] .chat-main-content { background: #f2f2f7; }
-.chat-app[data-chat-ui-mode="original"] .chat-bottom-glass-bar {
-  background: rgba(249,249,249,.96);
-  border-top-color: rgba(60,60,67,.16);
-  box-shadow: 0 -1px 0 rgba(60,60,67,.08);
+.mascot-chat-session .page-title {
+  min-width: 0;
+  overflow: visible;
+}
+
+/* Y2K keeps its existing icon-only dock. Labels are enabled by original mode. */
+.chat-app .chat-tab-label { display: none; }
+
+/* ── xiaolongbao/original chat presentation ───────────────────────────── */
+.chat-app[data-chat-ui-mode="original"] {
+  color-scheme: light;
+  --c-header-bg: #ffffff;
+  --c-page-body-bg: #f4f5f7;
+  --c-card: #ffffff;
+  --c-card-border: #e1e4e8;
+  --c-panel: #ffffff;
+  --c-panel-border: #d9dde3;
+  --c-text-title: #20242b;
+  --c-text: #69717d;
+  --c-icon: #8b949f;
+  --c-icon-active: #246bfd;
+  --c-input: #ffffff;
+  --c-input-border: #d9dde3;
+  --c-bubble-self: #246bfd;
+  --c-bubble-other: #ffffff;
+  --ui-blur: 0px;
+  --ui-saturate: 100%;
+  background: var(--c-page-body-bg);
+}
+
+.chat-app[data-chat-ui-mode="original"] .chat-main-content {
+  background: var(--c-page-body-bg);
+}
+
+.chat-app[data-chat-ui-mode="original"] .chat-tab-label {
+  display: inline;
+  font-size: calc(10px * var(--app-text-scale, 1));
+  line-height: 1.2;
+  color: inherit;
+}
+
+.chat-app[data-chat-ui-mode="original"] .chat-tab-bar {
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: auto;
+  height: var(--chat-tabbar-height);
+  min-height: var(--chat-tabbar-height);
+  padding: 0 0 var(--chat-tabbar-safe-bottom);
+  border: 0;
+  border-top: 1px solid var(--c-card-border);
+  border-radius: 0;
+  background: #ffffff;
+  box-shadow: 0 -2px 8px rgba(31, 39, 52, .04);
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
 }
-.chat-app[data-chat-ui-mode="original"] .chat-tab-active { color: #007aff; }
+
+.chat-app[data-chat-ui-mode="original"] .chat-tab-bar::before { display: none; }
+.chat-app[data-chat-ui-mode="original"] .chat-tab {
+  min-height: var(--chat-tabbar-content-height);
+  gap: 5px;
+  padding: 7px 0 8px;
+  border-radius: 0;
+  color: var(--c-icon);
+  background: transparent;
+  box-shadow: none;
+  font-size: calc(9px * var(--app-text-scale, 1));
+}
+.chat-app[data-chat-ui-mode="original"] .chat-tab > svg {
+  width: 23px;
+  height: 23px;
+  transform: none;
+  filter: none;
+}
+.chat-app[data-chat-ui-mode="original"] .chat-tab-active {
+  color: var(--c-icon-active);
+  font-weight: 600;
+  background: transparent;
+  box-shadow: none;
+}
+
+/* Normal, opaque headers and rows replace the Y2K floating glass treatment. */
+.chat-app[data-chat-ui-mode="original"] .page-header,
+.chat-app[data-chat-ui-mode="original"] .chat-main-content[data-social-pages] .page-shell > .page-header {
+  background: #ffffff !important;
+  border-bottom: 1px solid var(--c-card-border) !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+.chat-app[data-chat-ui-mode="original"] .page-header-content {
+  min-height: var(--page-header-content-height, 42px);
+}
+.chat-app[data-chat-ui-mode="original"] .page-title {
+  color: var(--c-text-title);
+  font-size: calc(17px * var(--app-text-scale, 1));
+  font-weight: 600;
+}
+.chat-app[data-chat-ui-mode="original"] .page-back-btn,
+.chat-app[data-chat-ui-mode="original"] .imessage-list-action,
+.chat-app[data-chat-ui-mode="original"] .imessage-list-actions {
+  color: var(--c-text-title);
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.chat-app[data-chat-ui-mode="original"] .imessage-list-page,
+.chat-app[data-chat-ui-mode="original"] .imessage-contacts-page,
+.chat-app[data-chat-ui-mode="original"] .apple-social-page {
+  color: var(--c-text-title);
+  background: var(--c-page-body-bg);
+}
+.chat-app[data-chat-ui-mode="original"] .imessage-list-page .chat-search-bar,
+.chat-app[data-chat-ui-mode="original"] .imessage-contacts-page .chat-search-bar {
+  border: 1px solid var(--c-input-border);
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.chat-app[data-chat-ui-mode="original"] .imessage-list-page .minimal-list-item,
+.chat-app[data-chat-ui-mode="original"] .imessage-contacts-page .minimal-list-item {
+  min-height: 72px;
+  margin: 0;
+  padding: 12px 16px;
+  border-radius: 0;
+  border-bottom: 1px solid var(--c-card-border);
+  background: #ffffff;
+  box-shadow: none;
+}
+.chat-app[data-chat-ui-mode="original"] .imessage-list-page .minimal-list-item::after { display: none; }
+.chat-app[data-chat-ui-mode="original"] .imessage-list-page .minimal-list-item:active,
+.chat-app[data-chat-ui-mode="original"] .imessage-contacts-page .minimal-list-item:active { transform: none; }
+.chat-app[data-chat-ui-mode="original"] .imessage-session-name,
+.chat-app[data-chat-ui-mode="original"] .imessage-session-time { color: var(--c-text-title); }
+.chat-app[data-chat-ui-mode="original"] .imessage-list-page .minimal-list-item .ts-13 {
+  color: var(--c-text) !important;
+}
+.chat-app[data-chat-ui-mode="original"] .imessage-list-popover,
+.chat-app[data-chat-ui-mode="original"] .imessage-list-page .modal-dialog,
+.chat-app[data-chat-ui-mode="original"] .menu-group {
+  background: #ffffff;
+  border: 1px solid var(--c-card-border);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(31, 39, 52, .12);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+/* Room chrome, bubbles and composer use the original flat chat vocabulary. */
+.chat-app[data-chat-ui-mode="original"] .chat-room-wrapper {
+  background: var(--c-page-body-bg);
+  color: var(--c-text-title);
+}
+.chat-app[data-chat-ui-mode="original"] .chat-room-wrapper > .page-header {
+  background: #ffffff !important;
+  border-bottom: 1px solid var(--c-card-border) !important;
+}
+.chat-app[data-chat-ui-mode="original"] .chat-room-wrapper > .page-body {
+  background: var(--c-page-body-bg);
+}
+.chat-app[data-chat-ui-mode="original"] .chat-msg-wrapper { gap: 10px; }
+.chat-app[data-chat-ui-mode="original"] .chat-bubble-role-user,
+.chat-app[data-chat-ui-mode="original"] .chat-bubble-role-assistant {
+  border-radius: 12px;
+  box-shadow: 0 1px 2px rgba(31, 39, 52, .06);
+  font-size: calc(14px * var(--app-text-scale, 1));
+  line-height: 1.55;
+}
+.chat-app[data-chat-ui-mode="original"] .chat-bubble-role-user {
+  background: var(--c-bubble-self);
+  color: #ffffff;
+}
+.chat-app[data-chat-ui-mode="original"] .chat-bubble-role-assistant {
+  background: var(--c-bubble-other);
+  color: var(--c-text-title);
+  border: 1px solid var(--c-card-border);
+}
+.chat-app[data-chat-ui-mode="original"] .imessage-bubble-surface { display: none !important; }
+.chat-app[data-chat-ui-mode="original"] .chat-room-wrapper[data-imessage-private]
+  :is(.chat-bubble-role-user, .chat-bubble-role-assistant, .chat-quote-reply):has(> .imessage-bubble-surface) {
+  isolation: auto;
+}
+.chat-app[data-chat-ui-mode="original"] .chat-room-wrapper[data-imessage-private]
+  :is(.chat-bubble-role-user, .chat-bubble-role-assistant)::before,
+.chat-app[data-chat-ui-mode="original"] .chat-room-wrapper[data-imessage-private]
+  :is(.chat-bubble-role-user, .chat-bubble-role-assistant)::after { content: none !important; }
+.chat-app[data-chat-ui-mode="original"] .chat-input-bar {
+  padding: 8px 16px max(8px, env(safe-area-inset-bottom, 0px));
+  background: #ffffff;
+  border-top: 1px solid var(--c-card-border);
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.chat-app[data-chat-ui-mode="original"] .chat-input-bar .chat-input-textarea {
+  border: 1px solid var(--c-input-border);
+  border-radius: 20px;
+  background: var(--c-input);
+  color: var(--c-text-title);
+  box-shadow: none;
+}
+.chat-app[data-chat-ui-mode="original"] .chat-input-bar[data-imessage-private]::before { display: none !important; }
 .chat-app[data-chat-ui-mode="original"] .chat-ui-mode-switch {
-  background: #fff;
-  border-color: rgba(60,60,67,.18);
-  box-shadow: 0 2px 7px rgba(60,60,67,.14);
+  background: #ffffff;
+  border-color: var(--c-card-border);
+  box-shadow: 0 1px 3px rgba(31, 39, 52, .10);
+}
+
+/* Original mode stays light; Y2K remains the mode that follows dark theme. */
+@media (prefers-color-scheme: dark) {
+  .chat-app[data-chat-ui-mode="original"] { color-scheme: light; }
 }

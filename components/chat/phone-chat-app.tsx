@@ -8,7 +8,7 @@ import { MomentsFeed } from "./moments-feed";
 import { ChatRoom } from "./chat-room";
 import { MascotChatRoom } from "./mascot-chat-room";
 import { UserProfilePanel } from "./user-profile-panel";
-import { MessageCircle, Users, Aperture, Repeat2 } from "lucide-react";
+import { MessageCircle, Users, Aperture } from "lucide-react";
 import { ChatSession, loadChatSessions, pushChatMessage, hydrateChatStorage } from "@/lib/chat-storage";
 import { notifyMascotPageContext } from "@/lib/mascot-events";
 import { loadChatAppCharacters as loadCharacters } from "@/lib/chat-app-characters";
@@ -18,7 +18,7 @@ import { formatXiaohongshuShareForPrompt, type ChatSharePayload } from "@/lib/ch
 import { CHAT_OPEN_SESSION_EVENT, CHAT_OPEN_ADD_CONTACT_EVENT } from "@/lib/chat-notification-events";
 import { CHAT_SESSIONS_MERGED_EVENT, type ChatSessionsMergedDetail } from "@/lib/chat-session-merge";
 import { getMascotSettingsSnapshot } from "@/lib/mascot-settings";
-import { CHAT_UI_MODE_EVENT, loadChatUiMode, saveChatUiMode, type ChatUiMode } from "@/lib/chat-ui-mode";
+import { CHAT_UI_MODE_EVENT, loadChatUiMode, type ChatUiMode } from "@/lib/chat-ui-mode";
 
 type TabKey = "messages" | "contacts" | "feeds" | "me";
 
@@ -270,16 +270,6 @@ export const PhoneChatApp = memo(function PhoneChatApp({ onClose, initialSession
             {...(hideTabBar ? { "data-tabbar-hidden": "" } : {})}
             data-chat-ui-mode={chatUiMode}
         >
-            <button
-                type="button"
-                className="chat-ui-mode-switch"
-                aria-label={chatUiMode === "y2k" ? "切换到小笼包原版聊天外观" : "切换到 Y2K 聊天外观"}
-                title={chatUiMode === "y2k" ? "切换到小笼包原版聊天外观" : "切换到 Y2K 聊天外观"}
-                onClick={() => saveChatUiMode(chatUiMode === "y2k" ? "original" : "y2k")}
-            >
-                <Repeat2 size={15} aria-hidden />
-                <span>{chatUiMode === "y2k" ? "原版" : "Y2K"}</span>
-            </button>
             {/* Chat app-level custom CSS (lower priority than per-session CSS) */}
             {chatAppCSS && <SessionCustomCSS css={chatAppCSS} scope=".chat-app" />}
             {/* The Main Content Area */}
@@ -319,24 +309,28 @@ export const PhoneChatApp = memo(function PhoneChatApp({ onClose, initialSession
                     onClick={() => setActiveTab("messages")}
                 >
                     <MessageCircleIcon active={activeTab === "messages"} />
+                    <span className="chat-tab-label">消息</span>
                 </button>
                 <button
                     className={`chat-tab ${activeTab === "contacts" ? "chat-tab-active" : ""}`}
                     onClick={() => setActiveTab("contacts")}
                 >
                     <UsersIcon active={activeTab === "contacts"} />
+                    <span className="chat-tab-label">联系人</span>
                 </button>
                 <button
                     className={`chat-tab ${activeTab === "feeds" ? "chat-tab-active" : ""}`}
                     onClick={() => setActiveTab("feeds")}
                 >
                     <CompassIcon active={activeTab === "feeds"} />
+                    <span className="chat-tab-label">动态</span>
                 </button>
                 <button
                     className={`chat-tab ${activeTab === "me" ? "chat-tab-active" : ""}`}
                     onClick={() => setActiveTab("me")}
                 >
                     <MeIcon active={activeTab === "me"} />
+                    <span className="chat-tab-label">主页</span>
                 </button>
             </nav>
 

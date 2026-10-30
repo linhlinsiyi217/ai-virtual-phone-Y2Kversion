@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import type { CSSProperties, PointerEvent as ReactPointerEvent, ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { AlertCircle, ChevronLeft, Code, Image as ImageIcon, MessageSquare, MoreHorizontal, RotateCcw, Sparkles, Trash2, UserRound } from "lucide-react";
+import { AlertCircle, ChevronLeft, Code, Image as ImageIcon, MessageSquare, MoreHorizontal, Repeat2, RotateCcw, Sparkles, Trash2, UserRound } from "lucide-react";
 import { PageShell } from "@/components/ui/page-shell";
 import { ConfirmDialog } from "@/components/ui/modal";
 import { MediaPreviewOverlay } from "@/components/chat/media-preview-overlay";
@@ -45,6 +45,7 @@ import { ChatFallbackAvatar } from "./chat-fallback-avatar";
 import { CHAT_APP_SETTINGS_UPDATED_EVENT, loadChatAppSettings } from "@/lib/chat-storage";
 import { shouldSendChatInputOnEnter } from "@/lib/chat-input-keyboard";
 import { useChatBottomReserve } from "./use-chat-bottom-reserve";
+import { CHAT_UI_MODE_EVENT, loadChatUiMode, saveChatUiMode, type ChatUiMode } from "@/lib/chat-ui-mode";
 
 type MascotChatRoomProps = {
     onBack: () => void;
@@ -471,6 +472,7 @@ export function MascotChatRoom({ onBack, onDeleted }: MascotChatRoomProps) {
     const [contextMenuAnchor, setContextMenuAnchor] = useState<ContextMenuAnchor | null>(null);
     const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
     const [enterToSendEnabled, setEnterToSendEnabled] = useState(() => loadChatAppSettings().enterToSendEnabled === true);
+    const [chatUiMode, setChatUiMode] = useState<ChatUiMode>(() => loadChatUiMode());
     const wrapperRef = useRef<HTMLDivElement | null>(null);
     const scrollRef = useRef<HTMLDivElement | null>(null);
     const textareaRef = useRef<HTMLTextAreaElement | null>(null);
@@ -519,6 +521,15 @@ export function MascotChatRoom({ onBack, onDeleted }: MascotChatRoomProps) {
         };
         window.addEventListener(CHAT_APP_SETTINGS_UPDATED_EVENT, syncEnterToSend);
         return () => window.removeEventListener(CHAT_APP_SETTINGS_UPDATED_EVENT, syncEnterToSend);
+    }, []);
+
+    useEffect(() => {
+        const onMode = (event: Event) => {
+            const mode = (event as CustomEvent<ChatUiMode>).detail;
+            setChatUiMode(mode === "original" ? "original" : "y2k");
+        };
+        window.addEventListener(CHAT_UI_MODE_EVENT, onMode);
+        return () => window.removeEventListener(CHAT_UI_MODE_EVENT, onMode);
     }, []);
 
     useEffect(() => {
@@ -1003,7 +1014,17 @@ export function MascotChatRoom({ onBack, onDeleted }: MascotChatRoomProps) {
                             </span>
                         )}
                     </span>
-                    <span className="page-header-right">
+                    <span className="page-header-right mascot-header-actions">
+                        <button
+                            type="button"
+                            className="chat-ui-mode-switch"
+                            aria-label={chatUiMode === "y2k" ? "切换到小笼包原版聊天外观" : "切换到 Y2K 聊天外观"}
+                            title={chatUiMode === "y2k" ? "切换到小笼包原版聊天外观" : "切换到 Y2K 聊天外观"}
+                            onClick={() => saveChatUiMode(chatUiMode === "y2k" ? "original" : "y2k")}
+                        >
+                            <Repeat2 size={15} aria-hidden />
+                            <span>{chatUiMode === "y2k" ? "原版" : "Y2K"}</span>
+                        </button>
                         <button className="page-back-btn" type="button" onClick={() => setShowInfo(true)} aria-label="更多">
                             <MoreHorizontal size={22} strokeWidth={1.5} />
                         </button>

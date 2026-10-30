@@ -40,7 +40,12 @@ export async function fetchLlmPayload(
     } catch (error) { finish(); throw error; }
 }
 
-function fetchPayload(payload: LlmRequestPayload, signal: AbortSignal): Promise<Response> {
+function isBrowserNetworkFailure(error: unknown): boolean {
+    const message = error instanceof Error ? error.message : String(error);
+    return /failed to fetch|networkerror|network request failed|load failed|cors/i.test(message);
+}
+
+async function fetchPayload(payload: LlmRequestPayload, signal: AbortSignal): Promise<Response> {
     const bodyText = JSON.stringify(payload.body);
     if (payload.serverProxy) {
         return fetch("/api/llm-proxy", {
@@ -54,10 +59,23 @@ function fetchPayload(payload: LlmRequestPayload, signal: AbortSignal): Promise<
             signal,
         });
     }
-    return fetch(payload.url, {
-        method: "POST",
-        headers: payload.headers,
-        body: bodyText,
-        signal,
-    });
+    try {
+        return await fetch(payload.url, {
+            method: "POST",
+            headers: payload.headers,
+            body: bodyText,
+            signal,
+        });
+    } catch (error) {
+        // A provider can be perfectly reachable while refusing browser CORS.
+        // Retry the exact request through our same-origin proxy so the mascot
+        // does not surface the unhelpful browser-only "Failed to fetch".
+        if (signal.aborted || !isBrowserNetworkFailure(error)) throw error;
+        return fetch("/api/llm-proxy", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ url: payload.url, headers: payload.headers, body: bodyText }),
+            signal,
+        });
+    }
 }

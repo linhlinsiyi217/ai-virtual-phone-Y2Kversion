@@ -4,6 +4,7 @@ import { mascotFillField } from "./mascot-events";
 import type { ToolCall } from "./tool-executor";
 import {
     mascotChatWithTools,
+    describeMascotTransportError,
     type MascotMsg,
 } from "./mascot-engine";
 import { PAGE_GREETINGS } from "./mascot-prompts";
@@ -794,7 +795,8 @@ export async function generateMascotReply({
         }
     } catch (err) {
         if ((err as Error).name !== "AbortError" && !abortRequested) {
-            publishMessages([...workingMessages, { role: "mascot", text: `出错了...${(err as Error).message}`, createdAt: new Date().toISOString() }]);
+            const rawError = err instanceof Error ? err.message : String(err);
+            publishMessages([...workingMessages, { role: "mascot", text: `出错了...${describeMascotTransportError(rawError)}`, createdAt: new Date().toISOString() }]);
             if (!isMascotPanelOpen() && typeof window !== "undefined") {
                 window.dispatchEvent(new CustomEvent("global-notice", { detail: "AI助手生成失败了..." }));
             }

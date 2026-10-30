@@ -694,7 +694,36 @@ export async function mascotChatWithTools(
 
     const useNative = !!nativeToolProtocolForConfig(apiConfig);
     if (useNative) {
-        return await callMascotNative(context, history, expandedPackageIds, { signal: options?.signal, callbacks: options?.callbacks });
+        try {
+            return await callMascotNative(context, history, expandedPackageIds, { signal: options?.signal, callbacks: options?.callbacks });
+        } catch (nativeError) {
+            if (options?.signal?.aborted) throw nativeError;
+            const message = formatErrorMessage(nativeError);
+            // Some relays accept ordinary chat completions but reject the
+            // OpenAI/Gemini tool schema.  Keep the assistant usable by falling
+            // back to the text protocol; the UI loop can still execute the
+            // legacy [执行动作] protocol and its real tool handlers.
+            if (!/failed to fetch|network|tool.*(?:unsupported|not supported)|\b(?:400|404|405|422|500|501|502|503)\b|原生动作/i.test(message.toLowerCase())) {
+                throw nativeError;
+            }
+            await options?.callbacks?.onStreamFallback?.(`原生工具协议不可用，已切换兼容模式：${message}`);
+            try {
+                return await callMascotText(context, history, { signal: options?.signal, callbacks: options?.callbacks });
+            } catch (textError) {
+                const textMessage = formatErrorMessage(textError);
+                throw new Error(describeMascotTransportError(textMessage));
+            }
+        }
     }
     return await callMascotText(context, history, { signal: options?.signal, callbacks: options?.callbacks });
+}
+
+export function describeMascotTransportError(message: string): string {
+    if (/\b(?:401|403)\b/.test(message)) {
+        return `小卷 API 鉴权失败（${message}）。请检查辅助 API 密钥是否有效。`;
+    }
+    if (/failed to fetch|networkerror|network request failed|load failed|模型代理连接失败|代理连接失败|无法连接/i.test(message)) {
+        return "无法连接小卷的模型服务。已尝试浏览器直连和站内代理，请检查辅助 API 的地址、密钥、模型名称以及部署域名是否允许访问。";
+    }
+    return message;
 }
