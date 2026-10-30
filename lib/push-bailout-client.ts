@@ -23,10 +23,11 @@ import {
     loadMenstrualConfig,
     loadMenstrualRecords,
 } from "./menstrual-storage";
-import { loadTimedWakeSchedules, type TimedWakeSchedule } from "./timed-wake-storage";
+import { loadTimedWakeSchedules, removeTimedWakeSchedule, type TimedWakeSchedule } from "./timed-wake-storage";
 import {
     IDLE_RECONNECT_MAX_CONSECUTIVE,
     loadIdleReconnectRules,
+    removeIdleReconnectRule,
     type IdleReconnectRule,
 } from "./idle-reconnect-storage";
 import { loadInteractableCharacters as loadCharacters } from "./character-storage";
@@ -648,4 +649,65 @@ export function cancelFollowUpBailout(sessionId: string, count?: number): void {
                 : { triggerPrefix: `followup:${sessionId}:` },
         ),
     }).catch(() => undefined);
+}
+
+/** 列出服务端仍在排队或执行中的离线预约。 */
+export async function fetchScheduledJobs(): Promise<{
+    ok: boolean;
+    jobs?: Array<{ trigger_key: string; kind: string; execute_at: string; status: string }>;
+    error?: string;
+}> {
+    if (!bailoutEnabled()) return { ok: false, error: "当前环境不支持服务端离线预约" };
+    const response = await pushJobsFetch({ method: "GET" }).catch(() => null);
+    if (!response) return { ok: false, error: "请求没有发出去（网络异常）。" };
+    const data = await response.json().catch(() => ({})) as { ok?: boolean; jobs?: unknown; error?: string };
+    if (!response.ok || data.ok !== true) return { ok: false, error: data.error || `HTTP ${response.status}` };
+    return {
+        ok: true,
+        jobs: Array.isArray(data.jobs)
+            ? data.jobs as Array<{ trigger_key: string; kind: string; execute_at: string; status: string }>
+            : [],
+    };
+}
+
+/** 删除服务端的一条精确预约。 */
+export async function deleteScheduledJob(triggerKey: string): Promise<{ ok: boolean; error?: string }> {
+    if (!bailoutEnabled()) return { ok: false, error: "当前环境不支持服务端离线预约" };
+    if (!triggerKey) return { ok: false, error: "缺少任务键。" };
+    const response = await pushJobsFetch({
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ triggerKey }),
+    }).catch(() => null);
+    if (!response) return { ok: false, error: "请求没有发出去（网络异常）。" };
+    if (response.ok) return { ok: true };
+    const data = await response.json().catch(() => ({})) as { error?: string };
+    return { ok: false, error: data.error || `HTTP ${response.status}` };
+}
+
+/** 清理某个角色的服务端与本地主动消息预约。 */
+export async function stopCharacterScheduledActivity(characterId: string): Promise<{ ok: boolean; localCleared: number; error?: string }> {
+    if (!bailoutEnabled()) return { ok: false, localCleared: 0, error: "当前环境不支持服务端离线预约" };
+    if (!characterId) return { ok: false, localCleared: 0, error: "缺少角色标识。" };
+    let localCleared = 0;
+    try {
+        const sessions = loadChatSessions().filter(session => !session.isGroup && session.contactId === characterId);
+        for (const session of sessions) {
+            await cancelBailoutPrefix(`followup:${session.id}:`);
+            await deleteScheduledJob(`reply:${session.id}`);
+        }
+        for (const rule of loadIdleReconnectRules().filter(item => item.characterId === characterId)) {
+            await cancelBailoutPrefix(`idle:${rule.id}:`);
+            removeIdleReconnectRule(rule.id);
+            localCleared += 1;
+        }
+        for (const schedule of loadTimedWakeSchedules().filter(item => item.characterId === characterId)) {
+            removeTimedWakeSchedule(schedule.id);
+            localCleared += 1;
+        }
+        await cancelBailoutPrefix(`periodcare:${characterId}:`);
+        return { ok: true, localCleared };
+    } catch (err) {
+        return { ok: false, localCleared, error: err instanceof Error ? err.message : String(err) };
+    }
 }

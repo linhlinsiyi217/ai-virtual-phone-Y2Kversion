@@ -41,6 +41,9 @@ import MapApp from "@/components/map/map-app";
 import { DwellingApp } from "@/components/dwelling/dwelling-app";
 import { MascotFloat } from "@/components/mascot/mascot-float";
 import { MascotPreviewHost } from "@/components/mascot/mascot-preview-host";
+import { CallLayer } from "@/components/chat/call-layer";
+import { ShellPushRegistrar } from "@/components/shell-push-registrar";
+import { WidgetScheduler } from "@/components/widget/widget-scheduler";
 import { useMusicControlsOptional } from "@/lib/music-context";
 import { PhoneResourcesApp, type ResourceSubPage } from "@/components/phone-resources-app";
 import { CheckPhoneApp } from "@/components/checkphone/checkphone-app";
@@ -1047,6 +1050,9 @@ const MusicShellOverlays = memo(function MusicShellOverlays({
   return (
     <>
       <PerceptionBootstrap />
+      <ShellPushRegistrar />
+      <WidgetScheduler />
+      <CallLayer />
       {musicPlayer?.showFullPlayer && musicPlayer.currentTrack && <MusicPlayer />}
       <MusicFloat hidden={activeApp === "music" || musicPlayer?.showFullPlayer} />
       <ListeningGlow />

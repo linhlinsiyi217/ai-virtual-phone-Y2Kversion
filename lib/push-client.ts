@@ -103,6 +103,28 @@ export function isShellEnvironment(): boolean {
     return typeof navigator !== "undefined" && navigator.userAgent.includes("FloatShell/");
 }
 
+/** 为安卓壳注册一个轻量订阅标记，让服务端能识别当前账号的壳通道。 */
+export async function ensureShellSubscription(): Promise<{ ok: boolean; error?: string }> {
+    if (!isShellEnvironment()) return { ok: false, error: "非壳环境。" };
+    try {
+        const meResponse = await fetch("/api/auth/me", { credentials: "include" });
+        const meData = await meResponse.json().catch(() => ({})) as { account?: { id?: string } | null };
+        const accountId = meData.account?.id || "";
+        if (!accountId) return { ok: false, error: "未取得账号身份。" };
+        const response = await fetch("/api/push/subscribe", {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ endpoint: `shell:${accountId}`, keys: { p256dh: "shell", auth: "shell" } }),
+        });
+        const data = await response.json().catch(() => ({})) as { ok?: boolean; error?: string };
+        if (!response.ok || !data.ok) return { ok: false, error: data.error || `订阅注册失败（HTTP ${response.status}）。` };
+        return { ok: true };
+    } catch (error) {
+        return { ok: false, error: error instanceof Error ? error.message : "订阅注册请求失败。" };
+    }
+}
+
 function isPushSupported(): boolean {
     return typeof window !== "undefined"
         && "serviceWorker" in navigator
