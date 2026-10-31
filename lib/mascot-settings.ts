@@ -3,10 +3,10 @@ import { MASCOT_PERSONA } from "./mascot-prompts";
 
 export const MASCOT_SETTINGS_KEY = "ai_phone_mascot_settings_v1";
 export const DEFAULT_MASCOT_DISPLAY_NAME = "AI助手";
-// Project mascot: a monochrome rabbit-cat designed for the Y2K phone shell.
-// Keep the original XiaoJuan image available for existing custom settings,
-// but use the project mascot for new installs and reset-to-default flows.
-export const DEFAULT_MASCOT_AVATAR = "/mascot-rabbit-cat.png";
+// Project mascot: a small geometric crab for the Y2K phone shell.
+// Keep previous/default XiaoJuan assets available for existing custom settings,
+// but use the project crab for new installs and reset-to-default flows.
+export const DEFAULT_MASCOT_AVATAR = "/mascot-crab.svg";
 
 export type MascotSettings = {
     nickname: string;
@@ -52,7 +52,9 @@ function normalizeMascotSettings(raw: unknown): MascotSettings {
         // Existing installs used the generic XiaoJuan image as the implicit
         // default. Migrate only that exact legacy value; user-selected URLs,
         // data URLs and IndexedDB asset ids remain untouched.
-        avatarImage: avatarImage === "/mascot.png" ? DEFAULT_MASCOT_AVATAR : avatarImage,
+        avatarImage: new Set(["/mascot.png", "/mascot-rabbit-cat.png"]).has(avatarImage)
+            ? DEFAULT_MASCOT_AVATAR
+            : avatarImage,
         chatBackgroundImage: typeof src.chatBackgroundImage === "string" ? src.chatBackgroundImage : "",
         chatCustomCSS: typeof src.chatCustomCSS === "string" ? src.chatCustomCSS : "",
     };

@@ -1616,8 +1616,17 @@ export function MascotFloat() {
         }
         /* ── Thinking indicator ── */
         .mascot-thinking {
-          color: var(--mascot-accent, rgba(200,180,240,0.95));
+          color: var(--mascot-accent, #1c1c1e);
           font-weight: 500;
+        }
+        .mascot-thinking-sticker {
+          display: block;
+          width: 34px;
+          height: 34px;
+          object-fit: contain;
+          margin: -4px 0 2px -2px;
+          image-rendering: pixelated;
+          opacity: 0.9;
         }
         .mascot-thinking .mascot-dot {
           display: inline-block;
@@ -1625,10 +1634,10 @@ export function MascotFloat() {
           height: 7px;
           margin: 0 2px;
           border-radius: 50%;
-          background: var(--mascot-accent, rgba(200,180,240,0.95));
+          background: var(--mascot-accent, #8e8e93);
           vertical-align: middle;
           animation: mascot-dot-bounce 1s infinite ease-in-out;
-          box-shadow: 0 0 6px currentColor;
+          box-shadow: none;
         }
         .mascot-thinking .mascot-dot:nth-child(1) { animation-delay: 0s; }
         .mascot-thinking .mascot-dot:nth-child(2) { animation-delay: 0.15s; }
@@ -1888,9 +1897,9 @@ export function MascotFloat() {
           transform: scale(0.95);
         }
         .mascot-grid-btn[data-selected="true"] {
-          background: var(--mascot-accent-bg, rgba(200,180,240,0.15));
-          border-color: var(--mascot-accent-border, rgba(200,180,240,0.3));
-          color: var(--mascot-accent, rgba(200,180,240,0.9));
+          background: var(--mascot-accent-bg, rgba(60, 60, 67, 0.10));
+          border-color: var(--mascot-accent-border, rgba(60, 60, 67, 0.20));
+          color: var(--mascot-accent, #1c1c1e);
         }
         .mascot-grid-icon {
           font-size: calc(14px*var(--app-text-scale,1));
@@ -1901,9 +1910,9 @@ export function MascotFloat() {
         .mascot-teleport-btn {
           padding: 8px 20px;
           border-radius: 8px;
-          border: 1px solid var(--mascot-accent-border, rgba(200,180,240,0.25));
-          background: var(--mascot-accent-bg, rgba(200,180,240,0.15));
-          color: var(--mascot-accent, rgba(200,180,240,0.9));
+          border: 1px solid var(--mascot-accent-border, rgba(60, 60, 67, 0.20));
+          background: var(--mascot-accent-bg, rgba(60, 60, 67, 0.10));
+          color: var(--mascot-accent, #1c1c1e);
           font-size: calc(12px*var(--app-text-scale,1));
           font-family: inherit;
           cursor: pointer;
@@ -2072,8 +2081,8 @@ export function MascotFloat() {
           height: 36px;
           border-radius: 50%;
           border: none;
-          background: rgba(200,180,240,0.15);
-          color: rgba(200,180,240,0.8);
+          background: rgba(60, 60, 67, 0.10);
+          color: #1c1c1e;
           cursor: pointer;
           display: flex;
           align-items: center;
@@ -2082,7 +2091,7 @@ export function MascotFloat() {
           font-size: calc(16px*var(--app-text-scale,1));
         }
         .mascot-chat-send:active {
-          background: rgba(200,180,240,0.3);
+          background: rgba(60, 60, 67, 0.20);
         }
 
         /* ── Confirmation dialog ── */
@@ -2270,7 +2279,7 @@ export function MascotFloat() {
                         <div className="mascot-msg" data-role="mascot">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img className="mascot-msg-avatar" src={mascotAvatarUrl} alt="" />
-                          <div className="mascot-msg-bubble mascot-thinking">思考中<span className="mascot-dot"></span><span className="mascot-dot"></span><span className="mascot-dot"></span></div>
+                          <div className="mascot-msg-bubble mascot-thinking"><img className="mascot-thinking-sticker" src="/mascot-thinking.gif" alt="" />思考中<span className="mascot-dot"></span><span className="mascot-dot"></span><span className="mascot-dot"></span></div>
                         </div>
                       )}
                     </div>
@@ -2376,7 +2385,7 @@ export function MascotFloat() {
                           <div className="mascot-msg" data-role="mascot">
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img className="mascot-msg-avatar" src={mascotAvatarUrl} alt="" />
-                            <div className="mascot-msg-bubble mascot-thinking">思考中<span className="mascot-dot"></span><span className="mascot-dot"></span><span className="mascot-dot"></span></div>
+                            <div className="mascot-msg-bubble mascot-thinking"><img className="mascot-thinking-sticker" src="/mascot-thinking.gif" alt="" />思考中<span className="mascot-dot"></span><span className="mascot-dot"></span><span className="mascot-dot"></span></div>
                           </div>
                         )}
                       </div>
