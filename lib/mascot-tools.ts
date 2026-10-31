@@ -29,6 +29,7 @@ import {
     uploadCssAssetToImageHost,
     type CssAssetUserImageHistoryMessage,
 } from "./css-asset-tools";
+import { sanitizeCharacterDraft } from "./character-card-parser";
 
 // ── 通用类型 ────────────────────────────────────────────
 
@@ -1939,16 +1940,18 @@ async function handleReadCharacter(args: Record<string, unknown>): Promise<ToolR
 
 async function handleCreateCharacter(args: Record<string, unknown>): Promise<ToolResult> {
     const { loadCharacters, saveCharacters } = await import("./character-storage");
+    const draft = sanitizeCharacterDraft(args);
+    if (!draft) return { name: "创建角色", success: false, error: "角色卡缺少有效的名称或人设内容" };
     const chars = loadCharacters();
-    if (chars.find((c) => c.name === args.name)) return { name: "创建角色", success: false, error: "已存在同名角色" };
+    if (chars.find((c) => c.name === draft.name)) return { name: "创建角色", success: false, error: "已存在同名角色" };
     const now = new Date().toISOString();
-    const briefPersona = typeof args.briefPersona === "string" ? args.briefPersona.trim() : "";
+    const briefPersona = draft.briefPersona || "";
     const newChar = {
         id: `char_${Date.now()}`,
-        name: args.name as string,
+        name: draft.name,
         avatar: null,
-        persona: args.persona as string,
-        personality: args.personality as string,
+        persona: draft.persona,
+        personality: draft.personality,
         briefPersona: briefPersona || undefined,
         briefPersonaUpdatedAt: briefPersona ? now : undefined,
         createdAt: now,
