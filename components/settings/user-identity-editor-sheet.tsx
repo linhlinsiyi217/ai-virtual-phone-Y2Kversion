@@ -1,7 +1,9 @@
 "use client";
 
 import { Camera, Check, Link, User, X } from "lucide-react";
+import type { ReactNode } from "react";
 import { Input } from "@/components/ui/form";
+import styles from "./user-identity.module.css";
 
 export type UserIdentity = {
     id: string;
@@ -55,16 +57,19 @@ export function UserIdentityEditorSheet({
     onChange,
     onCancel,
     onConfirm,
+    children,
 }: {
     identity: UserIdentity;
     title: string;
     onChange: (updates: Partial<UserIdentity>) => void;
     onCancel: () => void;
     onConfirm: () => void;
+    /** 额外表单区（如人像设置），渲染在头像区之后、基础字段之前。 */
+    children?: ReactNode;
 }) {
     return (
         <div className="modal-overlay modal-overlay-bottom">
-            <div className="modal-sheet" data-ui="modal-sheet">
+            <div className={`modal-sheet ${styles.editor}`} data-ui="modal-sheet">
                 <div className="modal-header" data-ui="modal-header">
                     <button type="button" onClick={onCancel} className="modal-header-btn modal-header-btn-muted" aria-label="取消">
                         <X size={18} />
@@ -75,7 +80,7 @@ export function UserIdentityEditorSheet({
                     </button>
                 </div>
 
-                <div className="modal-body hide-scrollbar flex flex-col gap-4 pb-10" data-ui="modal-body">
+                <div className={`modal-body hide-scrollbar flex flex-col gap-4 pb-10 ${styles.body}`} data-ui="modal-body">
                     <div className="flex flex-col items-center gap-2">
                         <button
                             type="button"
@@ -120,6 +125,8 @@ export function UserIdentityEditorSheet({
                             />
                         </div>
                     </div>
+
+                    {children}
 
                     <div className="flex gap-3">
                         <div className="flex min-w-0 flex-1 flex-col gap-1">
