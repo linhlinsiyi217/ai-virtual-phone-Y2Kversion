@@ -40,13 +40,19 @@ function normalizeMascotSettings(raw: unknown): MascotSettings {
     const personaPrompt = typeof src.personaPrompt === "string" && src.personaPrompt.trim()
         ? src.personaPrompt
         : MASCOT_PERSONA;
+    const avatarImage = typeof src.avatarImage === "string" && src.avatarImage.trim()
+        ? src.avatarImage.trim()
+        : DEFAULT_MASCOT_AVATAR;
     return {
         ...DEFAULT_MASCOT_SETTINGS,
         ...src,
         nickname,
         personaPrompt,
         chatEnabled: src.chatEnabled !== false,
-        avatarImage: typeof src.avatarImage === "string" && src.avatarImage.trim() ? src.avatarImage : DEFAULT_MASCOT_AVATAR,
+        // Existing installs used the generic XiaoJuan image as the implicit
+        // default. Migrate only that exact legacy value; user-selected URLs,
+        // data URLs and IndexedDB asset ids remain untouched.
+        avatarImage: avatarImage === "/mascot.png" ? DEFAULT_MASCOT_AVATAR : avatarImage,
         chatBackgroundImage: typeof src.chatBackgroundImage === "string" ? src.chatBackgroundImage : "",
         chatCustomCSS: typeof src.chatCustomCSS === "string" ? src.chatCustomCSS : "",
     };
