@@ -1181,11 +1181,34 @@ export function MascotFloat() {
           position: absolute;
           width: min(280px, 75vw);
           z-index: 9999;
-          background: var(--mascot-panel-bg, rgba(10, 8, 20, 0.92));
-          border: var(--mascot-panel-border, 1px solid rgba(255,255,255,0.1));
+          /* iOS 26 light material: white surface, black/gray ink, no purple
+             glass defaults. A user's custom CSS can still override these
+             variables through the existing mascot appearance editor. */
+          --mascot-panel-bg: rgba(255, 255, 255, 0.96);
+          --mascot-panel-border: 1px solid rgba(28, 28, 30, 0.12);
+          --mascot-panel-radius: 24px;
+          --mascot-panel-shadow: 0 18px 50px rgba(0, 0, 0, 0.16), 0 2px 8px rgba(0, 0, 0, 0.08);
+          --mascot-accent: #161618;
+          --mascot-accent-bg: rgba(60, 60, 67, 0.10);
+          --mascot-accent-border: rgba(60, 60, 67, 0.20);
+          --mascot-text: #1c1c1e;
+          --mascot-text-dim: #6e6e73;
+          --mascot-border: rgba(60, 60, 67, 0.16);
+          --mascot-btn-bg: rgba(120, 120, 128, 0.10);
+          --mascot-btn-active: rgba(120, 120, 128, 0.18);
+          --mascot-input-bg: rgba(120, 120, 128, 0.10);
+          --mascot-bubble-mascot-bg: #f2f2f7;
+          --mascot-bubble-mascot-text: #1c1c1e;
+          --mascot-bubble-user-bg: #1c1c1e;
+          --mascot-bubble-user-text: #ffffff;
+          color: var(--mascot-text);
+          background: var(--mascot-panel-bg);
+          border: var(--mascot-panel-border);
           border-radius: var(--mascot-panel-radius, 16px);
           padding: 16px;
           box-shadow: var(--mascot-panel-shadow, 0 8px 32px rgba(0,0,0,0.4));
+          -webkit-backdrop-filter: blur(24px) saturate(140%);
+          backdrop-filter: blur(24px) saturate(140%);
           animation: mascot-panel-in 0.25s ease;
           transform-origin: right bottom;
           will-change: transform, opacity;

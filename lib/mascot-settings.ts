@@ -3,7 +3,10 @@ import { MASCOT_PERSONA } from "./mascot-prompts";
 
 export const MASCOT_SETTINGS_KEY = "ai_phone_mascot_settings_v1";
 export const DEFAULT_MASCOT_DISPLAY_NAME = "AI助手";
-export const DEFAULT_MASCOT_AVATAR = "/mascot.png";
+// Project mascot: a monochrome rabbit-cat designed for the Y2K phone shell.
+// Keep the original XiaoJuan image available for existing custom settings,
+// but use the project mascot for new installs and reset-to-default flows.
+export const DEFAULT_MASCOT_AVATAR = "/mascot-rabbit-cat.png";
 
 export type MascotSettings = {
     nickname: string;
