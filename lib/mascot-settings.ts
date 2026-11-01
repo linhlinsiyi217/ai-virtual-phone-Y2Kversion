@@ -6,7 +6,7 @@ export const DEFAULT_MASCOT_DISPLAY_NAME = "AI助手";
 // Project mascot: a small geometric crab for the Y2K phone shell.
 // Keep previous/default XiaoJuan assets available for existing custom settings,
 // but use the project crab for new installs and reset-to-default flows.
-export const DEFAULT_MASCOT_AVATAR = "/mascot-crab.svg";
+export const DEFAULT_MASCOT_AVATAR = "/mascot-crab.png";
 
 export type MascotSettings = {
     nickname: string;
@@ -52,7 +52,7 @@ function normalizeMascotSettings(raw: unknown): MascotSettings {
         // Existing installs used the generic XiaoJuan image as the implicit
         // default. Migrate only that exact legacy value; user-selected URLs,
         // data URLs and IndexedDB asset ids remain untouched.
-        avatarImage: new Set(["/mascot.png", "/mascot-rabbit-cat.png"]).has(avatarImage)
+        avatarImage: new Set(["/mascot.png", "/mascot-rabbit-cat.png", "/mascot-crab.svg"]).has(avatarImage)
             ? DEFAULT_MASCOT_AVATAR
             : avatarImage,
         chatBackgroundImage: typeof src.chatBackgroundImage === "string" ? src.chatBackgroundImage : "",
