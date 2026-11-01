@@ -206,6 +206,7 @@ type QaVisibleSink = (text: string) => void | Promise<void>;
 const QA_DIRECTIVE_START = /\[[^\[\]\n]{0,60}?(?:执行动作|工具调用|获取指令)/;
 const QA_THINK_START = /<\s*(?:think|thinking)\b/i;
 const QA_THINK_END = /<\/\s*(?:think|thinking)\s*>/i;
+const NOT_A_BLOCK = Symbol("not-a-block");
 
 function createQaStreamFilter(sink: QaVisibleSink, onHolding?: (holding: boolean) => void | Promise<void>) {
     let buffer = "";
@@ -217,21 +218,29 @@ function createQaStreamFilter(sink: QaVisibleSink, onHolding?: (holding: boolean
         await onHolding?.(next);
     };
 
-    const findStart = (text: string): number => {
-        const directive = QA_DIRECTIVE_START.exec(text);
-        const think = QA_THINK_START.exec(text);
+    const findStart = (text: string, from = 0): number => {
+        const rest = text.slice(from);
+        const directive = QA_DIRECTIVE_START.exec(rest);
+        const think = QA_THINK_START.exec(rest);
         const indexes = [directive?.index, think?.index].filter((v): v is number => typeof v === "number");
-        return indexes.length ? Math.min(...indexes) : -1;
+        return indexes.length ? from + Math.min(...indexes) : -1;
     };
+
+    const isThinkStart = (text: string, start: number): boolean => QA_THINK_START.test(text.slice(start, start + 12));
 
     // 指令收尾：对参数括号做字符串感知的配平扫描。
     // 不能用「第一个 )]」判断——代码里 arr[fn()] 这类序列会提前骗停；
     // 也不能设长度上限放弃——放弃后指令尾部会当正文泄漏（见 e2e/test-leak-repro）。
-    const findDirectiveEnd = (text: string, start: number): number | null => {
-        const half = text.indexOf("(", start);
-        const full = text.indexOf("（", start);
-        let i = half === -1 ? full : full === -1 ? half : Math.min(half, full);
-        if (i === -1) return null; // 参数括号还没流到
+    // 参数括号之前先遇到换行或 ]，说明只是正文在提到指令语法；[获取指令] 则隐藏到 ]。
+    const findDirectiveEnd = (text: string, start: number): number | null | typeof NOT_A_BLOCK => {
+        let i = start + 1;
+        for (; i < text.length; i++) {
+            const ch = text[i];
+            if (ch === "\n") return NOT_A_BLOCK;
+            if (ch === "]") return text.slice(start, i).includes("获取指令") ? i + 1 : NOT_A_BLOCK;
+            if (ch === "(" || ch === "（") break;
+        }
+        if (i >= text.length) return null;
         let depth = 0;
         let inString = false;
         for (; i < text.length; i++) {
@@ -257,8 +266,8 @@ function createQaStreamFilter(sink: QaVisibleSink, onHolding?: (holding: boolean
         return null;
     };
 
-    const findEnd = (text: string, start: number): number | null => {
-        if (QA_THINK_START.test(text.slice(start, start + 12))) {
+    const findEnd = (text: string, start: number): number | null | typeof NOT_A_BLOCK => {
+        if (isThinkStart(text, start)) {
             const match = QA_THINK_END.exec(text.slice(start));
             return match ? start + match.index + match[0].length : null;
         }
@@ -278,10 +287,19 @@ function createQaStreamFilter(sink: QaVisibleSink, onHolding?: (holding: boolean
     const drain = async (final: boolean) => {
         let out = "";
         let work = buffer;
+        let from = 0;
         for (;;) {
-            const start = findStart(work);
+            const start = findStart(work, from);
             if (start === -1) break;
             const end = findEnd(work, start);
+            if (end === NOT_A_BLOCK) {
+                from = start + 1;
+                continue;
+            }
+            if (end == null && final && isThinkStart(work, start)) {
+                from = start + 1;
+                continue;
+            }
             if (end == null) {
                 out += work.slice(0, start);
                 buffer = final ? "" : work.slice(start);
@@ -294,6 +312,7 @@ function createQaStreamFilter(sink: QaVisibleSink, onHolding?: (holding: boolean
             }
             out += work.slice(0, start);
             work = work.slice(end);
+            from = 0;
         }
         if (final) {
             out += work;
@@ -468,6 +487,8 @@ export type QaContextEntry = {
     content: string;
     /** user：随消息附带的图片（dataURL）；识图未开启时适配层会自动降级为占位文本 */
     images?: string[];
+    /** user：随消息附带的纯文本或代码附件 */
+    files?: { name: string; content: string }[];
     /** assistant：原生协议的工具调用（文本协议轮次不填，指令已在 content 里） */
     toolCalls?: LlmToolCall[];
     /** tool：来源调用 id（原生轮次才有）与工具名 */
@@ -477,11 +498,13 @@ export type QaContextEntry = {
     turn?: string;
 };
 
-/** user 条目内容：带图片时转多模态 parts（识图未开启由适配层降级为占位） */
+/** user 条目内容：先拼接文本附件；带图片时再转多模态 parts。 */
 function userEntryContent(entry: QaContextEntry): string | LLMContentPart[] {
-    if (!entry.images?.length) return entry.content;
+    const fileBlocks = (entry.files ?? []).map((file) => `\n\n[附件：${file.name}]\n${file.content}`).join("");
+    const textContent = `${entry.content}${fileBlocks}`;
+    if (!entry.images?.length) return textContent;
     return [
-        { type: "text", text: entry.content },
+        { type: "text", text: textContent },
         ...entry.images.map((url) => ({ type: "image_url" as const, image_url: { url } })),
     ];
 }
@@ -539,10 +562,16 @@ export async function compactQaContext(entries: QaContextEntry[], options?: { si
     const lines = entries.map((entry) => {
         const head = entry.role === "user" ? "用户" : entry.role === "assistant" ? "助手" : `工具结果(${entry.name ?? "工具"})`;
         const body = entry.content.length > 4000 ? `${entry.content.slice(0, 4000)}…（截断）` : entry.content;
+        const files = entry.files?.length
+            ? `\n${entry.files.map((file) => {
+                const content = file.content.length > 4000 ? `${file.content.slice(0, 4000)}…（截断）` : file.content;
+                return `[附件：${file.name}]\n${content}`;
+            }).join("\n")}`
+            : "";
         const calls = entry.toolCalls?.length
             ? `\n[调用工具] ${entry.toolCalls.map((c) => `${c.name}(${JSON.stringify(c.args ?? {}).slice(0, 400)})`).join("；")}`
             : "";
-        return `【${head}】${body}${calls}`;
+        return `【${head}】${body}${files}${calls}`;
     });
     let transcript = lines.join("\n\n");
     if (transcript.length > 150_000) transcript = transcript.slice(-150_000);
