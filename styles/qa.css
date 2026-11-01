@@ -26,10 +26,10 @@
   --qa-text-secondary: #6a685f;
   --qa-text-tertiary: #9a978c;
   --qa-text-inverse: #ffffff;
-  /* Accent：品牌紫 */
-  --qa-accent: #7359e6;
-  --qa-accent-hover: #6246d8;
-  --qa-accent-subtle: rgba(115, 89, 230, 0.12);
+  /* Accent：克制的陶土橙，只用于小面积关键动作 */
+  --qa-accent: #d97757;
+  --qa-accent-hover: #c96445;
+  --qa-accent-subtle: rgba(217, 119, 87, 0.12);
   --qa-danger: #d0564b;
   --success: #4f9e63;
 
@@ -46,7 +46,7 @@
   line-height: 1.72;
 }
 
-/* 氛围光：品牌紫极淡光晕 */
+/* 页面保持安静的近白暖底，不使用大面积彩色光晕 */
 .qa-ambient {
   position: absolute;
   top: -150px;
@@ -54,7 +54,7 @@
   width: 340px;
   height: 340px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(115, 89, 230, 0.07) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(217, 119, 87, 0.035) 0%, transparent 70%);
   pointer-events: none;
   z-index: 0;
 }
@@ -128,18 +128,12 @@
   justify-content: flex-end;
   gap: 4px;
 }
-/* 标题做成圆角悬浮块：液态玻璃小胶囊，标题与副标题行距收紧 */
+/* 标题保持简洁，避免页面中央出现过重的玻璃胶囊 */
 .qa-header-center {
   flex-direction: column;
   align-items: center;
   gap: 0;
-  padding: 4px 16px 5px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.55);
-  -webkit-backdrop-filter: blur(16px) saturate(1.5);
-  backdrop-filter: blur(16px) saturate(1.5);
-  border: 1px solid rgba(255, 255, 255, 0.65);
-  box-shadow: 0 2px 10px rgba(40, 34, 20, 0.07), inset 0 1px 1px rgba(255, 255, 255, 0.8);
+  padding: 4px 10px 5px;
 }
 .qa-header-title {
   font-size: 15px;
@@ -497,7 +491,8 @@
 .qa-welcome {
   max-width: 68ch;
   margin: 0 auto;
-  padding-top: 12vh;
+  min-height: 54vh;
+  padding-top: 14vh;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -507,23 +502,26 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 48px;
+  width: 64px;
   height: 48px;
-  border-radius: 14px;
-  background: linear-gradient(135deg, #8570ee 0%, #7359e6 55%, #6246d8 100%);
-  color: #fff;
-  border: none;
-  box-shadow: 0 6px 18px rgba(115, 89, 230, 0.32), inset 0 1px 1px rgba(255, 255, 255, 0.4);
-  margin-bottom: 18px;
+  margin-bottom: 20px;
+  background: transparent;
+}
+.qa-welcome-badge img {
+  display: block;
+  width: 64px;
+  height: 48px;
+  object-fit: contain;
+  image-rendering: pixelated;
 }
 .qa-welcome-title {
-  font-size: 19px;
-  font-weight: 500;
+  font-size: 24px;
+  font-weight: 600;
   letter-spacing: 0.01em;
 }
 .qa-welcome-sub {
-  margin-top: 8px;
-  font-size: 13px;
+  margin-top: 6px;
+  font-size: 14px;
   line-height: 1.7;
   color: var(--qa-text-secondary);
 }
@@ -535,32 +533,6 @@
   background: rgba(251, 191, 36, 0.08);
   color: #fbbf24;
   font-size: 12.5px;
-}
-.qa-suggestions {
-  margin-top: 26px;
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 8px;
-}
-.qa-suggestion {
-  padding: 8px 16px;
-  border-radius: 9999px;
-  color: var(--qa-text-secondary);
-  font-size: 13px;
-  cursor: pointer;
-  background: var(--qa-bg-surface);
-  border: none;
-  box-shadow: 0 1px 2px rgba(40, 34, 20, 0.04);
-  transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease, transform 0.16s ease;
-}
-.qa-suggestion:hover {
-  color: var(--qa-accent);
-  border-color: var(--qa-accent-subtle);
-  box-shadow: 0 2px 8px rgba(115, 89, 230, 0.1);
-}
-.qa-suggestion:active {
-  transform: scale(0.96);
 }
 
 /* ── 输入框 ── */
@@ -611,7 +583,7 @@
   display: block;
   height: 100%;
   border-radius: 999px;
-  background: linear-gradient(90deg, rgba(147, 122, 246, 0.55), rgba(147, 122, 246, 0.95));
+  background: linear-gradient(90deg, rgba(217, 119, 87, 0.45), rgba(217, 119, 87, 0.9));
   transition: width 0.4s ease;
 }
 .qa-context-meter-label {
@@ -784,7 +756,7 @@
   gap: 5px;
   padding: 5px 8px;
   border-radius: 9px;
-  background: rgba(115, 89, 230, 0.09);
+  background: rgba(217, 119, 87, 0.09);
   color: var(--qa-text-secondary);
   font-size: 12px;
   line-height: 1.2;
@@ -896,7 +868,7 @@
   transition-duration: 0.12s;
 }
 
-/* 发送按钮：品牌紫纯色圆钮（不做玻璃/渐变/高光） */
+/* 发送按钮：小面积陶土橙纯色圆钮 */
 .qa-send-btn {
   color: #fff;
   background: var(--qa-accent);
@@ -947,7 +919,7 @@
   cursor: pointer;
   color: var(--qa-accent-hover);
   background: var(--qa-accent-subtle);
-  border: 1px solid rgba(115, 89, 230, 0.14);
+  border: 1px solid rgba(217, 119, 87, 0.14);
   transition: filter 0.16s ease, transform 0.16s ease;
 }
 .qa-mode-pill:hover {
@@ -958,7 +930,7 @@
 }
 
 /* ── 工坊内预览 ── */
-/* 预览按钮：品牌紫轻底，与纯紫发送键区分 */
+/* 预览按钮：陶土橙轻底，与实色发送键区分 */
 .qa-preview-btn {
   color: var(--qa-accent-hover);
   background: var(--qa-accent-subtle);
@@ -1760,7 +1732,7 @@
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
-  box-shadow: 0 2px 10px rgba(115, 89, 230, 0.3);
+  box-shadow: 0 2px 10px rgba(217, 119, 87, 0.28);
   transition: filter 0.16s ease, transform 0.16s ease;
 }
 .qa-drawer-new:hover {

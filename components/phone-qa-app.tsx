@@ -9,7 +9,6 @@ import { AppWindow, ArrowUp, BrushCleaning, Check, ChevronLeft, ChevronRight, Co
 import { getQaApiLogs, clearQaApiLogs, type DebugInfo } from "@/lib/api-log-store";
 import { QaFileCard } from "@/components/qa-file-card";
 import { parseQaFileMarker } from "@/lib/qa-computer-tools";
-import { mdiHammerWrench } from "@mdi/js";
 import { CustomAppRunner } from "@/components/app-market/custom-app-runner";
 import { CustomAppForegroundBoundary } from "@/components/app-market/custom-app-failure";
 import { GameHubApp } from "@/components/game/game-hub-app";
@@ -82,14 +81,6 @@ type PhoneQaAppProps = {
   onClose: () => void;
   onNotice?: (msg: string) => void;
 };
-
-const SUGGESTIONS = [
-  "怎么添加我的 API？",
-  "聊天没有回复怎么排查？",
-  "怎么部署到 Netlify / Vercel？",
-  "数据存在哪里，怎么备份？",
-  "帮我写个小游戏装到本机",
-];
 
 function formatRelativeTime(ts: number): string {
   const diff = Date.now() - ts;
@@ -1084,36 +1075,13 @@ export function PhoneQaApp({ onClose, onNotice }: PhoneQaAppProps) {
         {messages.length === 0 ? (
           <div className="qa-welcome">
             <div className="qa-welcome-badge" aria-hidden>
-              <svg viewBox="0 0 24 24" width="26" height="26">
-                <path d={mdiHammerWrench} fill="currentColor" />
-              </svg>
+              <img src="/mascot-crab.png" alt="" />
             </div>
-            <div className="qa-welcome-title">有什么问题？</div>
-            <div className="qa-welcome-sub">
-              我是小坊，工坊的驻场工程师。使用问题、报错排查、部署配置，都可以问我。
-              <br />
-              我还能动手：写小游戏 / APP / 剧场直接装进本机试玩；连接仓库后我会查源码答疑，填了有写权限的 PAT 还能帮你改代码。
-              <br />
-              想创作角色、世界书或美化桌面，找桌面上的小卷更合适。
-            </div>
+            <div className="qa-welcome-title">你好，仪仪</div>
+            <div className="qa-welcome-sub">今天想一起做点什么？</div>
             {!apiReady && (
               <div className="qa-welcome-warn">还没有可用的 API：请先到「设置 → API 设置」添加 LLM API。</div>
             )}
-            <div className="qa-suggestions">
-              {SUGGESTIONS.map((text) => (
-                <button
-                  key={text}
-                  type="button"
-                  className="qa-suggestion"
-                  onClick={() => {
-                    stickToBottomRef.current = true;
-                    void sendQaMessage(text);
-                  }}
-                >
-                  {text}
-                </button>
-              ))}
-            </div>
           </div>
         ) : (
           <div className="qa-messages">
