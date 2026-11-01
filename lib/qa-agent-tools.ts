@@ -323,7 +323,7 @@ const githubTreeTool: QaTool = {
     ],
     async run(args, options) {
         const config = loadQaGithubConfig();
-        if (!config) return "尚未连接 GitHub 仓库。请引导用户在 Claude 克劳德右上角「仓库」里配置。";
+        if (!config) return "尚未连接 GitHub 仓库。请引导用户在 Claude 右上角「仓库」里配置。";
         const { entries, truncated } = await getQaGithubTree(config, options?.signal);
         const filter = typeof args.filter === "string" ? args.filter.trim().toLowerCase() : "";
         let files = entries.filter((e) => e.type === "blob");
@@ -572,7 +572,7 @@ const githubBranchTool: QaTool = {
     async run(args, context) {
         const config = loadQaGithubConfig();
         if (!config) return "尚未连接 GitHub 仓库。";
-        if (!config.token) return "写操作需要 PAT。请引导用户在 Claude 克劳德「仓库」里填入有写权限的 fine-grained PAT。";
+        if (!config.token) return "写操作需要 PAT。请引导用户在 Claude「仓库」里填入有写权限的 fine-grained PAT。";
         const name = typeof args.name === "string" ? args.name.trim() : "";
         if (!name) return "缺少 name（分支名）。";
         const from = typeof args.from === "string" && args.from.trim() ? args.from.trim() : undefined;
@@ -707,7 +707,7 @@ const githubCommitTool: QaTool = {
     async run(args, context) {
         const config = loadQaGithubConfig();
         if (!config) return "尚未连接 GitHub 仓库。";
-        if (!config.token) return "写操作需要 PAT。请引导用户在 Claude 克劳德「仓库」里填入有写权限的 fine-grained PAT。";
+        if (!config.token) return "写操作需要 PAT。请引导用户在 Claude「仓库」里填入有写权限的 fine-grained PAT。";
         const message = typeof args.message === "string" ? args.message.trim() : "";
         const rawFiles = Array.isArray(args.files) ? args.files : [];
         // 两种形态：整写 {path, content}；片段替换 {path, find, replace[, all]}——
@@ -788,7 +788,7 @@ const githubCommitTool: QaTool = {
 function requireWritableConfig(): { config: NonNullable<ReturnType<typeof loadQaGithubConfig>> } | { error: string } {
     const config = loadQaGithubConfig();
     if (!config) return { error: "尚未连接 GitHub 仓库。" };
-    if (!config.token) return { error: "写操作需要 PAT。请引导用户在 Claude 克劳德「仓库」里填入有写权限的 fine-grained PAT。" };
+    if (!config.token) return { error: "写操作需要 PAT。请引导用户在 Claude「仓库」里填入有写权限的 fine-grained PAT。" };
     return { config };
 }
 

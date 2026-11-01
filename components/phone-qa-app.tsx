@@ -277,6 +277,35 @@ function QaStreamingText({ text }: { text: string }) {
   );
 }
 
+function QaClaudeThinking({ startedAt, toolDrafting }: { startedAt: number; toolDrafting?: boolean }) {
+  const [elapsed, setElapsed] = useState(() => Math.max(0, Math.floor((Date.now() - startedAt) / 1000)));
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setElapsed(Math.max(0, Math.floor((Date.now() - startedAt) / 1000)));
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [startedAt]);
+
+  return (
+    <div className="qa-claude-thinking" role="status" aria-live="polite">
+      <span className="qa-claude-star" aria-hidden>
+        <svg viewBox="0 0 24 24">
+          <g fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round">
+            <path d="M12 2.5v4" /><path d="M12 17.5v4" />
+            <path d="M2.5 12h4" /><path d="M17.5 12h4" />
+            <path d="m5.1 5.1 2.8 2.8" /><path d="m16.1 16.1 2.8 2.8" />
+            <path d="m5.1 18.9 2.8-2.8" /><path d="m16.1 7.9 2.8-2.8" />
+          </g>
+        </svg>
+        <i />
+      </span>
+      <span className="qa-claude-thinking-copy">{toolDrafting ? "正在准备工具" : "正在思考"}</span>
+      <time>{elapsed}s</time>
+    </div>
+  );
+}
+
 const QaMessageItem = memo(function QaMessageItem({
   msg,
   isStreaming,
@@ -391,7 +420,7 @@ const QaMessageItem = memo(function QaMessageItem({
             </div>
           )}
           {thinkingOnly ? (
-            <div className="qa-thinking">{msg.toolDrafting ? "正在编写工具调用…" : msg.reasoning ? "正在思考…" : "正在生成…"}</div>
+            <QaClaudeThinking startedAt={msg.ts} toolDrafting={msg.toolDrafting} />
           ) : isStreaming ? (
             <div className="qa-markdown">
               <QaStreamingText text={msg.content} />
@@ -404,7 +433,16 @@ const QaMessageItem = memo(function QaMessageItem({
         </>
       )}
       {isStreaming && msg.toolDrafting && !thinkingOnly && (
-        <div className="qa-thinking qa-tool-drafting">正在编写工具调用…</div>
+        <QaClaudeThinking startedAt={msg.ts} toolDrafting />
+      )}
+      {!isStreaming && msg.reasoning && (
+        <details className="qa-thinking-summary">
+          <summary>
+            <span className="qa-thinking-summary-star" aria-hidden>✦</span>
+            查看思考过程
+          </summary>
+          <div>{msg.reasoning}</div>
+        </details>
       )}
       {msg.streamNote && <div className="qa-msg-note">{msg.streamNote}</div>}
       {msg.pendingCommit && <QaCommitCard msg={msg} />}
@@ -1152,7 +1190,7 @@ export function PhoneQaApp({ onClose, onNotice }: PhoneQaAppProps) {
           </button>
         </div>
         <div className="qa-header-center">
-          <span className="qa-header-title">Claude 克劳德</span>
+          <span className="qa-header-title">Claude</span>
           {repoConnected && <span className="qa-header-sub">已连接仓库</span>}
         </div>
         <div className="qa-header-right">
@@ -1161,7 +1199,7 @@ export function PhoneQaApp({ onClose, onNotice }: PhoneQaAppProps) {
             className="qa-icon-btn"
             onClick={() => setApiLogOpen(true)}
             aria-label="调用记录"
-            title="查看 Claude 克劳德的 AI 调用记录"
+            title="查看 Claude 的 AI 调用记录"
           >
             <FileCode2 size={17} strokeWidth={1.75} />
           </button>
@@ -1631,12 +1669,12 @@ function QaApiLogSheet({ onClose, onNotice }: { onClose: () => void; onNotice?: 
         <div className="qa-sheet-body hide-scrollbar qa-log-body">
           {logs.length === 0 ? (
             <p className="qa-sheet-note">
-              还没有 Claude 克劳德的 AI 调用记录。调用过模型后，这里会显示每次请求的 Prompt 与 AI 原始回复（含思维链），供排查用。
+              还没有 Claude 的 AI 调用记录。调用过模型后，这里会显示每次请求的 Prompt 与 AI 原始回复（含思维链），供排查用。
             </p>
           ) : (
             <>
               <p className="qa-sheet-note">
-                Claude 克劳德每次调用大模型的记录，与聊天页「底层调用大模型日志」互相独立，互不混入。
+                Claude 每次调用大模型的记录，与聊天页「底层调用大模型日志」互相独立，互不混入。
               </p>
               <div className="qa-log-list">
                 {logs.map((log) => {
