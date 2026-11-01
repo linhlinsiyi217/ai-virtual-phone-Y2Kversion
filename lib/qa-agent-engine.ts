@@ -87,11 +87,12 @@ function parseSseEvents(buffer: string): { events: string[]; rest: string } {
 function qaStreamIdleMs(): number {
     try {
         const raw = Number(identityLocalStorage.getItem("ai_phone_qa_stream_idle_ms"));
-        if (Number.isFinite(raw) && raw >= 1_000 && raw <= 600_000) return Math.floor(raw);
+        if (Number.isFinite(raw) && raw >= 1_000 && raw <= 3_600_000) return Math.floor(raw);
     } catch {
         // ignore
     }
-    return 90_000;
+    // 思考模型与慢中转可能长时间不吐首字节；仍保留用户主动停止能力。
+    return 1_800_000;
 }
 
 async function streamQaProviderRequest(
@@ -100,7 +101,7 @@ async function streamQaProviderRequest(
     callbacks?: QaStreamCallbacks,
 ): Promise<{ content: string; reasoning: string }> {
     const llmAbort = new AbortController();
-    const llmTimeout = setTimeout(() => llmAbort.abort(), 500_000);
+    const llmTimeout = setTimeout(() => llmAbort.abort(), 1_800_000);
     const abortHandler = () => llmAbort.abort();
     if (options?.signal) {
         if (options.signal.aborted) llmAbort.abort();
@@ -355,7 +356,7 @@ async function requestQaCompletion(
     // 工坊调用记录：与角色聊天/记忆等底层日志隔离，只进工坊右上角「调用记录」
     const logQaCall = (entry: { model: string; messages: { role: string; content: string | LLMContentPart[]; marker?: string }[]; rawResponse: string; reasoning?: string }) => {
         pushApiLog({
-            characterName: "工坊",
+            characterName: "克克",
             source: "qa",
             channel: "qa",
             model: entry.model,
@@ -578,7 +579,7 @@ export async function compactQaContext(entries: QaContextEntry[], options?: { si
     const result = await requestQaCompletion(apiConfig, [
         {
             role: "system",
-            content: "你是对话上下文压缩器。把下面这段人机协作对话（含工具调用与结果）压缩成延续工作所需的中文备忘录，保留：用户的目标与偏好、已完成的操作与关键结论、涉及的文件/内容名称与关键参数、未完成事项与下一步计划。直接输出备忘录正文，不要评论。",
+            content: "你是对话上下文压缩器。把下面这段人机协作对话（含工具调用与结果）压缩成延续工作所需的中文备忘录。必须分清并保留：用户核心目标与偏好、已完成操作与源码改动、关键文件路径和参数、未完成事项与下一步计划。直接输出结构化备忘录正文，不要寒暄或评论。",
         },
         { role: "user", content: transcript },
     ], { signal: options?.signal });
@@ -733,7 +734,7 @@ async function callQaAgentNative(apiConfig: ApiConfig, history: QaEngineMessage[
                 messages,
                 tools,
                 [],
-                { characterName: "工坊", userName: "用户" },
+                { characterName: "克克", userName: "用户" },
                 { appId: "qa", signal: options?.signal, maxTokens: getQaMaxOutputTokens() ?? undefined },
                 {
                     async onDelta(delta) {
@@ -764,7 +765,7 @@ async function callQaAgentNative(apiConfig: ApiConfig, history: QaEngineMessage[
             // 由聊天引擎按 appId 分流落日志，这条 fallback 是本文件自己发的请求，不补就漏一条，
             // 而恰恰是刚出过流式故障、最需要排障记录的场景。
             pushApiLog({
-                characterName: "工坊",
+                characterName: "克克",
                 source: "qa",
                 channel: "qa",
                 model: apiConfig.defaultModel,

@@ -593,7 +593,7 @@ const installGameTool: QaContentTool = {
             coverImage: "",
             tags: draftTags ?? normalizeStringArray(args.tags, 8, 24),
             authorId: "qa_workshop",
-            authorName: "工坊",
+            authorName: "克克",
             authorAvatar: "",
             source: "local",
             version: 1,
@@ -687,7 +687,7 @@ const installTheaterTool: QaContentTool = {
             glyph: text(args.glyph, 8) || "◆",
             price: 0,
             authorId: "qa_workshop",
-            authorName: "工坊",
+            authorName: "克克",
             source: "local",
             version: 1,
             durationTurns,
@@ -960,7 +960,7 @@ const saveGameDraftTool: QaContentTool = {
 
         const base: GameTemplateDraft = existing?.draft ?? {
             title, codeName: "QA", subtitle: "", synopsis: "", playNote: "", coverImage: "",
-            tagsText: "互动", authorName: "工坊", roleSlotsText: "[]", pickerHtml: "", gameHtml: "",
+            tagsText: "互动", authorName: "克克", roleSlotsText: "[]", pickerHtml: "", gameHtml: "",
             allowExternalControl: false,
         };
         const next: GameTemplateDraft = {
@@ -1033,7 +1033,7 @@ const saveTheaterDraftTool: QaContentTool = {
         const existing = drafts.find((item) => norm(item.title) === norm(title));
         const base = existing?.draft ?? {
             title, codeName: "QA", subtitle: "", synopsis: "", storyText: "", tagsText: "",
-            price: "0", authorName: "工坊", openingHtml: "", allowExternalControl: false,
+            price: "0", authorName: "克克", openingHtml: "", allowExternalControl: false,
             aiInstruction: "", outputContract: "", renderRulesText: "[]", renderCss: "", memorySummaryPrompt: "",
         };
         const aiInstruction = typeof args.aiInstruction === "string" && args.aiInstruction.trim() ? args.aiInstruction : String(base.aiInstruction ?? "");
@@ -1275,13 +1275,13 @@ const THEATER_FIELD_MAP: Record<string, string> = {
 
 const EMPTY_GAME_DRAFT: Omit<GameTemplateDraft, "title"> = {
     codeName: "QA", subtitle: "", synopsis: "", playNote: "", coverImage: "",
-    tagsText: "互动", authorName: "工坊", roleSlotsText: "[]", pickerHtml: "", gameHtml: "",
+    tagsText: "互动", authorName: "克克", roleSlotsText: "[]", pickerHtml: "", gameHtml: "",
     allowExternalControl: false,
 };
 
 const EMPTY_THEATER_DRAFT: Record<string, unknown> = {
     codeName: "QA", subtitle: "", synopsis: "", storyText: "", tagsText: "",
-    price: "0", authorName: "工坊", openingHtml: "", allowExternalControl: false,
+    price: "0", authorName: "克克", openingHtml: "", allowExternalControl: false,
     aiInstruction: "", outputContract: "", renderRulesText: "[]", renderCss: "", memorySummaryPrompt: "",
 };
 
@@ -1309,7 +1309,7 @@ function findOrMaterializeGameDraft(name: string): { record: GameHallDraft; mate
             draft: {
                 title: t.title, codeName: t.codeName || "QA", subtitle: t.subtitle, synopsis: t.synopsis,
                 playNote: t.playNote, coverImage: t.coverImage || "", tagsText: t.tags.join(" "),
-                authorName: t.authorName || "工坊", roleSlotsText: JSON.stringify(t.roleSlots),
+                authorName: t.authorName || "克克", roleSlotsText: JSON.stringify(t.roleSlots),
                 pickerHtml: t.pickerHtml, gameHtml: t.gameHtml, allowExternalControl: t.allowExternalControl,
             },
             createdAt: now,
@@ -1334,7 +1334,7 @@ function findOrMaterializeTheaterDraft(name: string): { record: BmStudioDraftRec
             title: t.title,
             draft: {
                 title: t.title, codeName: t.codeName || "QA", subtitle: t.subtitle, synopsis: t.synopsis,
-                storyText: t.storyText, tagsText: t.tags.join(","), price: "0", authorName: t.authorName || "工坊",
+                storyText: t.storyText, tagsText: t.tags.join(","), price: "0", authorName: t.authorName || "克克",
                 openingHtml: t.openingHtml, allowExternalControl: t.allowExternalControl,
                 aiInstruction: t.aiInstruction, outputContract: t.outputContract,
                 renderRulesText: JSON.stringify(t.renderRules), renderCss: t.renderCss,

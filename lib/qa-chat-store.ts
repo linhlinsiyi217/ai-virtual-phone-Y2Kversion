@@ -236,6 +236,57 @@ async function compactSessionContext(sessionId: string): Promise<void> {
     }
 }
 
+/**
+ * 把一个长会话的关键目标、改动和下一步提炼到新会话。
+ * 原会话保持不动，避免“结转”被误解为删除或覆盖历史。
+ */
+export async function carryOverQaSession(sessionId: string): Promise<string | null> {
+    const session = sessions.find((candidate) => candidate.id === sessionId);
+    if (!session || isGenerating || isCompacting) return null;
+    const entries = sessionContext(session);
+    if (entries.length === 0) return null;
+
+    isCompacting = true;
+    emit();
+    try {
+        const summary = await compactQaContext(entries);
+        if (!summary.trim()) return null;
+        const now = Date.now();
+        const newId = makeId();
+        const newSession: QaSession = {
+            id: newId,
+            title: `${session.title}（接续）`,
+            createdAt: now,
+            updatedAt: now,
+            messages: [{
+                id: makeId(),
+                role: "assistant",
+                content: `已从「${session.title}」提炼并承接关键进展。原会话仍完整保留。\n\n### 前情备忘\n${summary}\n\n我们可以从下一项继续。`,
+                ts: now,
+            }],
+            context: [
+                {
+                    role: "user",
+                    content: `[上一会话「${session.title}」的结转摘要，请据此延续工作]\n${summary}`,
+                },
+                {
+                    role: "assistant",
+                    content: "我是克克，已承接上一会话的关键目标、完成项和下一步计划。",
+                },
+            ],
+        };
+        sessions = [newSession, ...sessions].slice(0, MAX_SESSIONS);
+        activeSessionId = newId;
+        publish();
+        return newId;
+    } catch {
+        return null;
+    } finally {
+        isCompacting = false;
+        emit();
+    }
+}
+
 type PersistedState = { sessions: QaSession[]; activeSessionId: string | null };
 
 const listeners = new Set<() => void>();

@@ -927,8 +927,8 @@ export function ResourceHubApp({ onClose, onNotice }: { onClose: () => void; onN
                                 <div className="rh-build-stickers">🛠️ ✨ 📱 ✨ 🧸</div>
                                 <div className="rh-build-title">一起改进小手机吧～</div>
                                 <p>
-                                    贡献公开仓库功能已接入<b>工坊</b>，<br />
-                                    可以<b className="rh-build-hot">让小坊将你的修改贡献到公开仓库哦～</b><br />
+                                    贡献公开仓库功能已接入<b>Claude 克劳德</b>，<br />
+                                    可以<b className="rh-build-hot">让克克将你的修改贡献到公开仓库哦～</b><br />
                                     float 会进行飞速审核，感谢您的付出～
                                 </p>
                                 <div className="rh-build-note">需要自部署版本（有自己的 fork）</div>

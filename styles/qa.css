@@ -190,7 +190,7 @@
   padding:
     calc(var(--qa-header-safe-top) + var(--page-header-content-height, 42px) + 8px)
     16px
-    calc(env(safe-area-inset-bottom, 0px) + 152px);
+    calc(env(safe-area-inset-bottom, 0px) + 194px);
   position: relative;
   z-index: 1;
 }
@@ -560,6 +560,153 @@
   backdrop-filter: blur(7px);
   -webkit-mask-image: linear-gradient(0deg, #000 0%, rgba(0, 0, 0, 0.55) 32%, rgba(0, 0, 0, 0.2) 64%, transparent 100%);
   mask-image: linear-gradient(0deg, #000 0%, rgba(0, 0, 0, 0.55) 32%, rgba(0, 0, 0, 0.2) 64%, transparent 100%);
+}
+
+/* 对话大纲与长会话记忆结转：原生实现，颜色跟随 Claude 暖白/陶土橙主题 */
+.qa-outline-host {
+  position: relative;
+  z-index: 8;
+  width: min(68ch, 100%);
+  margin: 0 auto 8px;
+  pointer-events: auto;
+}
+.qa-outline-capsule {
+  display: flex;
+  align-items: center;
+  width: max-content;
+  margin-left: auto;
+  padding: 3px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.86);
+  border: 1px solid rgba(55, 48, 39, 0.08);
+  box-shadow: 0 5px 18px rgba(55, 48, 39, 0.09);
+  -webkit-backdrop-filter: blur(18px) saturate(1.35);
+  backdrop-filter: blur(18px) saturate(1.35);
+}
+.qa-outline-capsule button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-height: 30px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--qa-text-secondary);
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 650;
+  cursor: pointer;
+}
+.qa-outline-capsule button:hover { background: var(--qa-state-hover); color: var(--qa-text-primary); }
+.qa-outline-capsule i { width: 1px; height: 13px; background: var(--qa-border-strong); }
+.qa-outline-panel {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 8px);
+  display: flex;
+  flex-direction: column;
+  width: min(88vw, 330px);
+  max-height: min(52vh, 430px);
+  overflow: hidden;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(55, 48, 39, 0.08);
+  box-shadow: 0 18px 46px rgba(55, 48, 39, 0.16);
+  -webkit-backdrop-filter: blur(24px) saturate(1.25);
+  backdrop-filter: blur(24px) saturate(1.25);
+  animation: qa-outline-in 0.18s ease-out;
+}
+@keyframes qa-outline-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.qa-outline-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 11px 12px 9px 14px;
+  border-bottom: 1px solid var(--qa-border-subtle);
+  color: var(--qa-text-primary);
+  font-size: 13px;
+  font-weight: 700;
+}
+.qa-outline-carry {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid rgba(217, 119, 87, 0.2);
+  border-radius: 999px;
+  background: rgba(217, 119, 87, 0.09);
+  color: var(--qa-accent-hover);
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 650;
+  cursor: pointer;
+}
+.qa-outline-carry:disabled { opacity: 0.6; cursor: wait; }
+.qa-outline-list {
+  overflow-y: auto;
+  padding: 7px;
+}
+.qa-outline-item {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  align-items: start;
+  gap: 8px;
+  width: 100%;
+  padding: 8px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--qa-text-primary);
+  text-align: left;
+  cursor: pointer;
+}
+.qa-outline-item:hover { background: var(--qa-state-hover); }
+.qa-outline-item > span {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  background: rgba(217, 119, 87, 0.1);
+  color: var(--qa-accent-hover);
+  font-size: 11px;
+  font-weight: 750;
+}
+.qa-outline-item > strong {
+  overflow: hidden;
+  color: var(--qa-text-primary);
+  font-size: 12.5px;
+  font-weight: 520;
+  line-height: 1.45;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.qa-global-carrying-bar {
+  position: absolute;
+  top: calc(var(--qa-header-safe-top) + 48px);
+  left: 50%;
+  z-index: 25;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  transform: translateX(-50%);
+  padding: 7px 13px;
+  border: 1px solid rgba(217, 119, 87, 0.18);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 6px 22px rgba(55, 48, 39, 0.12);
+  color: var(--qa-accent-hover);
+  font-size: 12px;
+  font-weight: 650;
+  white-space: nowrap;
 }
 /* 两行卡片：上文本框，下工具栏。无描边，柔和阴影 */
 /* 上下文用量：输入栏右上方的小装饰条，满 100% 自动压缩后回落 */
