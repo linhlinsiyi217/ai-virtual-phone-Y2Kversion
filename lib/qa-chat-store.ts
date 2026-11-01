@@ -50,6 +50,10 @@ export type QaMsg = {
     toolDrafting?: boolean;
     /** 流式中断降级为非流式时的说明（解释"停几分钟后一口气全出"） */
     streamNote?: string;
+    /** 本轮真实思考耗时（毫秒）：从发出请求到生成结束的前端计时，供时间线"思考了 N 秒"显示 */
+    thinkingMs?: number;
+    /** 用户对回复的本地评价（点赞/点踩），持久化；再次点击同一值 = 取消 */
+    rating?: "up" | "down";
     ts: number;
 };
 
@@ -280,6 +284,45 @@ export function renameQaSession(id: string, title: string): void {
     updateSession(id, (s) => ({ ...s, title: trimmed }));
 }
 
+// ── 消息评价（点赞/点踩）：本地持久化，再次点击同一值 = 取消 ──
+export function rateQaMessage(msgId: string, rating: "up" | "down"): void {
+    let touched = false;
+    sessions = sessions.map((s) =>
+        s.messages.some((m) => m.id === msgId)
+            ? {
+                  ...s,
+                  messages: s.messages.map((m) =>
+                      m.id === msgId
+                          ? ((touched = true), { ...m, rating: m.rating === rating ? undefined : rating })
+                          : m,
+                  ),
+              }
+            : s,
+    );
+    if (touched) publish();
+}
+
+// ── 工坊主题偏好（浅/深）：工坊内部独立主题，不影响手机其他应用 ──
+export type QaTheme = "light" | "dark";
+const QA_THEME_KEY = "ai_phone_qa_theme";
+
+export function getQaTheme(): QaTheme {
+    try {
+        return identityLocalStorage.getItem(QA_THEME_KEY) === "dark" ? "dark" : "light";
+    } catch {
+        return "light";
+    }
+}
+
+export function setQaTheme(theme: QaTheme): void {
+    try {
+        if (theme === "dark") identityLocalStorage.setItem(QA_THEME_KEY, "dark");
+        else identityLocalStorage.removeItem(QA_THEME_KEY);
+    } catch {
+        // ignore
+    }
+}
+
 /** 置顶开关：排序在抽屉渲染层做（置顶在前，其余按时间），存储顺序保持时间序 */
 export function toggleQaSessionPin(id: string): void {
     updateSession(id, (s) => ({ ...s, isPinned: !s.isPinned }));
@@ -436,6 +479,7 @@ export async function sendQaMessage(
     isGenerating = true;
     const controller = new AbortController();
     abortController = controller;
+    const startedAt = Date.now(); // 本轮真实思考计时（前端计时，供时间线显示）
     emit();
 
     let streamedContent = "";
@@ -599,6 +643,7 @@ export async function sendQaMessage(
                 segments: segments.length ? segments : undefined,
                 pendingCommit: stagedCommit,
                 toolDrafting: undefined,
+                thinkingMs: Date.now() - startedAt,
             },
             { force: true },
         );
@@ -641,7 +686,7 @@ export async function sendQaMessage(
                 return patches.length > 0 ? { ...s, context: [...entries, ...patches] } : s;
             });
             paintAssistant(
-                { content: streamedContent, reasoning: streamedReasoning || undefined, tools: finalTools, segments: finalSegments, aborted: true, toolDrafting: undefined },
+                { content: streamedContent, reasoning: streamedReasoning || undefined, tools: finalTools, segments: finalSegments, aborted: true, toolDrafting: undefined, thinkingMs: Date.now() - startedAt },
                 { force: true },
             );
         } else {
@@ -671,7 +716,7 @@ export async function sendQaMessage(
                 return patches.length > 0 ? { ...s, context: [...entries, ...patches] } : s;
             });
             paintAssistant(
-                { content: streamedContent, reasoning: streamedReasoning || undefined, tools: finalTools, segments: finalSegments, error: reason, toolDrafting: undefined },
+                { content: streamedContent, reasoning: streamedReasoning || undefined, tools: finalTools, segments: finalSegments, error: reason, toolDrafting: undefined, thinkingMs: Date.now() - startedAt },
                 { force: true },
             );
         }
