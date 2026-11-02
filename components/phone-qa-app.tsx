@@ -617,9 +617,15 @@ const QaMessageItem = memo(function QaMessageItem({
       .join("");
   }, [msg.segments, msg.content]);
 
+  // 模型没有返回 reasoning / 工具记录时：不渲染思考时间线，改显真实回复耗时
+  const replySeconds = msg.thinkingMs != null ? Math.max(0, Math.round(msg.thinkingMs / 1000)) : null;
+  const showReplyTime = !isStreaming && !hasThink && Boolean(bodyText) && replySeconds != null;
+  // 无思考内容区块的展开态（默认展开卡片与说明，点击标题可收起）
+  const [replyTimeOpen, setReplyTimeOpen] = useState(true);
+
   if (msg.role === "user") {
     return (
-      <div className="qa-cl-msg" id={`qa-message-${msg.id}`} data-message-id={msg.id}>
+      <div className="qa-cl-msg is-user" id={`qa-message-${msg.id}`} data-message-id={msg.id}>
         <div className="qa-cl-user-msg">
           {msg.images && msg.images.length > 0 && (
             <div className="qa-msg-images">
@@ -673,6 +679,32 @@ const QaMessageItem = memo(function QaMessageItem({
             </span>
           </button>
           {thinkOpen && <QaThinkBody msg={msg} isStreaming={isStreaming} />}
+        </div>
+      )}
+
+      {showReplyTime && (
+        <div className="qa-cl-nothink">
+          <button
+            type="button"
+            className="qa-cl-nothink-head"
+            onClick={() => setReplyTimeOpen((v) => !v)}
+            aria-expanded={replyTimeOpen}
+          >
+            <span className="qa-cl-think-label">回复用时 {replySeconds} 秒</span>
+            <span className={`qa-cl-think-chevron ${replyTimeOpen ? "is-open" : ""}`}>
+              <IconChevronDown size={16} />
+            </span>
+          </button>
+          {replyTimeOpen && (
+            <>
+              <div className="qa-cl-nothink-card">
+                <IconClock size={18} />
+                <span className="qa-cl-nothink-card-title">生成回复</span>
+                <span className="qa-cl-nothink-card-time">{replySeconds} 秒</span>
+              </div>
+              <div className="qa-cl-nothink-note">这个模型没有返回思考内容</div>
+            </>
+          )}
         </div>
       )}
 
@@ -965,6 +997,53 @@ function QaSessionSidebar({
         </div>
       </aside>
     </>
+  );
+}
+
+// ── 顶栏「?」使用说明弹窗（每条都对应界面上真实存在的控件） ──
+
+function QaHelpModal({
+  onClose,
+  rounds,
+  contextPercent,
+}: {
+  onClose: () => void;
+  rounds: number;
+  contextPercent: number;
+}) {
+  const rows: Array<{ visual: ReactNode; text: string }> = [
+    { visual: <IconMenu size={18} />, text: "打开会话侧栏，切换或新建会话" },
+    { visual: <QaStarburst size={17} />, text: "点开看 Claude 这次做了什么；模型返回了思考内容时，这里会显示思考过程" },
+    { visual: <IconCopy size={18} />, text: "复制回复、点赞、点踩、让它重新回答" },
+    { visual: <IconListTree size={18} />, text: `这个会话已经聊了 ${rounds} 轮，点箭头回到最新消息` },
+    { visual: <MiniMeter percent={contextPercent} />, text: "已用掉多少对话容量，快满时提醒你做记忆结转" },
+    { visual: <IconPlus size={18} />, text: "添加图片、文件、截屏，或引用本机内容和技能" },
+    { visual: <IconChevronDown size={18} />, text: "切换模型，还可以打开「扩展思考」" },
+  ];
+  return (
+    <div className="qa-cl-help-backdrop" onClick={onClose}>
+      <div className="qa-cl-help-modal" role="dialog" aria-modal="true" aria-label="这个页面怎么用" onClick={(e) => e.stopPropagation()}>
+        <div className="qa-cl-help-title">这个页面怎么用</div>
+        <div className="qa-cl-help-list">
+          {rows.map((row, index) => (
+            <div className="qa-cl-help-row" key={index}>
+              <span className="qa-cl-help-visual" aria-hidden>{row.visual}</span>
+              <span className="qa-cl-help-text">{row.text}</span>
+            </div>
+          ))}
+        </div>
+        <button type="button" className="qa-cl-help-ok" onClick={onClose}>知道了</button>
+      </div>
+    </div>
+  );
+}
+
+/** 说明弹窗里的迷你容量条示意（宽度取自真实上下文用量） */
+function MiniMeter({ percent }: { percent: number }) {
+  return (
+    <span className="qa-cl-help-meter" aria-hidden>
+      <i style={{ width: `${Math.max(2, Math.min(100, percent))}%` }} />
+    </span>
   );
 }
 
@@ -3311,6 +3390,8 @@ export function PhoneQaApp({ onClose, onNotice }: PhoneQaAppProps) {
   const [input, setInput] = useState("");
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [topMenuOpen, setTopMenuOpen] = useState(false);
+  /** 顶栏「?」使用说明弹窗 */
+  const [helpOpen, setHelpOpen] = useState(false);
   const [modelSheetOpen, setModelSheetOpen] = useState(false);
   const [repoSheetOpen, setRepoSheetOpen] = useState(false);
   const [clearToolsOpen, setClearToolsOpen] = useState(false);
@@ -3758,9 +3839,14 @@ export function PhoneQaApp({ onClose, onNotice }: PhoneQaAppProps) {
               <IconMenu size={22} />
             </button>
             <div className="qa-cl-topbar-title">{activeSession?.title ?? "Claude"}</div>
-            <button type="button" className="qa-cl-topbar-btn" onClick={() => setTopMenuOpen(true)} aria-label="更多操作">
-              <IconDots size={22} />
-            </button>
+            <div className="qa-cl-topbar-actions">
+              <button type="button" className="qa-cl-help-btn" onClick={() => setHelpOpen(true)} aria-label="使用说明">
+                ?
+              </button>
+              <button type="button" className="qa-cl-topbar-btn" onClick={() => setTopMenuOpen(true)} aria-label="更多操作">
+                <IconDots size={22} />
+              </button>
+            </div>
           </>
         )}
       </header>
@@ -3803,36 +3889,38 @@ export function PhoneQaApp({ onClose, onNotice }: PhoneQaAppProps) {
             <span>克克正在提炼会话记忆…</span>
           </div>
         )}
-        <QaConversationOutline
-          messages={messages}
-          open={outlineOpen}
-          carrying={Boolean(carryingSessionId)}
-          onToggle={() => setOutlineOpen((current) => !current)}
-          onClose={() => setOutlineOpen(false)}
-          onCarryOver={() => void handleCarryOverSession()}
-          onScrollBottom={handleScrollBottom}
-        />
-        {createdContent.length > 0 && (
-          <button
-            type="button"
-            className="qa-cl-float-btn"
-            onClick={() => setPreviewOpen(true)}
-            aria-label="预览本轮创建的内容"
-            title="预览本轮创建的内容"
+        <div className="qa-cl-statusbar">
+          {createdContent.length > 0 && (
+            <button
+              type="button"
+              className="qa-cl-float-btn"
+              onClick={() => setPreviewOpen(true)}
+              aria-label="预览本轮创建的内容"
+              title="预览本轮创建的内容"
+            >
+              <Play size={14} />
+            </button>
+          )}
+          <div
+            className={`qa-context-meter ${snapshot.isCompacting ? "is-compacting" : ""}`}
+            title="上下文用量：满 100% 时自动压缩成摘要并从头累计"
           >
-            <Play size={14} />
-          </button>
-        )}
-        <div
-          className={`qa-context-meter ${snapshot.isCompacting ? "is-compacting" : ""}`}
-          title="上下文用量：满 100% 时自动压缩成摘要并从头累计"
-        >
-          <div className="qa-context-meter-track" aria-hidden>
-            <i style={{ width: `${Math.min(100, Math.round(snapshot.contextUsage * 100))}%` }} />
+            <div className="qa-context-meter-track" aria-hidden>
+              <i style={{ width: `${Math.min(100, Math.round(snapshot.contextUsage * 100))}%` }} />
+            </div>
+            <span className="qa-context-meter-label">
+              {snapshot.isCompacting ? "压缩中" : `${Math.min(999, Math.round(snapshot.contextUsage * 100))}%`}
+            </span>
           </div>
-          <span className="qa-context-meter-label">
-            {snapshot.isCompacting ? "压缩中" : `${Math.min(999, Math.round(snapshot.contextUsage * 100))}%`}
-          </span>
+          <QaConversationOutline
+            messages={messages}
+            open={outlineOpen}
+            carrying={Boolean(carryingSessionId)}
+            onToggle={() => setOutlineOpen((current) => !current)}
+            onClose={() => setOutlineOpen(false)}
+            onCarryOver={() => void handleCarryOverSession()}
+            onScrollBottom={handleScrollBottom}
+          />
         </div>
         <div className="qa-cl-input">
           {pendingImages.length > 0 && (
@@ -4016,6 +4104,14 @@ export function PhoneQaApp({ onClose, onNotice }: PhoneQaAppProps) {
           onLink={handleMenuLink}
           repoBusy={repoBusy}
           repoConnected={repoConnected}
+        />
+      )}
+
+      {helpOpen && (
+        <QaHelpModal
+          onClose={() => setHelpOpen(false)}
+          rounds={messages.filter((msg) => msg.role === "user").length}
+          contextPercent={Math.round(snapshot.contextUsage * 100)}
         />
       )}
 

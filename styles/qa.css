@@ -122,6 +122,36 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.qa-cl-topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+}
+/* 顶栏问号（28×28 圆形，边框 --bd2） */
+.qa-cl-help-btn {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--qa-cl-bd2);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--qa-cl-mu);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+.qa-cl-help-btn:hover {
+  color: var(--qa-cl-tx);
+  border-color: var(--qa-cl-mu);
+}
+.qa-cl-help-btn:active {
+  transform: scale(0.94);
+}
 
 /* ═══ 内容区 ═════════════════════════════════════════ */
 .qa-cl-body {
@@ -142,8 +172,14 @@
 /* 消息级懒渲染：视口外跳过布局与绘制，降低长对话开销 */
 .qa-cl-msg {
   position: relative;
+  display: flex;
+  flex-direction: column;
   content-visibility: auto;
   contain-intrinsic-size: auto 80px;
+}
+/* 用户消息整体靠右：气泡宽度按内容自适应，不撑满 */
+.qa-cl-msg.is-user {
+  align-items: flex-end;
 }
 
 /* ── 欢迎屏 ── */
@@ -253,6 +289,7 @@
 /* ═══ 用户消息 ═══════════════════════════════════════ */
 .qa-cl-user-msg {
   align-self: flex-end;
+  width: fit-content;
   max-width: 82%;
   background: var(--qa-cl-ub);
   padding: 10px 14px;
@@ -260,6 +297,9 @@
   color: var(--qa-cl-tx);
   white-space: pre-wrap;
   word-break: break-word;
+}
+.qa-cl-user-msg .qa-msg-images {
+  max-width: 100%;
 }
 
 /* 消息文本可长按选择复制（.phone-workspace 全局禁选，这里按内容白名单放开） */
@@ -330,6 +370,59 @@
 }
 .qa-cl-think-chevron.is-open {
   transform: rotate(180deg);
+}
+
+/* ═══ 无思考内容时的回复耗时（对齐设计图9） ═══════════ */
+.qa-cl-nothink {
+  margin-bottom: 12px;
+}
+.qa-cl-nothink-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  border: none;
+  background: none;
+  padding: 0;
+  color: var(--qa-cl-mu);
+  font-size: 15px;
+  cursor: pointer;
+}
+.qa-cl-nothink-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  padding: 0 12px;
+  height: 40px;
+  border: 1px solid var(--qa-cl-ibd);
+  border-radius: 10px;
+  background: var(--qa-cl-ib);
+  color: var(--qa-cl-tx);
+  font-size: 14px;
+}
+.qa-cl-nothink-card svg {
+  flex: none;
+  color: var(--qa-cl-mu);
+}
+.qa-cl-nothink-card-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.qa-cl-nothink-card-time {
+  flex: none;
+  color: var(--qa-cl-mu);
+  font-variant-numeric: tabular-nums;
+}
+.qa-cl-nothink-note {
+  margin-top: 8px;
+  padding-left: 2px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--qa-cl-mu);
 }
 
 .qa-cl-timeline {
@@ -624,19 +717,26 @@
   bottom: calc(env(safe-area-inset-bottom, 0px) + 14px);
   z-index: 4;
 }
+/* 右下角浮动状态栏：容量条 + 轮数药丸，独立悬浮在输入卡上方 */
+.qa-cl-statusbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-bottom: 10px;
+}
 
 /* ═══ 对话大纲胶囊与面板（真实用户消息轮次） ═══════════ */
 .qa-cl-outline {
   position: relative;
-  display: flex;
-  justify-content: flex-end;
-  margin-bottom: 8px;
+  display: inline-flex;
+  flex: none;
   min-height: 0;
 }
 .qa-cl-outline-capsule {
   display: inline-flex;
   align-items: center;
-  border-radius: 9999px;
+  border-radius: 17px;
   background: var(--qa-cl-ib);
   border: 1px solid var(--qa-cl-ibd);
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
@@ -648,13 +748,13 @@
 .qa-cl-outline-capsule button {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  height: 30px;
-  padding: 0 10px;
+  gap: 6px;
+  height: 34px;
+  padding: 0 12px;
   border: none;
   background: transparent;
   color: var(--qa-cl-mu);
-  font-size: 12px;
+  font-size: 12.5px;
   cursor: pointer;
   transition: color 0.15s ease;
 }
@@ -663,7 +763,7 @@
 }
 .qa-cl-outline-capsule i {
   width: 1px;
-  height: 13px;
+  height: 16px;
   background: var(--qa-cl-ibd);
 }
 .qa-cl-outline-panel {
@@ -869,9 +969,9 @@
 
 /* 输入卡上方浮动小件：预览按钮 + 上下文用量 */
 .qa-cl-float-btn {
-  position: absolute;
-  top: -28px;
-  left: 0;
+  position: static;
+  flex: none;
+  margin-right: auto;
   width: 32px;
   height: 32px;
   border: 1px solid var(--qa-cl-ibd);
@@ -888,31 +988,29 @@
   color: var(--qa-cl-ac);
 }
 .qa-context-meter {
-  position: absolute;
-  top: -20px;
-  right: 0;
-  display: flex;
+  display: inline-flex;
+  flex: none;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
   pointer-events: none;
 }
 .qa-context-meter-track {
-  width: 44px;
-  height: 3px;
-  border-radius: 999px;
+  width: 70px;
+  height: 4px;
+  border-radius: 2px;
   background: var(--qa-cl-bd2);
   overflow: hidden;
 }
 .qa-context-meter-track i {
   display: block;
   height: 100%;
-  border-radius: 999px;
+  border-radius: 2px;
   background: var(--qa-cl-ac);
   transition: width 0.4s ease;
 }
 .qa-context-meter-label {
   flex: 0 0 auto;
-  font-size: 9px;
+  font-size: 11px;
   color: var(--qa-cl-mu);
   letter-spacing: 0.02em;
   font-variant-numeric: tabular-nums;
@@ -1233,6 +1331,105 @@
 .qa-cl-theme-btn:hover {
   background: var(--qa-cl-tbg);
   color: var(--qa-cl-tx);
+}
+
+/* ═══ 顶栏「?」使用说明弹窗（居中 Modal）══════════════ */
+.qa-cl-help-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(20, 20, 19, 0.4);
+  animation: qa-fade-in 0.18s ease;
+}
+.qa-app-shell[data-qa-theme="dark"] .qa-cl-help-backdrop {
+  background: rgba(0, 0, 0, 0.56);
+}
+.qa-cl-help-modal {
+  width: 100%;
+  max-width: 340px;
+  max-height: 82%;
+  display: flex;
+  flex-direction: column;
+  padding: 22px 20px 16px;
+  border-radius: 22px;
+  background: var(--qa-cl-bg);
+  box-shadow: var(--qa-shadow-lg);
+  animation: qa-help-pop 0.22s cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+.qa-cl-help-title {
+  flex: none;
+  margin-bottom: 16px;
+  text-align: center;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--qa-cl-tx);
+}
+.qa-cl-help-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.qa-cl-help-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.qa-cl-help-visual {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--qa-cl-mu);
+}
+.qa-cl-help-text {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--qa-cl-mu);
+}
+.qa-cl-help-meter {
+  display: block;
+  width: 70px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--qa-cl-bd2);
+  overflow: hidden;
+}
+.qa-cl-help-meter i {
+  display: block;
+  height: 100%;
+  border-radius: 2px;
+  background: var(--qa-cl-ac);
+}
+.qa-cl-help-ok {
+  flex: none;
+  width: 100%;
+  height: 44px;
+  margin-top: 18px;
+  border: none;
+  border-radius: 12px;
+  background: var(--qa-cl-pr);
+  color: var(--qa-cl-prt);
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.qa-cl-help-ok:active {
+  transform: scale(0.98);
+}
+@keyframes qa-help-pop {
+  from { opacity: 0; transform: translateY(8px) scale(0.97); }
+  to { opacity: 1; transform: none; }
 }
 
 /* ═══ 底部弹层（顶栏菜单 / 模型选择）════════════════ */
