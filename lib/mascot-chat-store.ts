@@ -20,6 +20,10 @@ import {
     type MascotToolContext,
 } from "./mascot-tools";
 import { isMascotPanelOpen } from "./mascot-state";
+import {
+    isCharacterWriteIntent,
+    parseCharacterCardText,
+} from "./character-card-parser";
 
 const MASCOT_DB_NAME = "AiPhoneMascotDB";
 const MASCOT_DB_VERSION = 2;
@@ -109,32 +113,44 @@ function normalizeMessages(nextMessages: MascotMsg[]): MascotMsg[] {
 }
 
 
-function extractFallbackCharacterName(input: string, assistant: string): string | null {
-    const text = `${input}\n${assistant}`;
-    const patterns = [
-        /(?:角色名称|角色名|姓名)\s*[:：]\s*([^\n，。,；;]+)/,
-        /名字叫(?:做|作)?\s*([^\s，。,；;]+)/,
-        /叫做\s*([^\s，。,；;]+)/,
-    ];
-    for (const pattern of patterns) {
-        const match = text.match(pattern);
-        const value = match?.[1]?.trim();
-        if (value && value.length <= 40) return value;
-    }
-    return null;
+function characterSourceForMessages(history: MascotMsg[], latestText: string): { user: string; assistant: string } {
+    const visible = history.filter((msg) => !msg.hidden && msg.role !== "tool");
+    const latest = latestText.trim();
+    // “写入/导入人设档案” is usually a short confirmation after XiaoJuan
+    // has just drafted the card. In that case use the immediately preceding
+    // user request and assistant draft; otherwise parse only this message so
+    // unrelated old conversations cannot leak into the new card.
+    const shortFollowUp = latest.length <= 120 && /(写入|导入|保存|录入|创建角色|角色卡)/i.test(latest);
+    const latestUserIndex = visible.map((msg) => msg.role).lastIndexOf("user");
+    const previousUser = latestUserIndex > 0
+        ? [...visible.slice(0, latestUserIndex)].reverse().find((msg) => msg.role === "user")?.text || ""
+        : "";
+    const previousAssistant = latestUserIndex > 0
+        ? [...visible.slice(0, latestUserIndex)].reverse().find((msg) => msg.role === "mascot")?.text || ""
+        : "";
+    return {
+        user: shortFollowUp ? [previousUser, latest].filter(Boolean).join("\n\n") : latest,
+        assistant: shortFollowUp ? previousAssistant : "",
+    };
 }
 
-function buildFallbackCharacterCall(input: string, assistant: string): ToolCall | null {
-    if (!/(帮我|请|想要|我要|给我|直接).{0,12}(创建|新建|添加).{0,12}(角色|角色卡)/.test(input) && !/(创建|新建|添加)一个?角色/.test(input)) return null;
-    const name = extractFallbackCharacterName(input, assistant);
-    if (!name) return null;
-    const persona = [input.trim(), assistant.trim()].filter(Boolean).join("\n\n");
-    const personalityMatch = assistant.match(/(?:性格特质|性格|人格特征)\s*[:：]?\s*([\s\S]{0,900}?)(?=\n(?:语言风格|说话风格|表达限制|角色卡|$))/);
-    const personality = personalityMatch?.[1]?.trim() || input.slice(0, 500).trim() || "按照用户提供的角色设定行动";
+function buildCharacterWriteCall(history: MascotMsg[], latestText: string): ToolCall | null {
+    if (!isCharacterWriteIntent(latestText)) return null;
+    const source = characterSourceForMessages(history, latestText);
+    const parsed = parseCharacterCardText(source.user, source.assistant);
+    if (!parsed) return null;
     return {
         name: "创建角色",
-        args: { name, persona, personality },
+        args: parsed,
     };
+}
+
+function buildFallbackCharacterCall(history: MascotMsg[], input: string, assistant: string): ToolCall | null {
+    if (!isCharacterWriteIntent(input)) return null;
+    const source = characterSourceForMessages(history, input);
+    const parsed = parseCharacterCardText(source.user || input, assistant || source.assistant);
+    if (!parsed) return null;
+    return { name: "创建角色", args: parsed };
 }
 
 function inferMascotPackagesForIntent(text: string, current: string[]): string[] {
@@ -586,6 +602,38 @@ export async function generateMascotReply({
     let fallbackHandled = false;
 
     try {
+        // Deterministic write path for an explicit card/import request. This
+        // runs before the model so a pasted card cannot be mistaken for a
+        // request to explain the card or to use an unrelated external tool.
+        const directCharacterCall = buildCharacterWriteCall(workingMessages, latestVisibleMessage.text || "");
+        if (directCharacterCall) {
+            const result = await executeMascotToolCall(directCharacterCall, toolCtx);
+            const resultText = result.success
+                ? (result.data || "角色卡已写入")
+                : (result.error || "角色卡写入失败");
+            const confirmation = result.success
+                ? `已把「${String(directCharacterCall.args.name || "角色")}」整理成结构化角色卡并写入角色库。`
+                : `角色卡没有写入：${resultText}`;
+            workingMessages = normalizeMessages([...workingMessages,
+                { role: "mascot", text: confirmation, displayText: confirmation, createdAt: new Date().toISOString() },
+                {
+                    role: "tool",
+                    text: resultText,
+                    hidden: false,
+                    displayText: resultText,
+                    toolName: directCharacterCall.name,
+                    toolDisplayName: directCharacterCall.name,
+                    toolSuccess: result.success,
+                    createdAt: new Date().toISOString(),
+                },
+            ]);
+            publishMessages(workingMessages);
+            if (!isMascotPanelOpen() && typeof window !== "undefined") {
+                window.dispatchEvent(new CustomEvent("global-notice", { detail: result.success ? "角色卡已写入 ✓" : "角色卡写入失败" }));
+            }
+            return;
+        }
+
         for (let round = 0; round < MAX_ROUNDS; round += 1) {
             if (abortRequested) break;
 
@@ -648,19 +696,20 @@ export async function generateMascotReply({
             if (streamedDisplay) await paintStream(true);
 
             // 有些模型会把“创建角色”误答成一张文本角色卡而不发 tool call。
-            // 明确写入请求不能停在草稿：从用户请求 + 模型草稿提取最小字段，直接执行真实工具。
+            // 明确写入请求不能停在草稿：从结构化字段提取最小字段，直接执行真实工具。
             const fallbackCall = !fallbackHandled && response.toolCalls.length === 0 && response.toolFetches.length === 0
-                ? buildFallbackCharacterCall(latestVisibleMessage.text || "", response.rawAssistant)
+                ? buildFallbackCharacterCall(workingMessages, latestVisibleMessage.text || "", response.rawAssistant)
                 : null;
             if (fallbackCall) {
                 fallbackHandled = true;
                 toolCtx.history = workingMessages;
                 const result = await executeMascotToolCall(fallbackCall, toolCtx);
-                if (result.success) mascotFillField({ field: fallbackCall.name, value: result.data || "" });
                 const assistantMsg: MascotMsg = {
                     role: "mascot",
-                    text: response.rawAssistant,
-                    displayText: response.reply.join("\n") || "我先把角色设定整理好，正在写入角色卡…",
+                    text: response.reply.join("\n") || "",
+                    displayText: result.success
+                        ? `已把「${String(fallbackCall.args.name || "角色")}」整理成结构化角色卡并写入角色库。`
+                        : (result.error || "角色卡写入失败"),
                     createdAt: new Date().toISOString(),
                 };
                 workingMessages = normalizeMessages([...workingMessages, assistantMsg, {

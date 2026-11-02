@@ -4,11 +4,11 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState, useSyncExterna
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkBreaks from "remark-breaks";
+import remarkCjkFriendly from "remark-cjk-friendly";
 import { AppWindow, BrushCleaning, Check, ChevronRight, Copy, Drama, Gamepad2, Github, Loader2, Pencil, Pin, PinOff, Play, Trash2, X } from "lucide-react";
 import { getQaApiLogs, clearQaApiLogs, type DebugInfo } from "@/lib/api-log-store";
 import { QaFileCard } from "@/components/qa-file-card";
 import { parseQaFileMarker } from "@/lib/qa-computer-tools";
-import { mdiHammerWrench } from "@mdi/js";
 import { CustomAppRunner } from "@/components/app-market/custom-app-runner";
 import { CustomAppForegroundBoundary } from "@/components/app-market/custom-app-failure";
 import { GameHubApp } from "@/components/game/game-hub-app";
@@ -32,18 +32,24 @@ import type { QaCreatedContent } from "@/lib/qa-agent-tools";
 import {
   applyQaCommit,
   cancelQaCommit,
+  carryOverQaSession,
   clearQaToolHistory,
   createQaSession,
   deleteQaSession,
+  editAndResendQaMessage,
   getQaActiveContextChars,
   getQaChatSnapshot,
   getQaContextBudgetChars,
+  getQaEditAndResendBlockReason,
   getQaTheme,
   hasQaToolHistory,
   hydrateQaChat,
   QA_CONTEXT_BUDGET_MAX,
   QA_CONTEXT_BUDGET_MIN,
   QA_DEFAULT_CONTEXT_BUDGET_CHARS,
+  QA_TEXT_ATTACHMENT_MAX_BYTES,
+  QA_TEXT_ATTACHMENTS_MAX_CHARS,
+  QA_TEXT_ATTACHMENTS_MAX_COUNT,
   rateQaMessage,
   setQaContextBudgetChars,
   setQaTheme,
@@ -58,6 +64,7 @@ import {
   updateQaMessageContent,
   type QaMsg,
   type QaSession,
+  type QaTextAttachment,
   type QaTheme,
   type QaToolStatus,
 } from "@/lib/qa-chat-store";
@@ -93,14 +100,6 @@ type PhoneQaAppProps = {
   onClose: () => void;
   onNotice?: (msg: string) => void;
 };
-
-const SUGGESTIONS = [
-  "怎么添加我的 API？",
-  "聊天没有回复怎么排查？",
-  "怎么部署到 Netlify / Vercel？",
-  "数据存在哪里，怎么备份？",
-  "帮我写个小游戏装到本机",
-];
 
 // ── 内联线性图标（24x24 / 线宽 1.7 / 圆头，path 全部取自设计稿） ──
 
@@ -193,6 +192,12 @@ const IconRepo = ({ size = 20 }: { size?: number }) => (
 const IconBack = ({ size = 22 }: { size?: number }) => (
   <Ic size={size}><path d="m15 18-6-6 6-6" /></Ic>
 );
+const IconListTree = ({ size = 16 }: { size?: number }) => (
+  <Ic size={size}><path d="M21 12h-8M21 6h-11M21 18h-5M3 6v11a1 1 0 0 0 1 1h5" /><path d="m6 12 2 2 4-4" /></Ic>
+);
+const IconArrowDown = ({ size = 14 }: { size?: number }) => (
+  <Ic size={size}><path d="M12 5v14M19 12l-7 7-7-7" /></Ic>
+);
 const IconCamera = ({ size = 24 }: { size?: number }) => (
   <Ic size={size}><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3z" /><circle cx="12" cy="13" r="3" /></Ic>
 );
@@ -232,10 +237,10 @@ const IconCheckMark = ({ size = 14 }: { size?: number }) => (
 /** 文本附件：限定可安全读进上下文的纯文本类型 */
 const QA_FILE_ACCEPT = ".txt,.md,.json,.csv,.js,.ts,.tsx,.html,.css";
 const QA_FILE_EXT_RE = /\.(txt|md|json|csv|js|ts|tsx|html|css)$/i;
-/** 单文件 256KB：再大塞进上下文会挤爆预算 */
-const QA_MAX_FILE_BYTES = 256 * 1024;
-/** 一次最多挂 4 个文本文件 */
-const QA_MAX_FILE_ATTACH = 4;
+/** 单文件上限与总量约束与 store 侧 QA_TEXT_ATTACHMENT_* 保持一致（1MB / 6 个 / 200K 字符） */
+const QA_MAX_FILE_BYTES = QA_TEXT_ATTACHMENT_MAX_BYTES;
+const QA_MAX_FILE_ATTACH = QA_TEXT_ATTACHMENTS_MAX_COUNT;
+const QA_MAX_FILE_CHARS = QA_TEXT_ATTACHMENTS_MAX_CHARS;
 
 type QaPendingFile = {
   id: string;
@@ -552,7 +557,7 @@ function QaThinkBody({ msg, isStreaming }: { msg: QaMsg; isStreaming: boolean })
 // 低端机 WebView OOM 崩溃的主因（几万字 × 每秒多次解析）。文本不变就不重渲。
 const QaMarkdownBlock = memo(function QaMarkdownBlock({ text }: { text: string }) {
   return (
-    <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} components={QA_MARKDOWN_COMPONENTS}>
+    <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks, remarkCjkFriendly]} components={QA_MARKDOWN_COMPONENTS}>
       {text}
     </ReactMarkdown>
   );
@@ -614,7 +619,7 @@ const QaMessageItem = memo(function QaMessageItem({
 
   if (msg.role === "user") {
     return (
-      <div className="qa-cl-msg">
+      <div className="qa-cl-msg" id={`qa-message-${msg.id}`} data-message-id={msg.id}>
         <div className="qa-cl-user-msg">
           {msg.images && msg.images.length > 0 && (
             <div className="qa-msg-images">
@@ -622,6 +627,16 @@ const QaMessageItem = memo(function QaMessageItem({
                 <button key={i} type="button" className="qa-msg-image" onClick={() => onViewImage(url)} aria-label="查看图片">
                   <img src={url} alt="" />
                 </button>
+              ))}
+            </div>
+          )}
+          {msg.files && msg.files.length > 0 && (
+            <div className="qa-cl-msg-files">
+              {msg.files.map((file) => (
+                <span className="qa-cl-file-chip" key={file.name} title={file.name}>
+                  <IconFile size={13} />
+                  <span>{file.name}</span>
+                </span>
               ))}
             </div>
           )}
@@ -641,7 +656,7 @@ const QaMessageItem = memo(function QaMessageItem({
   }
 
   return (
-    <div className="qa-cl-msg">
+    <div className="qa-cl-msg" id={`qa-message-${msg.id}`} data-message-id={msg.id}>
       {hasThink && (
         <div className="qa-cl-think">
           <button type="button" className="qa-cl-think-head" onClick={() => setThinkOpen((v) => !v)} aria-expanded={thinkOpen}>
@@ -730,7 +745,81 @@ const QaMessageItem = memo(function QaMessageItem({
   );
 });
 
-// ── 会话侧栏（左侧滑出：新会话 / 当前会话 / 项目仓库 / 置顶与最近 / 账号行） ──
+// ── 会话大纲（对话轮次胶囊：真实用户消息轮次，点击跳转；含记忆结转入口） ──
+
+function QaConversationOutline({
+  messages,
+  open,
+  carrying,
+  onToggle,
+  onClose,
+  onCarryOver,
+  onScrollBottom,
+}: {
+  messages: QaMsg[];
+  open: boolean;
+  carrying: boolean;
+  onToggle: () => void;
+  onClose: () => void;
+  onCarryOver: () => void;
+  onScrollBottom: () => void;
+}) {
+  // 每一轮 = 一条真实用户消息；标题取正文，纯附件轮次用文件名 / 图片说明
+  const rounds = useMemo(() => {
+    const result: Array<{ id: string; title: string }> = [];
+    for (const message of messages) {
+      if (message.role !== "user") continue;
+      const title = message.content.trim().replace(/\s+/g, " ")
+        || message.files?.map((file) => file.name).join("、")
+        || (message.images?.length ? "图片消息" : "新一轮对话");
+      result.push({ id: message.id, title: title.length > 48 ? `${title.slice(0, 48)}…` : title });
+    }
+    return result;
+  }, [messages]);
+
+  if (rounds.length === 0) return null;
+
+  const jumpTo = (id: string) => {
+    document.getElementById(`qa-message-${id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    onClose();
+  };
+
+  return (
+    <div className="qa-cl-outline">
+      {open && (
+        <div className="qa-cl-outline-panel" role="dialog" aria-label="对话大纲">
+          <div className="qa-cl-outline-head">
+            <span>对话大纲</span>
+            <button type="button" className="qa-cl-outline-carry" onClick={onCarryOver} disabled={carrying}>
+              {carrying ? <Loader2 size={13} className="qa-spin" /> : <IconListTree size={13} />}
+              {carrying ? "提炼中" : "结转新会话"}
+            </button>
+          </div>
+          <div className="qa-cl-outline-list hide-scrollbar">
+            {rounds.map((round, index) => (
+              <button type="button" className="qa-cl-outline-item" key={round.id} onClick={() => jumpTo(round.id)}>
+                <span>{index + 1}</span>
+                <strong>{round.title}</strong>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      <div className="qa-cl-outline-capsule">
+        <button type="button" onClick={onToggle} aria-expanded={open} aria-label="打开对话大纲">
+          <IconListTree size={13} />
+          <span>{rounds.length} 轮</span>
+        </button>
+        <i aria-hidden />
+        <button type="button" onClick={onScrollBottom} aria-label="定位最后一条回复">
+          <IconArrowDown size={13} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── 会话侧栏（左侧滑出：新会话 / 当前会话 / 项目仓库 / 记忆结转 / 置顶与最近 / 账号行） ──
 
 function QaSessionSidebar({
   open,
@@ -738,11 +827,13 @@ function QaSessionSidebar({
   activeId,
   theme,
   userName,
+  carrying,
   onClose,
   onSelect,
   onDelete,
   onCreate,
   onOpenRepo,
+  onCarryOver,
   onOpenSettings,
   onRenameRequest,
   onToggleTheme,
@@ -752,11 +843,13 @@ function QaSessionSidebar({
   activeId: string | null;
   theme: QaTheme;
   userName: string;
+  carrying: boolean;
   onClose: () => void;
   onSelect: (id: string) => void;
   onDelete: (id: string) => void;
   onCreate: () => void;
   onOpenRepo: () => void;
+  onCarryOver: () => void;
   onOpenSettings: () => void;
   onRenameRequest: (id: string, title: string) => void;
   onToggleTheme: () => void;
@@ -790,9 +883,13 @@ function QaSessionSidebar({
             <span className="qa-cl-drow-ic"><IconRepo size={20} /></span>
             <b>项目仓库</b>
           </button>
+          <button type="button" className="qa-cl-drow" onClick={onCarryOver} disabled={carrying}>
+            <span className="qa-cl-drow-ic">{carrying ? <Loader2 size={20} className="qa-spin" /> : <IconListTree size={20} />}</span>
+            <b>{carrying ? "提炼记忆中…" : "记忆结转"}</b>
+          </button>
           <button type="button" className="qa-cl-drow" onClick={onOpenSettings}>
             <span className="qa-cl-drow-ic"><IconWrench size={20} /></span>
-            <b>工坊配置</b>
+            <b>Claude 配置</b>
           </button>
           <div className="qa-cl-group-head">置顶与最近</div>
           {sortedSessions.length === 0 && <div className="qa-cl-drawer-empty">还没有对话</div>}
@@ -889,8 +986,8 @@ function QaTopMenu({
   onExit: () => void;
 }) {
   const items: Array<{ icon: ReactNode; label: string; desc: string; onClick: () => void }> = [
-    { icon: <IconWrench size={18} />, label: "工坊配置", desc: "上下文预算、翻页与输出上限", onClick: onOpenSettings },
-    { icon: <IconFile size={18} />, label: "API 调用记录", desc: "工坊每次调用大模型的记录", onClick: onOpenApiLog },
+    { icon: <IconWrench size={18} />, label: "Claude 配置", desc: "上下文预算、翻页与输出上限", onClick: onOpenSettings },
+    { icon: <IconFile size={18} />, label: "API 调用记录", desc: "Claude 每次调用大模型的记录", onClick: onOpenApiLog },
     { icon: <IconRepo size={18} />, label: "仓库设置", desc: "连接 GitHub 仓库", onClick: onOpenRepo },
     { icon: <BrushCleaning size={18} strokeWidth={1.7} />, label: "清空工具历史", desc: "修复原生工具协议报错", onClick: onClearToolHistory },
     { icon: <IconBack size={18} />, label: "退出工坊", desc: "回到手机桌面", onClick: onExit },
@@ -1013,7 +1110,7 @@ function QaSettingsSheet({ onClose, onNotice }: { onClose: () => void; onNotice?
     setQaMaxRounds(parsedRounds);
     // 留空 = 显式不传 max_tokens（0 哨兵），与"没设置用默认值"区分开
     setQaMaxOutputTokens(trimmedTokens ? parsedTokens : 0);
-    onNotice?.("已保存工坊配置。");
+    onNotice?.("已保存 Claude 配置。");
     onClose();
   };
 
@@ -1031,8 +1128,8 @@ function QaSettingsSheet({ onClose, onNotice }: { onClose: () => void; onNotice?
 
   return (
     <div className="qa-devnotice-backdrop" onClick={onClose}>
-      <div className="qa-devnotice" role="dialog" aria-label="工坊配置" onClick={(e) => e.stopPropagation()}>
-        <div className="qa-devnotice-title">工坊配置</div>
+      <div className="qa-devnotice" role="dialog" aria-label="Claude 配置" onClick={(e) => e.stopPropagation()}>
+        <div className="qa-devnotice-title">Claude 配置</div>
         <label className="qa-settings-field">
           <span>上下文预算（字符）</span>
           <input
@@ -1062,7 +1159,7 @@ function QaSettingsSheet({ onClose, onNotice }: { onClose: () => void; onNotice?
           />
         </label>
         <div className="qa-settings-hint">
-          小坊翻页读答疑文档 / 本机内容 / 仓库源码时，每页返回的字符数。默认 {QA_DEFAULT_PAGE_CHARS.toLocaleString()}；调大读得快但更占上下文，小上下文模型建议调小。
+          克克翻页读答疑文档 / 本机内容 / 仓库源码时，每页返回的字符数。默认 {QA_DEFAULT_PAGE_CHARS.toLocaleString()}；调大读得快但更占上下文，小上下文模型建议调小。
         </div>
         <label className="qa-settings-field">
           <span>单轮工具调用上限（次）</span>
@@ -1077,7 +1174,7 @@ function QaSettingsSheet({ onClose, onNotice }: { onClose: () => void; onNotice?
           />
         </label>
         <div className="qa-settings-hint">
-          一次提问里小坊最多连续执行多少轮工具，用完会提示「回复继续」。默认 {QA_DEFAULT_MAX_ROUNDS}；复杂任务（写游戏、改代码）可调大，想控制 token 消耗可调小。
+          一次提问里克克最多连续执行多少轮工具，用完会提示「回复继续」。默认 {QA_DEFAULT_MAX_ROUNDS}；复杂任务（写游戏、改代码）可调大，想控制 token 消耗可调小。
         </div>
         <label className="qa-settings-field">
           <span>单次最大输出 token</span>
@@ -1093,7 +1190,7 @@ function QaSettingsSheet({ onClose, onNotice }: { onClose: () => void; onNotice?
           />
         </label>
         <div className="qa-settings-hint">
-          输出长度护栏：每次请求带 max_tokens，小坊会按该预算分段写大文件，写超被安全截断后自动续接，不再整轮报废。默认 {QA_DEFAULT_MAX_OUTPUT_TOKENS.toLocaleString()}；留空 = 不传该参数（部分模型/中转不支持 max_tokens 时请留空）。
+          输出长度护栏：每次请求带 max_tokens，克克会按该预算分段写大文件，写超被安全截断后自动续接，不再整轮报废。默认 {QA_DEFAULT_MAX_OUTPUT_TOKENS.toLocaleString()}；留空 = 不传该参数（部分模型/中转不支持 max_tokens 时请留空）。
         </div>
         <div className="qa-devnotice-actions is-row">
           <button type="button" className="qa-devnotice-btn" onClick={reset}>恢复默认</button>
@@ -1162,7 +1259,7 @@ function QaRepoSheet({ onClose, onSaved }: { onClose: () => void; onSaved: () =>
         </div>
         <div className="qa-sheet-body hide-scrollbar">
           <p className="qa-sheet-note">
-            连接后可以让工坊查阅这个仓库的代码来回答问题。配置只保存在你的浏览器本地，不会上传。公开仓库可不填 PAT。
+            连接后可以让克克查阅这个仓库的代码来回答问题。配置只保存在你的浏览器本地，不会上传。公开仓库可不填 PAT。
           </p>
           <label className="qa-field">
             <span className="qa-field-label">Owner（用户名 / 组织）</span>
@@ -1180,7 +1277,7 @@ function QaRepoSheet({ onClose, onSaved }: { onClose: () => void; onSaved: () =>
             <span className="qa-field-label">Fine-grained PAT（私有仓库或搜索代码需要）</span>
             <input className="qa-input" type="password" value={token} onChange={(e) => setToken(e.target.value)} placeholder="github_pat_…" autoCapitalize="none" autoCorrect="off" spellCheck={false} />
             <span className="qa-field-hint">
-              GitHub → Settings → Menu 按钮 → Developer settings → Personal access tokens → Fine-grained tokens。创建时 Repository access 记得勾选目标仓库；Permissions 里：Contents——只查代码选 Read-only，要让工坊改代码选 Read and write；要用「创建PR」再加 Pull requests 的 Read and write（Metadata 会自动带上，其余权限都不用勾）。
+              GitHub → Settings → Menu 按钮 → Developer settings → Personal access tokens → Fine-grained tokens。创建时 Repository access 记得勾选目标仓库；Permissions 里：Contents——只查代码选 Read-only，要让克克改代码选 Read and write；要用「创建PR」再加 Pull requests 的 Read and write（Metadata 会自动带上，其余权限都不用勾）。
             </span>
           </label>
           <div className="qa-field">
@@ -1195,8 +1292,8 @@ function QaRepoSheet({ onClose, onSaved }: { onClose: () => void; onSaved: () =>
             </div>
             <span className="qa-field-hint">
               {writeMode === "confirm"
-                ? "工坊改代码前会先展示改动，你点「应用」才真正提交。推荐。"
-                : "工坊说完直接提交推送，不再逐次确认。仍可事后一键撤销。仅在信任后开启。"}
+                ? "克克改代码前会先展示改动，你点「应用」才真正提交。推荐。"
+                : "克克说完直接提交推送，不再逐次确认。仍可事后一键撤销。仅在信任后开启。"}
             </span>
           </div>
           {result && (
@@ -3227,6 +3324,12 @@ export function PhoneQaApp({ onClose, onNotice }: PhoneQaAppProps) {
   const [viewerImage, setViewerImage] = useState<string | null>(null);
   const [editingMsg, setEditingMsg] = useState<QaMsg | null>(null);
   const [editText, setEditText] = useState("");
+  /** 编辑弹窗里的图片 / 文本附件（与发送栏各自独立） */
+  const [editImages, setEditImages] = useState<string[]>([]);
+  const [editFiles, setEditFiles] = useState<QaTextAttachment[]>([]);
+  /** 会话大纲（对话轮次胶囊）展开态与结转进行中的会话 id */
+  const [outlineOpen, setOutlineOpen] = useState(false);
+  const [carryingSessionId, setCarryingSessionId] = useState<string | null>(null);
   const [visionEnabled, setVisionEnabled] = useState(false);
   const [userName, setUserName] = useState("用户");
   /** ＋ 号菜单 / 子页面（引用本机内容、技能） */
@@ -3272,7 +3375,7 @@ export function PhoneQaApp({ onClose, onNotice }: PhoneQaAppProps) {
   // 清理原生 tool 调用历史（防报错）：与小卷同款——移除上下文里的工具记录与原生元数据
   const handleClearToolHistory = useCallback(() => {
     if (snapshot.isGenerating) {
-      onNotice?.("小坊正在执行，完成后再清理。");
+      onNotice?.("克克正在执行，完成后再清理。");
       return;
     }
     if (!hasQaToolHistory()) {
@@ -3330,18 +3433,17 @@ export function PhoneQaApp({ onClose, onNotice }: PhoneQaAppProps) {
       onNotice?.("文件还在读取，稍等一下再发送。");
       return;
     }
-    // 附件与引用以结构化文本块并进消息正文（图片仍走 images 通道）
+    // 文本附件走 store 的 files 上下文通道（引擎会渲染成 [附件：文件名] 块）；
+    // 引用本机内容仍以结构化文本块并进消息正文
+    const files: QaTextAttachment[] = pendingFiles
+      .filter((f) => f.status === "ready" && f.text != null)
+      .map((f) => ({ name: f.name, content: f.text as string }));
     const blocks: string[] = [];
-    for (const f of pendingFiles) {
-      if (f.status === "ready" && f.text != null) {
-        blocks.push(`【附件 · 文件「${f.name}」 · ${formatAttachBytes(f.size)}】\n${f.text}\n【/附件】`);
-      }
-    }
     for (const r of pendingRefs) {
       blocks.push(`【引用本机内容 · ${r.label}】\n${r.text}\n【/引用】`);
     }
     const composed = blocks.length ? (text ? `${text}\n\n${blocks.join("\n\n")}` : blocks.join("\n\n")) : text;
-    if ((!composed && pendingImages.length === 0) || snapshot.isGenerating) return;
+    if ((!composed && pendingImages.length === 0 && files.length === 0) || snapshot.isGenerating || snapshot.isCompacting) return;
     setInput("");
     const images = pendingImages;
     setPendingImages([]);
@@ -3349,12 +3451,13 @@ export function PhoneQaApp({ onClose, onNotice }: PhoneQaAppProps) {
     setPendingRefs([]);
     stickToBottomRef.current = true;
     requestAnimationFrame(autoGrow);
-    void sendQaMessage(composed, images.length ? images : undefined);
-  }, [input, pendingImages, pendingFiles, pendingRefs, snapshot.isGenerating, autoGrow, onNotice]);
+    void sendQaMessage(composed, images.length ? images : undefined, files.length ? files : undefined);
+  }, [input, pendingImages, pendingFiles, pendingRefs, snapshot.isGenerating, snapshot.isCompacting, autoGrow, onNotice]);
 
-  // 附加图片：仅识图已开启的 API 显示入口；读为 dataURL，单张限 4MB
-  const handlePickImages = useCallback((files: FileList | null) => {
+  // 附加图片：仅识图已开启的 API 显示入口；读为 dataURL，单张限 4MB（target=edit 写进编辑弹窗）
+  const handlePickImages = useCallback((files: FileList | null, target: "composer" | "edit" = "composer") => {
     if (!files?.length) return;
+    const setter = target === "edit" ? setEditImages : setPendingImages;
     for (const file of Array.from(files).slice(0, 6)) {
       if (file.size > 4 * 1024 * 1024) {
         onNotice?.(`「${file.name}」超过 4MB，已跳过。`);
@@ -3363,14 +3466,14 @@ export function PhoneQaApp({ onClose, onNotice }: PhoneQaAppProps) {
       const reader = new FileReader();
       reader.onload = () => {
         const url = typeof reader.result === "string" ? reader.result : "";
-        if (url) setPendingImages((current) => (current.length >= 6 ? current : [...current, url]));
+        if (url) setter((current) => (current.length >= 6 ? current : [...current, url]));
       };
       reader.readAsDataURL(file);
     }
     if (imageInputRef.current) imageInputRef.current.value = "";
   }, [onNotice]);
 
-  // 文本附件：白名单扩展名 + 256KB + 4 个上限，FileReader 真实读取，失败如实标注
+  // 文本附件：白名单扩展名 + 单文件 1MB + 6 个上限 + 200K 字符总量，FileReader 真实读取，失败如实标注
   const handlePickFiles = useCallback(
     (files: FileList | null) => {
       if (!files?.length) return;
@@ -3384,8 +3487,12 @@ export function PhoneQaApp({ onClose, onNotice }: PhoneQaAppProps) {
           onNotice?.(`「${file.name}」不是文本文件，只支持 txt / md / json / csv / js / ts / tsx / html / css。`);
           continue;
         }
+        if (pendingFiles.some((f) => f.name === file.name)) {
+          onNotice?.(`「${file.name}」已经添加过了。`);
+          continue;
+        }
         if (file.size > QA_MAX_FILE_BYTES) {
-          onNotice?.(`「${file.name}」有 ${formatAttachBytes(file.size)}，超过 256KB 上限，没有添加。`);
+          onNotice?.(`「${file.name}」有 ${formatAttachBytes(file.size)}，超过 ${formatAttachBytes(QA_MAX_FILE_BYTES)} 上限，没有添加。`);
           continue;
         }
         const id = makeAttachId();
@@ -3393,11 +3500,19 @@ export function PhoneQaApp({ onClose, onNotice }: PhoneQaAppProps) {
         const reader = new FileReader();
         reader.onload = () => {
           const text = typeof reader.result === "string" ? reader.result : "";
-          setPendingFiles((current) =>
-            current.map((f) =>
+          setPendingFiles((current) => {
+            const next: QaPendingFile[] = current.map((f) =>
               f.id === id ? { ...f, status: text ? "ready" : "error", text: text || undefined, error: text ? undefined : "文件内容为空" } : f,
-            ),
-          );
+            );
+            if (text) {
+              const totalChars = next.reduce((sum, f) => sum + f.name.length + (f.text?.length ?? 0), 0);
+              if (totalChars > QA_MAX_FILE_CHARS) {
+                onNotice?.(`附件文本合计不能超过 ${Math.floor(QA_MAX_FILE_CHARS / 1000)}K 字符，最后这个文件没有添加。`);
+                return next.map((f): QaPendingFile => (f.id === id ? { ...f, status: "error", text: undefined, error: "超出字符总量" } : f));
+              }
+            }
+            return next;
+          });
         };
         reader.onerror = () => {
           setPendingFiles((current) => current.map((f) => (f.id === id ? { ...f, status: "error", error: "读取失败" } : f)));
@@ -3406,7 +3521,7 @@ export function PhoneQaApp({ onClose, onNotice }: PhoneQaAppProps) {
       }
       if (fileInputRef.current) fileInputRef.current.value = "";
     },
-    [pendingFiles.length, onNotice],
+    [pendingFiles, onNotice],
   );
 
   const handleRetry = useCallback((assistantMsgId: string) => {
@@ -3424,14 +3539,69 @@ export function PhoneQaApp({ onClose, onNotice }: PhoneQaAppProps) {
   const handleEditMessage = useCallback((msg: QaMsg) => {
     setEditingMsg(msg);
     setEditText(msg.content);
+    setEditImages(msg.images ?? []);
+    setEditFiles(msg.files ?? []);
   }, []);
 
-  const handleSaveEdit = useCallback(() => {
-    if (!editingMsg || !snapshot.activeSessionId) return;
-    updateQaMessageContent(snapshot.activeSessionId, editingMsg.id, editText);
-    setEditingMsg(null);
-    onNotice?.("已保存消息内容");
-  }, [editingMsg, editText, snapshot.activeSessionId, onNotice]);
+  // 修改已发送消息：只保存（同步模型侧上下文）或保存并重新生成（仅限无工具副作用的纯对话）
+  const handleSaveEdit = useCallback(
+    (andResend: boolean) => {
+      if (!editingMsg || !snapshot.activeSessionId) return;
+      const result = andResend
+        ? editAndResendQaMessage(snapshot.activeSessionId, editingMsg.id, editText, editImages, editFiles)
+        : updateQaMessageContent(
+            snapshot.activeSessionId,
+            editingMsg.id,
+            editText,
+            editingMsg.role === "user" ? editImages : undefined,
+            editingMsg.role === "user" ? editFiles : undefined,
+          );
+      if (!result.ok) {
+        onNotice?.(result.reason);
+        return;
+      }
+      setEditingMsg(null);
+      onNotice?.(andResend ? "已修改并重新发送" : "已保存消息内容");
+    },
+    [editingMsg, editText, editImages, editFiles, snapshot.activeSessionId, onNotice],
+  );
+
+  // 重发被拦的真实原因（有工具副作用 / 正在执行等），null = 可以安全重发
+  const editResendBlockReason = editingMsg?.role === "user" && snapshot.activeSessionId
+    ? getQaEditAndResendBlockReason(snapshot.activeSessionId, editingMsg.id)
+    : null;
+
+  // 大纲胶囊「回到底部」：贴底并收起大纲
+  const handleScrollBottom = useCallback(() => {
+    const target = bodyRef.current;
+    if (!target) return;
+    stickToBottomRef.current = true;
+    target.scrollTo({ top: target.scrollHeight, behavior: "smooth" });
+    setOutlineOpen(false);
+  }, []);
+
+  // 记忆结转：把当前会话的关键目标 / 改动 / 下一步提炼进新会话，原会话完整保留
+  const handleCarryOverSession = useCallback(async () => {
+    const sessionId = snapshot.activeSessionId;
+    if (!sessionId || carryingSessionId) return;
+    if (snapshot.isGenerating || snapshot.isCompacting) {
+      onNotice?.("克克正在执行任务或整理上下文，完成后再结转。");
+      return;
+    }
+    setCarryingSessionId(sessionId);
+    try {
+      const nextId = await carryOverQaSession(sessionId);
+      if (nextId) {
+        setOutlineOpen(false);
+        setDrawerOpen(false);
+        onNotice?.("已提炼关键记忆并接续到新会话，原会话仍完整保留。");
+      } else {
+        onNotice?.("当前会话暂无可结转内容，或记忆提炼失败。");
+      }
+    } finally {
+      setCarryingSessionId(null);
+    }
+  }, [snapshot.activeSessionId, snapshot.isGenerating, snapshot.isCompacting, carryingSessionId, onNotice]);
 
   // ＋ 按钮：弹出底部菜单（界面 3），菜单里每个入口接真实能力
   const handlePlus = useCallback(() => {
@@ -3587,7 +3757,7 @@ export function PhoneQaApp({ onClose, onNotice }: PhoneQaAppProps) {
             <button type="button" className="qa-cl-topbar-btn" onClick={() => setDrawerOpen(true)} aria-label="打开会话侧栏">
               <IconMenu size={22} />
             </button>
-            <div className="qa-cl-topbar-title">{activeSession?.title ?? "工坊"}</div>
+            <div className="qa-cl-topbar-title">{activeSession?.title ?? "Claude"}</div>
             <button type="button" className="qa-cl-topbar-btn" onClick={() => setTopMenuOpen(true)} aria-label="更多操作">
               <IconDots size={22} />
             </button>
@@ -3608,36 +3778,13 @@ export function PhoneQaApp({ onClose, onNotice }: PhoneQaAppProps) {
         {messages.length === 0 ? (
           <div className="qa-cl-welcome">
             <div className="qa-cl-welcome-star" aria-hidden>
-              <svg viewBox="0 0 24 24" width="26" height="26" fill="currentColor" aria-hidden="true">
-                <path d={mdiHammerWrench} />
-              </svg>
+              <img src="/mascot-crab.png" alt="" />
             </div>
-            <div className="qa-cl-welcome-title">有什么问题？</div>
-            <div className="qa-cl-welcome-sub">
-              我是小坊，工坊的驻场工程师。使用问题、报错排查、部署配置，都可以问我。
-              <br />
-              我还能动手：写小游戏 / APP / 剧场直接装进本机试玩；连接仓库后我会查源码答疑，填了有写权限的 PAT 还能帮你改代码。
-              <br />
-              想创作角色、世界书或美化桌面，找桌面上的小卷更合适。
-            </div>
+            <div className="qa-cl-welcome-title">你好，{userName}</div>
+            <div className="qa-cl-welcome-sub">今天想一起做点什么？</div>
             {!apiReady && (
               <div className="qa-cl-welcome-warn">还没有可用的 API：请先到「设置 → API 设置」添加 LLM API。</div>
             )}
-            <div className="qa-cl-suggestions">
-              {SUGGESTIONS.map((text) => (
-                <button
-                  key={text}
-                  type="button"
-                  className="qa-cl-suggestion"
-                  onClick={() => {
-                    stickToBottomRef.current = true;
-                    void sendQaMessage(text);
-                  }}
-                >
-                  {text}
-                </button>
-              ))}
-            </div>
           </div>
         ) : (
           <div className="qa-cl-msgs">
@@ -3648,8 +3795,23 @@ export function PhoneQaApp({ onClose, onNotice }: PhoneQaAppProps) {
         )}
       </div>
 
-      {/* 输入卡（上方：真实数据小件——上下文用量、本轮创建预览） */}
+      {/* 输入卡（上方：真实数据小件——上下文用量、本轮创建预览、对话大纲） */}
       <div className="qa-cl-inputwrap">
+        {carryingSessionId && (
+          <div className="qa-cl-carrying-bar" role="status">
+            <Loader2 size={13} className="qa-spin" />
+            <span>克克正在提炼会话记忆…</span>
+          </div>
+        )}
+        <QaConversationOutline
+          messages={messages}
+          open={outlineOpen}
+          carrying={Boolean(carryingSessionId)}
+          onToggle={() => setOutlineOpen((current) => !current)}
+          onClose={() => setOutlineOpen(false)}
+          onCarryOver={() => void handleCarryOverSession()}
+          onScrollBottom={handleScrollBottom}
+        />
         {createdContent.length > 0 && (
           <button
             type="button"
@@ -3811,6 +3973,7 @@ export function PhoneQaApp({ onClose, onNotice }: PhoneQaAppProps) {
         activeId={snapshot.activeSessionId}
         theme={theme}
         userName={userName}
+        carrying={Boolean(carryingSessionId)}
         onClose={() => setDrawerOpen(false)}
         onSelect={(id) => {
           switchQaSession(id);
@@ -3825,6 +3988,7 @@ export function PhoneQaApp({ onClose, onNotice }: PhoneQaAppProps) {
           setRepoSheetOpen(true);
           setDrawerOpen(false);
         }}
+        onCarryOver={() => void handleCarryOverSession()}
         onOpenSettings={() => {
           setSettingsOpen(true);
           setDrawerOpen(false);
@@ -3909,7 +4073,7 @@ export function PhoneQaApp({ onClose, onNotice }: PhoneQaAppProps) {
           <div className="qa-devnotice" role="alertdialog" aria-label="清理工具历史确认" onClick={(e) => e.stopPropagation()}>
             <div className="qa-devnotice-title">清理工具调用历史？</div>
             <div className="qa-devnotice-text">
-              将移除本会话上下文中的工具调用与工具结果记录，用于修复原生工具协议的报错。普通对话内容不会删除，之前的工具结论仍保留在小坊的回复文字里。
+              将移除本会话上下文中的工具调用与工具结果记录，用于修复原生工具协议的报错。普通对话内容不会删除，之前的工具结论仍保留在克克的回复文字里。
             </div>
             <div className="qa-devnotice-actions is-row">
               <button type="button" className="qa-devnotice-btn" onClick={() => setClearToolsOpen(false)}>
@@ -3934,9 +4098,9 @@ export function PhoneQaApp({ onClose, onNotice }: PhoneQaAppProps) {
 
       {editingMsg && (
         <div className="qa-edit-backdrop" onClick={() => setEditingMsg(null)}>
-          <div className="qa-edit-dialog" role="dialog" aria-label="编辑消息" onClick={(e) => e.stopPropagation()}>
+          <div className="qa-edit-dialog" role="dialog" aria-label="修改消息" onClick={(e) => e.stopPropagation()}>
             <div className="qa-edit-head">
-              <span className="qa-edit-title">编辑消息（未渲染原始内容）</span>
+              <span className="qa-edit-title">修改消息（原始内容）</span>
               <button type="button" className="qa-icon-btn" onClick={() => setEditingMsg(null)} aria-label="关闭">
                 <X size={16} />
               </button>
@@ -3947,15 +4111,73 @@ export function PhoneQaApp({ onClose, onNotice }: PhoneQaAppProps) {
               onChange={(e) => setEditText(e.target.value)}
               spellCheck={false}
               autoFocus
+              aria-label="消息原始内容"
               placeholder="这里显示的是消息的原始内容，不会被前端渲染，可放心查看特殊标签。"
             />
+            {editingMsg.role === "user" && editImages.length > 0 && (
+              <div className="qa-attach-strip">
+                {editImages.map((url, index) => (
+                  <div className="qa-attach-thumb" key={index}>
+                    <button type="button" className="qa-attach-view" onClick={() => setViewerImage(url)} aria-label="查看图片">
+                      <img src={url} alt="" />
+                    </button>
+                    <button
+                      type="button"
+                      className="qa-attach-remove"
+                      onClick={() => setEditImages((current) => current.filter((_, i) => i !== index))}
+                      aria-label="移除图片"
+                    >
+                      <X size={11} strokeWidth={2.4} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {editingMsg.role === "user" && editFiles.length > 0 && (
+              <div className="qa-cl-edit-files">
+                {editFiles.map((file) => (
+                  <span className="qa-cl-file-chip is-removable" key={file.name} title={file.name}>
+                    <IconFile size={13} />
+                    <span>{file.name}</span>
+                    <button
+                      type="button"
+                      onClick={() => setEditFiles((current) => current.filter((candidate) => candidate.name !== file.name))}
+                      aria-label={`移除附件 ${file.name}`}
+                    >
+                      <X size={11} strokeWidth={2.4} />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+            {editingMsg.role === "user" && editResendBlockReason && (
+              <div className="qa-edit-warning" role="status">{editResendBlockReason}</div>
+            )}
+            {editingMsg.role === "user" && !editResendBlockReason && (
+              <div className="qa-edit-hint">保存并发送会删除这条消息及其后续纯对话，再根据修改后的内容重新生成。</div>
+            )}
             <div className="qa-edit-actions">
               <button type="button" className="qa-devnotice-btn" onClick={() => setEditingMsg(null)}>
                 取消
               </button>
-              <button type="button" className="qa-devnotice-btn is-primary" onClick={handleSaveEdit}>
+              <button
+                type="button"
+                className={`qa-devnotice-btn ${editingMsg.role === "assistant" ? "is-primary" : ""}`}
+                onClick={() => handleSaveEdit(false)}
+                disabled={!editText.trim() && editImages.length === 0 && editFiles.length === 0}
+              >
                 保存
               </button>
+              {editingMsg.role === "user" && (
+                <button
+                  type="button"
+                  className="qa-devnotice-btn is-primary"
+                  onClick={() => handleSaveEdit(true)}
+                  disabled={Boolean(editResendBlockReason) || (!editText.trim() && editImages.length === 0 && editFiles.length === 0)}
+                >
+                  保存并发送
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -4060,7 +4282,7 @@ function QaApiLogSheet({ onClose, onNotice }: { onClose: () => void; onNotice?: 
   const handleClear = () => {
     clearQaApiLogs();
     setLogs([]);
-    onNotice?.("已清空工坊调用记录");
+    onNotice?.("已清空 Claude 调用记录");
   };
 
   const formatTime = (ts: string) => {
@@ -4089,12 +4311,12 @@ function QaApiLogSheet({ onClose, onNotice }: { onClose: () => void; onNotice?: 
         <div className="qa-sheet-body hide-scrollbar qa-log-body">
           {logs.length === 0 ? (
             <p className="qa-sheet-note">
-              还没有工坊的 AI 调用记录。调用过模型后，这里会显示每次请求的 Prompt 与 AI 原始回复（含思维链），供排查用。
+              还没有 Claude 的 AI 调用记录。调用过模型后，这里会显示每次请求的 Prompt 与 AI 原始回复（含思维链），供排查用。
             </p>
           ) : (
             <>
               <p className="qa-sheet-note">
-                工坊每次调用大模型的记录，与聊天页「底层调用大模型日志」互相独立，互不混入。
+                Claude 每次调用大模型的记录，与聊天页「底层调用大模型日志」互相独立，互不混入。
               </p>
               <div className="qa-log-list">
                 {logs.map((log) => {

@@ -3,7 +3,10 @@ import { MASCOT_PERSONA } from "./mascot-prompts";
 
 export const MASCOT_SETTINGS_KEY = "ai_phone_mascot_settings_v1";
 export const DEFAULT_MASCOT_DISPLAY_NAME = "AI助手";
-export const DEFAULT_MASCOT_AVATAR = "/mascot.png";
+// Project mascot: a small geometric crab for the Y2K phone shell.
+// Keep previous/default XiaoJuan assets available for existing custom settings,
+// but use the project crab for new installs and reset-to-default flows.
+export const DEFAULT_MASCOT_AVATAR = "/mascot-crab.png";
 
 export type MascotSettings = {
     nickname: string;
@@ -37,13 +40,21 @@ function normalizeMascotSettings(raw: unknown): MascotSettings {
     const personaPrompt = typeof src.personaPrompt === "string" && src.personaPrompt.trim()
         ? src.personaPrompt
         : MASCOT_PERSONA;
+    const avatarImage = typeof src.avatarImage === "string" && src.avatarImage.trim()
+        ? src.avatarImage.trim()
+        : DEFAULT_MASCOT_AVATAR;
     return {
         ...DEFAULT_MASCOT_SETTINGS,
         ...src,
         nickname,
         personaPrompt,
         chatEnabled: src.chatEnabled !== false,
-        avatarImage: typeof src.avatarImage === "string" && src.avatarImage.trim() ? src.avatarImage : DEFAULT_MASCOT_AVATAR,
+        // Existing installs used the generic XiaoJuan image as the implicit
+        // default. Migrate only that exact legacy value; user-selected URLs,
+        // data URLs and IndexedDB asset ids remain untouched.
+        avatarImage: new Set(["/mascot.png", "/mascot-rabbit-cat.png", "/mascot-crab.svg"]).has(avatarImage)
+            ? DEFAULT_MASCOT_AVATAR
+            : avatarImage,
         chatBackgroundImage: typeof src.chatBackgroundImage === "string" ? src.chatBackgroundImage : "",
         chatCustomCSS: typeof src.chatCustomCSS === "string" ? src.chatCustomCSS : "",
     };

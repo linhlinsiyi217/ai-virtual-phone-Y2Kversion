@@ -188,28 +188,66 @@
 .qa-app-shell[data-qa-theme="dark"] .qa-cl-welcome-warn {
   color: #f5c66b;
 }
-.qa-cl-suggestions {
-  margin-top: 26px;
+.qa-cl-welcome-star img {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+}
+
+/* ═══ 消息内附件小条（真实 msg.files） ═════════════════ */
+.qa-cl-msg-files {
   display: flex;
   flex-wrap: wrap;
-  justify-content: center;
-  gap: 8px;
+  gap: 6px;
+  margin-bottom: 6px;
 }
-.qa-cl-suggestion {
-  padding: 8px 16px;
-  border: none;
-  border-radius: 9999px;
-  background: var(--qa-cl-ub);
+.qa-cl-file-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 100%;
+  padding: 4px 9px;
+  border-radius: 10px;
+  background: var(--qa-cl-tbg);
+  border: 1px solid var(--qa-cl-ibd);
+  font-size: 12px;
   color: var(--qa-cl-tx);
-  font-size: 13px;
-  cursor: pointer;
-  transition: color 0.16s ease, transform 0.16s ease;
+  line-height: 1.4;
 }
-.qa-cl-suggestion:hover {
+.qa-cl-file-chip svg {
+  flex: none;
+  color: var(--qa-cl-mu);
+}
+.qa-cl-file-chip > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.qa-cl-file-chip.is-removable {
+  padding-right: 5px;
+}
+.qa-cl-file-chip.is-removable > button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--qa-cl-mu);
+  cursor: pointer;
+  flex: none;
+}
+.qa-cl-file-chip.is-removable > button:hover {
   color: var(--qa-cl-ac);
 }
-.qa-cl-suggestion:active {
-  transform: scale(0.96);
+/* 编辑弹窗里的附件小条 */
+.qa-cl-edit-files {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
 }
 
 /* ═══ 用户消息 ═══════════════════════════════════════ */
@@ -586,6 +624,152 @@
   bottom: calc(env(safe-area-inset-bottom, 0px) + 14px);
   z-index: 4;
 }
+
+/* ═══ 对话大纲胶囊与面板（真实用户消息轮次） ═══════════ */
+.qa-cl-outline {
+  position: relative;
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 8px;
+  min-height: 0;
+}
+.qa-cl-outline-capsule {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 9999px;
+  background: var(--qa-cl-ib);
+  border: 1px solid var(--qa-cl-ibd);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+}
+.qa-app-shell[data-qa-theme="dark"] .qa-cl-outline-capsule {
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+.qa-cl-outline-capsule button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 30px;
+  padding: 0 10px;
+  border: none;
+  background: transparent;
+  color: var(--qa-cl-mu);
+  font-size: 12px;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+.qa-cl-outline-capsule button:hover {
+  color: var(--qa-cl-ac);
+}
+.qa-cl-outline-capsule i {
+  width: 1px;
+  height: 13px;
+  background: var(--qa-cl-ibd);
+}
+.qa-cl-outline-panel {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 8px);
+  width: min(300px, 100%);
+  border-radius: 16px;
+  background: var(--qa-cl-ib);
+  border: 1px solid var(--qa-cl-ibd);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.12);
+  padding: 12px;
+  z-index: 5;
+}
+.qa-app-shell[data-qa-theme="dark"] .qa-cl-outline-panel {
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+}
+.qa-cl-outline-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--qa-cl-tx);
+  padding: 0 2px 8px;
+}
+.qa-cl-outline-carry {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid color-mix(in srgb, var(--qa-cl-ac) 35%, transparent);
+  border-radius: 9999px;
+  background: transparent;
+  color: var(--qa-cl-ac);
+  font-size: 12px;
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.qa-cl-outline-carry:hover {
+  background: color-mix(in srgb, var(--qa-cl-ac) 10%, transparent);
+}
+.qa-cl-outline-carry:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+.qa-cl-outline-list {
+  max-height: 260px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.qa-cl-outline-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  padding: 7px 8px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s ease;
+}
+.qa-cl-outline-item:hover {
+  background: var(--qa-cl-ub);
+}
+.qa-cl-outline-item > span {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--qa-cl-ub);
+  color: var(--qa-cl-mu);
+  font-size: 11px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.qa-cl-outline-item > strong {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--qa-cl-tx);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ═══ 记忆结转进行中状态条 ═══════════════════════════ */
+.qa-cl-carrying-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  margin-bottom: 8px;
+  padding: 7px 12px;
+  border-radius: 9999px;
+  background: var(--qa-cl-ub);
+  color: var(--qa-cl-ac);
+  font-size: 12.5px;
+}
+
 .qa-cl-input {
   background: var(--qa-cl-ib);
   border: 1px solid var(--qa-cl-ibd);
@@ -898,6 +1082,10 @@
 }
 .qa-cl-drow.on {
   background: var(--qa-cl-ub);
+}
+.qa-cl-drow:disabled {
+  cursor: default;
+  opacity: 0.65;
 }
 .qa-cl-drow > b {
   flex: 1;
@@ -1693,6 +1881,24 @@
 }
 .qa-edit-textarea:focus {
   border-color: var(--qa-cl-ac);
+}
+/* 修改并重发：被拦原因（真实副作用提示）与说明 */
+.qa-edit-warning {
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(251, 191, 36, 0.3);
+  background: rgba(251, 191, 36, 0.08);
+  color: #b45309;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+.qa-app-shell[data-qa-theme="dark"] .qa-edit-warning {
+  color: #f5c66b;
+}
+.qa-edit-hint {
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--qa-cl-mu);
 }
 .qa-edit-actions {
   display: flex;

@@ -135,6 +135,6 @@ export const ICONS: Record<IconId, IconMeta> = {
     placeholder: false,
     path: "/world-builder"
   },
-  qa: { id: "qa", label: "工坊", tone: "var(--c-icon-qa, #4a505c99)", placeholder: false },
+  qa: { id: "qa", label: "Claude", tone: "var(--c-icon-qa, #4a505c99)", placeholder: false },
   mixology: { id: "mixology", label: "独家特调", tone: "var(--c-icon-violet)", placeholder: false },
 };

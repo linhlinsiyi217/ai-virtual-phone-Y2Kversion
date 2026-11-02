@@ -323,7 +323,7 @@ const githubTreeTool: QaTool = {
     ],
     async run(args, options) {
         const config = loadQaGithubConfig();
-        if (!config) return "尚未连接 GitHub 仓库。请引导用户在工坊右上角「仓库」里配置。";
+        if (!config) return "尚未连接 GitHub 仓库。请引导用户在 Claude 右上角「仓库」里配置。";
         const { entries, truncated } = await getQaGithubTree(config, options?.signal);
         const filter = typeof args.filter === "string" ? args.filter.trim().toLowerCase() : "";
         let files = entries.filter((e) => e.type === "blob");
@@ -450,7 +450,7 @@ const githubBranchListTool: QaTool = {
     name: "分支列表",
     nativeName: "list_branches",
     parameters: NOOP_PARAMS,
-    description: "列出仓库所有分支（标注默认分支与工坊当前工作分支）。",
+    description: "列出仓库所有分支（标注默认分支与 Claude 当前工作分支）。",
     schemaLines: ["  参数：无", "  调用：[执行动作:分支列表({})]"],
     async run(_args, options) {
         const config = loadQaGithubConfig();
@@ -460,7 +460,7 @@ const githubBranchListTool: QaTool = {
             `共 ${branches.length} 个分支：\n` +
             branches
                 .map((b) => {
-                    const marks = [b.name === defaultBranch ? "默认" : "", b.name === config.branch ? "工坊工作分支" : ""].filter(Boolean);
+                    const marks = [b.name === defaultBranch ? "默认" : "", b.name === config.branch ? "Claude 工作分支" : ""].filter(Boolean);
                     return `${b.name}${marks.length ? `（${marks.join("、")}）` : ""}  ${b.sha.slice(0, 10)}`;
                 })
                 .join("\n"),
@@ -572,7 +572,7 @@ const githubBranchTool: QaTool = {
     async run(args, context) {
         const config = loadQaGithubConfig();
         if (!config) return "尚未连接 GitHub 仓库。";
-        if (!config.token) return "写操作需要 PAT。请引导用户在工坊「仓库」里填入有写权限的 fine-grained PAT。";
+        if (!config.token) return "写操作需要 PAT。请引导用户在 Claude「仓库」里填入有写权限的 fine-grained PAT。";
         const name = typeof args.name === "string" ? args.name.trim() : "";
         if (!name) return "缺少 name（分支名）。";
         const from = typeof args.from === "string" && args.from.trim() ? args.from.trim() : undefined;
@@ -707,7 +707,7 @@ const githubCommitTool: QaTool = {
     async run(args, context) {
         const config = loadQaGithubConfig();
         if (!config) return "尚未连接 GitHub 仓库。";
-        if (!config.token) return "写操作需要 PAT。请引导用户在工坊「仓库」里填入有写权限的 fine-grained PAT。";
+        if (!config.token) return "写操作需要 PAT。请引导用户在 Claude「仓库」里填入有写权限的 fine-grained PAT。";
         const message = typeof args.message === "string" ? args.message.trim() : "";
         const rawFiles = Array.isArray(args.files) ? args.files : [];
         // 两种形态：整写 {path, content}；片段替换 {path, find, replace[, all]}——
@@ -788,7 +788,7 @@ const githubCommitTool: QaTool = {
 function requireWritableConfig(): { config: NonNullable<ReturnType<typeof loadQaGithubConfig>> } | { error: string } {
     const config = loadQaGithubConfig();
     if (!config) return { error: "尚未连接 GitHub 仓库。" };
-    if (!config.token) return { error: "写操作需要 PAT。请引导用户在工坊「仓库」里填入有写权限的 fine-grained PAT。" };
+    if (!config.token) return { error: "写操作需要 PAT。请引导用户在 Claude「仓库」里填入有写权限的 fine-grained PAT。" };
     return { config };
 }
 
@@ -800,7 +800,7 @@ const githubBranchDeleteTool: QaTool = {
         properties: { name: { type: "string", description: "要删除的分支名" } },
         required: ["name"],
     },
-    description: "删除仓库分支。默认分支与工坊当前工作分支受保护，不能删。",
+    description: "删除仓库分支。默认分支与 Claude 当前工作分支受保护，不能删。",
     schemaLines: [
         "  参数：",
         "    · name (必填) — 要删除的分支名",
@@ -918,7 +918,7 @@ const githubSyncUpstreamTool: QaTool = {
                 "推荐的处理顺序：",
                 "1. 先把用户的有效改动贡献给官方——「对比官方版本」→「提交共同建设贡献」（拼合路径不受冲突影响）；",
                 "2. 官方采纳合并后，改动进入主线，用户的 fork 可直接重置为官方版本（在 GitHub 网页 Sync fork 里选 discard commits），冲突自然消失；",
-                "3. 若改动只想自用不贡献，需要在本地手工解决冲突，超出小坊的能力范围，如实告知用户。",
+                "3. 若改动只想自用不贡献，需要在本地手工解决冲突，超出克克的能力范围，如实告知用户。",
             ].join("\n");
         }
         return `同步失败：${result.message}。常见原因：连接的仓库不是官方项目的 fork、分支名不存在、或 token 权限不足。`;
@@ -1027,7 +1027,7 @@ const feedbackTool: QaTool = {
             try {
                 const issue = await createQaIssue(
                     config,
-                    { title: `[${ticket.kind}] ${title}`, body: formatQaFeedbackMarkdown(ticket), labels: ["工坊反馈"] },
+                    { title: `[${ticket.kind}] ${title}`, body: formatQaFeedbackMarkdown(ticket), labels: ["Claude反馈"] },
                     context?.signal,
                 );
                 updateQaFeedbackTicket(ticket.id, { issueUrl: issue.htmlUrl });
@@ -1344,7 +1344,7 @@ const branchOpsTool: QaTool = {
         required: ["action", "name"],
     },
     description:
-        "管理仓库分支：create 新建（已存在不报错，之后「发布」type=repo 用 branch 参数提交过去）；delete 删除（默认分支与工坊工作分支受保护）。",
+        "管理仓库分支：create 新建（已存在不报错，之后「发布」type=repo 用 branch 参数提交过去）；delete 删除（默认分支与 Claude 工作分支受保护）。",
     schemaLines: [
         "  参数：",
         "    · action (必填) — create / delete",
