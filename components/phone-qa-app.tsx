@@ -1051,6 +1051,7 @@ function MiniMeter({ percent }: { percent: number }) {
 
 function QaTopMenu({
   onClose,
+  onOpenHelp,
   onOpenSettings,
   onOpenApiLog,
   onOpenRepo,
@@ -1058,6 +1059,7 @@ function QaTopMenu({
   onExit,
 }: {
   onClose: () => void;
+  onOpenHelp: () => void;
   onOpenSettings: () => void;
   onOpenApiLog: () => void;
   onOpenRepo: () => void;
@@ -1065,6 +1067,7 @@ function QaTopMenu({
   onExit: () => void;
 }) {
   const items: Array<{ icon: ReactNode; label: string; desc: string; onClick: () => void }> = [
+    { icon: <span className="qa-cl-menu-question">?</span>, label: "使用说明", desc: "查看页面、附件与上下文功能", onClick: onOpenHelp },
     { icon: <IconWrench size={18} />, label: "Claude 配置", desc: "上下文预算、翻页与输出上限", onClick: onOpenSettings },
     { icon: <IconFile size={18} />, label: "API 调用记录", desc: "Claude 每次调用大模型的记录", onClick: onOpenApiLog },
     { icon: <IconRepo size={18} />, label: "仓库设置", desc: "连接 GitHub 仓库", onClick: onOpenRepo },
@@ -3816,7 +3819,7 @@ export function PhoneQaApp({ onClose, onNotice }: PhoneQaAppProps) {
 
   return (
     <div className="qa-app-shell" data-qa-theme={theme}>
-      {/* 顶栏：子页面显示返回箭头；平时是菜单 / 会话标题 / ··· */}
+      {/* 顶栏：返回固定在左上角，会话、模型和新建入口保持 Claude 式轻量结构 */}
       <header className="qa-cl-topbar">
         {subPage ? (
           <>
@@ -3835,13 +3838,21 @@ export function PhoneQaApp({ onClose, onNotice }: PhoneQaAppProps) {
           </>
         ) : (
           <>
-            <button type="button" className="qa-cl-topbar-btn" onClick={() => setDrawerOpen(true)} aria-label="打开会话侧栏">
-              <IconMenu size={22} />
+            <div className="qa-cl-topbar-leading">
+              <button type="button" className="qa-cl-topbar-btn" onClick={onClose} aria-label="返回手机桌面">
+                <IconBack size={22} />
+              </button>
+              <button type="button" className="qa-cl-topbar-btn" onClick={() => setDrawerOpen(true)} aria-label="打开会话侧栏">
+                <IconMenu size={22} />
+              </button>
+            </div>
+            <button type="button" className="qa-cl-topbar-model" onClick={() => setModelSheetOpen(true)} aria-label="切换模型">
+              <span>{modelName || "Claude"}</span>
+              <IconChevronDown size={15} />
             </button>
-            <div className="qa-cl-topbar-title">{activeSession?.title ?? "Claude"}</div>
             <div className="qa-cl-topbar-actions">
-              <button type="button" className="qa-cl-help-btn" onClick={() => setHelpOpen(true)} aria-label="使用说明">
-                ?
+              <button type="button" className="qa-cl-topbar-btn" onClick={() => createQaSession()} aria-label="新建会话">
+                <IconPlus size={22} />
               </button>
               <button type="button" className="qa-cl-topbar-btn" onClick={() => setTopMenuOpen(true)} aria-label="更多操作">
                 <IconDots size={22} />
@@ -4118,6 +4129,7 @@ export function PhoneQaApp({ onClose, onNotice }: PhoneQaAppProps) {
       {topMenuOpen && (
         <QaTopMenu
           onClose={() => setTopMenuOpen(false)}
+          onOpenHelp={() => setHelpOpen(true)}
           onOpenSettings={() => setSettingsOpen(true)}
           onOpenApiLog={() => setApiLogOpen(true)}
           onOpenRepo={() => setRepoSheetOpen(true)}
