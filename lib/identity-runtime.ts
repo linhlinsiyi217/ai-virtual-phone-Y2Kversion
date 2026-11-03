@@ -2,6 +2,7 @@ import { IdentityBoundaryError, identityStoragePrefix, type IdentitySpaceManifes
 import { requestPhoneSessionRemount } from "./phone-session-protocol";
 
 export const IDENTITY_RUNTIME_KEY = "float_identity_runtime_v1";
+export const IDENTITY_RUNTIME_RECOVERY_KEY = "float_identity_runtime_recovery_v1";
 export const IDENTITY_ACCESS_KEY = "float_identity_character_access_v1";
 export const IDENTITY_BASE_BINDING_KEY = "float_identity_default_bindings_v1";
 const PRIVATE_PREFIX = "identity:";
@@ -36,9 +37,35 @@ function nativeStorage(): Storage | null {
 }
 
 export function readIdentityRuntime(): IdentitySpaceManifest | null {
-  const raw = nativeStorage()?.getItem(IDENTITY_RUNTIME_KEY);
+  const storage = nativeStorage();
+  const raw = storage?.getItem(IDENTITY_RUNTIME_KEY);
   if (!raw) return null;
-  try { return normalizeIdentitySpace(JSON.parse(raw)); } catch { throw new IdentityBoundaryError("身份配置损坏，请恢复数据备份"); }
+  try {
+    const normalized = normalizeIdentitySpace(JSON.parse(raw));
+    const hasUsableIdentity = normalized.userIds.length > 0
+      && (Boolean(normalized.activeUserId) || normalized.deletingUserIds.length > 0);
+    if (!hasUsableIdentity) throw new Error("identity manifest has no usable identity");
+    return normalized;
+  } catch (error) {
+    // 运行态索引损坏不代表角色、聊天等业务数据损坏。旧实现会在模块初始化时
+    // 直接抛错，导致 Next.js 整页 client-side exception，用户连恢复入口都看不到。
+    // 先保留原始值，再移除这一条运行态索引；hydrateKvDb 会根据仍在的身份目录
+    // 重建它，绝不清空 IndexedDB / KV / localStorage 里的实际用户数据。
+    try {
+      if (!storage?.getItem(IDENTITY_RUNTIME_RECOVERY_KEY)) {
+        storage?.setItem(IDENTITY_RUNTIME_RECOVERY_KEY, JSON.stringify({
+          capturedAt: new Date().toISOString(),
+          raw,
+          reason: error instanceof Error ? error.message : String(error),
+        }));
+      }
+      storage?.removeItem(IDENTITY_RUNTIME_KEY);
+    } catch {
+      // 浏览器禁用存储时仍允许页面继续进入无身份的安全初始化流程。
+    }
+    console.warn("[IdentityRuntime] invalid runtime manifest quarantined; rebuilding index");
+    return null;
+  }
 }
 
 // Each phone realm is bound to one immutable identity; retired callbacks never rebind.
