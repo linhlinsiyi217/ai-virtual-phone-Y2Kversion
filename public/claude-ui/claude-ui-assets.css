@@ -1,0 +1,8 @@
+:root{--claude-paper:#f7f6f2;--claude-surface:#fff;--claude-ink:#171512;--claude-muted:#817e76;--claude-line:#dedbd3;--claude-accent:#d97757}
+.claude-thinking-star{animation:claude-star-turn 2.6s linear infinite;transform-origin:center}
+.claude-crab-thinking{animation:claude-crab-breathe 1.8s ease-in-out infinite;transform-origin:center bottom}
+.claude-tool-running{animation:claude-tool-pulse 1.35s ease-in-out infinite}
+@keyframes claude-star-turn{to{transform:rotate(360deg)}}
+@keyframes claude-crab-breathe{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-2px) scale(1.025)}}
+@keyframes claude-tool-pulse{0%,100%{opacity:.46}50%{opacity:1}}
+@media (prefers-reduced-motion:reduce){.claude-thinking-star,.claude-crab-thinking,.claude-tool-running{animation:none}}

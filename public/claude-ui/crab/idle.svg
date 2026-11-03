@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 120" role="img" aria-label="Project crab idle">
+  <g fill="#D97757">
+    <path d="M40 34h80v52H40zM18 48h30v20H18zM112 48h30v20h-30zM48 82h18v25H48zM72 82h16v25H72zM94 82h18v25H94z"/>
+    <path d="M10 37h20v12H10zM130 37h20v12h-20z"/>
+  </g>
+  <rect x="57" y="48" width="9" height="17" rx="2" fill="#171512"/>
+  <rect x="94" y="48" width="9" height="17" rx="2" fill="#171512"/>
+</svg>
