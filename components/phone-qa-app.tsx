@@ -437,7 +437,49 @@ function QaCommitCard({ msg }: { msg: QaMsg }) {
 
 // ── 思考时间线（真实 reasoning + 真实工具调用，不编造步骤） ──
 
-type ThinkStep = { kind: "thought"; text: string } | { kind: "tool"; tool: QaToolStatus };
+type ThinkStep =
+  | { kind: "thought"; title: string; text: string; fullText: string }
+  | { kind: "tool"; tool: QaToolStatus };
+
+type QaReasoningStage = { title: string; text: string; fullText: string };
+
+/**
+ * 把模型真实返回的 reasoning 整理成可读阶段。
+ * 只做归类、去标记和截断预览，不补写模型没有返回的想法。
+ */
+function compactReasoningStages(reasoning: string): QaReasoningStage[] {
+  const cleaned = reasoning
+    .replace(/<\/?(?:thinking|analysis)>/gi, "")
+    .replace(/^\s*(?:#{1,6}|[-*+]\s*\[[ xX]\]|[-*+]\s+|\d+[.)、]\s*)/gm, "")
+    .replace(/\*\*|__/g, "")
+    .trim();
+  if (!cleaned) return [];
+
+  const sections = cleaned
+    .split(/\n\s*\n|(?=^\s*(?:消息接收|历史回顾|角色与环境|规则与世界书|回复策略|草稿|检查|终检|来源分析)\s*[:：]?)/gim)
+    .map((part) => part.replace(/\s+/g, " ").trim())
+    .filter(Boolean);
+
+  const buckets = [
+    { title: "理解请求", match: /(消息|字面|意图|情绪|表情|语气|需求|请求|梗)/i, texts: [] as string[] },
+    { title: "读取上下文", match: /(历史|上下文|角色|人设|环境|世界书|规则|记忆|设定)/i, texts: [] as string[] },
+    { title: "制定方案", match: /(策略|方案|执行|回复形态|主动|姿态|结构|工具|搜索|读取)/i, texts: [] as string[] },
+    { title: "检查并作答", match: /(草稿|闸门|筛选|修正|检查|终检|来源|输出|作答)/i, texts: [] as string[] },
+  ];
+
+  sections.forEach((section, index) => {
+    const matched = buckets.find((bucket) => bucket.match.test(section));
+    (matched ?? buckets[Math.min(index, buckets.length - 1)]).texts.push(section);
+  });
+
+  return buckets
+    .filter((bucket) => bucket.texts.length > 0)
+    .map((bucket) => {
+      const fullText = bucket.texts.join("\n\n");
+      const text = fullText.length > 180 ? `${fullText.slice(0, 180).trim()}…` : fullText;
+      return { title: bucket.title, text, fullText };
+    });
+}
 
 /** 工具 → 图标分类：读取/查看类=文件，搜索类=放大镜，其余=扳手 */
 function toolIconKind(name: string): "file" | "search" | "wrench" {
@@ -504,10 +546,7 @@ function QaTimelineTool({ tool }: { tool: QaToolStatus }) {
 function QaThinkBody({ msg, isStreaming }: { msg: QaMsg; isStreaming: boolean }) {
   const steps = useMemo<ThinkStep[]>(() => {
     const arr: ThinkStep[] = [];
-    for (const line of (msg.reasoning ?? "").split("\n")) {
-      const text = line.trim();
-      if (text) arr.push({ kind: "thought", text });
-    }
+    for (const stage of compactReasoningStages(msg.reasoning ?? "")) arr.push({ kind: "thought", ...stage });
     for (const tool of msg.tools ?? []) arr.push({ kind: "tool", tool });
     return arr;
   }, [msg.reasoning, msg.tools]);
@@ -535,7 +574,18 @@ function QaThinkBody({ msg, isStreaming }: { msg: QaMsg; isStreaming: boolean })
               )}
             </span>
             <div className="qa-cl-step-body">
-              {step.kind === "thought" ? <div className="qa-cl-step-text">{step.text}</div> : <QaTimelineTool tool={step.tool} />}
+              {step.kind === "thought" ? (
+                <div className="qa-cl-stage">
+                  <strong>{step.title}</strong>
+                  <span>{step.text}</span>
+                  {step.fullText !== step.text && (
+                    <details className="qa-cl-stage-detail">
+                      <summary>展开这一阶段</summary>
+                      <p>{step.fullText}</p>
+                    </details>
+                  )}
+                </div>
+              ) : <QaTimelineTool tool={step.tool} />}
             </div>
           </div>
         ))}
@@ -606,7 +656,7 @@ const QaMessageItem = memo(function QaMessageItem({
   }, [isStreaming]);
 
   const hasThink = Boolean(msg.reasoning?.trim() || (msg.tools && msg.tools.length > 0));
-  const thinkLabel = msg.thinkingMs != null ? `思考了 ${Math.max(0, Math.round(msg.thinkingMs / 1000))} 秒` : "思考过程";
+  const thinkLabel = msg.thinkingMs != null ? `思考过程 · ${Math.max(0, Math.round(msg.thinkingMs / 1000))} 秒` : "思考过程";
 
   // 正文 = segments 里的全部文字段（工具行已上移到思考时间线）；旧消息回退 msg.content
   const bodyText = useMemo(() => {
@@ -1051,6 +1101,7 @@ function MiniMeter({ percent }: { percent: number }) {
 
 function QaTopMenu({
   onClose,
+  onOpenHelp,
   onOpenSettings,
   onOpenApiLog,
   onOpenRepo,
@@ -1058,6 +1109,7 @@ function QaTopMenu({
   onExit,
 }: {
   onClose: () => void;
+  onOpenHelp: () => void;
   onOpenSettings: () => void;
   onOpenApiLog: () => void;
   onOpenRepo: () => void;
@@ -1065,6 +1117,7 @@ function QaTopMenu({
   onExit: () => void;
 }) {
   const items: Array<{ icon: ReactNode; label: string; desc: string; onClick: () => void }> = [
+    { icon: <span className="qa-cl-menu-question">?</span>, label: "使用说明", desc: "查看页面、附件与上下文功能", onClick: onOpenHelp },
     { icon: <IconWrench size={18} />, label: "Claude 配置", desc: "上下文预算、翻页与输出上限", onClick: onOpenSettings },
     { icon: <IconFile size={18} />, label: "API 调用记录", desc: "Claude 每次调用大模型的记录", onClick: onOpenApiLog },
     { icon: <IconRepo size={18} />, label: "仓库设置", desc: "连接 GitHub 仓库", onClick: onOpenRepo },
@@ -3816,7 +3869,7 @@ export function PhoneQaApp({ onClose, onNotice }: PhoneQaAppProps) {
 
   return (
     <div className="qa-app-shell" data-qa-theme={theme}>
-      {/* 顶栏：子页面显示返回箭头；平时是菜单 / 会话标题 / ··· */}
+      {/* 顶栏：返回永远在左上角；会话入口与模型切换保持 Claude 式轻量结构 */}
       <header className="qa-cl-topbar">
         {subPage ? (
           <>
@@ -3835,13 +3888,21 @@ export function PhoneQaApp({ onClose, onNotice }: PhoneQaAppProps) {
           </>
         ) : (
           <>
-            <button type="button" className="qa-cl-topbar-btn" onClick={() => setDrawerOpen(true)} aria-label="打开会话侧栏">
-              <IconMenu size={22} />
+            <div className="qa-cl-topbar-leading">
+              <button type="button" className="qa-cl-topbar-btn" onClick={onClose} aria-label="返回手机桌面">
+                <IconBack size={22} />
+              </button>
+              <button type="button" className="qa-cl-topbar-btn" onClick={() => setDrawerOpen(true)} aria-label="打开会话侧栏">
+                <IconMenu size={22} />
+              </button>
+            </div>
+            <button type="button" className="qa-cl-topbar-model" onClick={() => setModelSheetOpen(true)} aria-label="切换模型">
+              <span>{modelName || "Claude"}</span>
+              <IconChevronDown size={15} />
             </button>
-            <div className="qa-cl-topbar-title">{activeSession?.title ?? "Claude"}</div>
             <div className="qa-cl-topbar-actions">
-              <button type="button" className="qa-cl-help-btn" onClick={() => setHelpOpen(true)} aria-label="使用说明">
-                ?
+              <button type="button" className="qa-cl-topbar-btn" onClick={() => createQaSession()} aria-label="新建会话">
+                <IconPlus size={22} />
               </button>
               <button type="button" className="qa-cl-topbar-btn" onClick={() => setTopMenuOpen(true)} aria-label="更多操作">
                 <IconDots size={22} />
@@ -3864,7 +3925,7 @@ export function PhoneQaApp({ onClose, onNotice }: PhoneQaAppProps) {
         {messages.length === 0 ? (
           <div className="qa-cl-welcome">
             <div className="qa-cl-welcome-star" aria-hidden>
-              <img src="/mascot-crab.png" alt="" />
+              <QaStarburst size={34} />
             </div>
             <div className="qa-cl-welcome-title">你好，{userName}</div>
             <div className="qa-cl-welcome-sub">今天想一起做点什么？</div>
@@ -4118,6 +4179,7 @@ export function PhoneQaApp({ onClose, onNotice }: PhoneQaAppProps) {
       {topMenuOpen && (
         <QaTopMenu
           onClose={() => setTopMenuOpen(false)}
+          onOpenHelp={() => setHelpOpen(true)}
           onOpenSettings={() => setSettingsOpen(true)}
           onOpenApiLog={() => setApiLogOpen(true)}
           onOpenRepo={() => setRepoSheetOpen(true)}
