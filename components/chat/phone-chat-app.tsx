@@ -18,7 +18,6 @@ import { formatXiaohongshuShareForPrompt, type ChatSharePayload } from "@/lib/ch
 import { CHAT_OPEN_SESSION_EVENT, CHAT_OPEN_ADD_CONTACT_EVENT } from "@/lib/chat-notification-events";
 import { CHAT_SESSIONS_MERGED_EVENT, type ChatSessionsMergedDetail } from "@/lib/chat-session-merge";
 import { getMascotSettingsSnapshot } from "@/lib/mascot-settings";
-import { CHAT_UI_MODE_EVENT, loadChatUiMode, type ChatUiMode } from "@/lib/chat-ui-mode";
 
 type TabKey = "messages" | "contacts" | "feeds" | "me";
 
@@ -47,7 +46,6 @@ export const PhoneChatApp = memo(function PhoneChatApp({ onClose, initialSession
     const [visitedSessions, setVisitedSessions] = useState<Map<string, ChatSession>>(new Map());
     const [dbReady, setDbReady] = useState(false);
     const [hideTabBar, setHideTabBar] = useState(false);
-    const [chatUiMode, setChatUiMode] = useState<ChatUiMode>(() => loadChatUiMode());
     useEffect(() => {
         if (!dbReady || !feedsRequest || initialSessionId) return;
         setActiveSession(null);
@@ -244,15 +242,6 @@ export const PhoneChatApp = memo(function PhoneChatApp({ onClose, initialSession
         return () => window.removeEventListener("chat-app-css-updated", onCSSUpdate);
     }, []);
 
-    useEffect(() => {
-        const onMode = (event: Event) => {
-            const mode = (event as CustomEvent<ChatUiMode>).detail;
-            setChatUiMode(mode === "original" ? "original" : "y2k");
-        };
-        window.addEventListener(CHAT_UI_MODE_EVENT, onMode);
-        return () => window.removeEventListener(CHAT_UI_MODE_EVENT, onMode);
-    }, []);
-
     // Listen for tab bar hide/show from sub-pages (e.g. CSS editor)
     useEffect(() => {
         const onHide = (e: Event) => setHideTabBar((e as CustomEvent).detail);
@@ -268,7 +257,7 @@ export const PhoneChatApp = memo(function PhoneChatApp({ onClose, initialSession
             className="chat-app absolute inset-0 flex flex-col overflow-hidden z-10"
             {...(activeSession || activeMascot ? { "data-room-active": "" } : {})}
             {...(hideTabBar ? { "data-tabbar-hidden": "" } : {})}
-            data-chat-ui-mode={chatUiMode}
+            data-chat-ui-mode="original"
         >
             {/* Chat app-level custom CSS (lower priority than per-session CSS) */}
             {chatAppCSS && <SessionCustomCSS css={chatAppCSS} scope=".chat-app" />}
