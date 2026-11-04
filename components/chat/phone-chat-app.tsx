@@ -299,28 +299,28 @@ export const PhoneChatApp = memo(function PhoneChatApp({ onClose, initialSession
                     onClick={() => setActiveTab("messages")}
                 >
                     <MessageCircleIcon active={activeTab === "messages"} />
-                    <span style={{ fontSize: "calc(10px*var(--app-text-scale,1))", color: activeTab === "messages" ? undefined : "var(--c-text)" }}>消息</span>
+                    <span className="chat-tab-label">消息</span>
                 </button>
                 <button
                     className={`chat-tab ${activeTab === "contacts" ? "chat-tab-active" : ""}`}
                     onClick={() => setActiveTab("contacts")}
                 >
                     <UsersIcon active={activeTab === "contacts"} />
-                    <span style={{ fontSize: "calc(10px*var(--app-text-scale,1))", color: activeTab === "contacts" ? undefined : "var(--c-text)" }}>联系人</span>
+                    <span className="chat-tab-label">联系人</span>
                 </button>
                 <button
                     className={`chat-tab ${activeTab === "feeds" ? "chat-tab-active" : ""}`}
                     onClick={() => setActiveTab("feeds")}
                 >
                     <CompassIcon active={activeTab === "feeds"} />
-                    <span style={{ fontSize: "calc(10px*var(--app-text-scale,1))", color: activeTab === "feeds" ? undefined : "var(--c-text)" }}>动态</span>
+                    <span className="chat-tab-label">动态</span>
                 </button>
                 <button
                     className={`chat-tab ${activeTab === "me" ? "chat-tab-active" : ""}`}
                     onClick={() => setActiveTab("me")}
                 >
                     <MeIcon active={activeTab === "me"} />
-                    <span style={{ fontSize: "calc(10px*var(--app-text-scale,1))", color: activeTab === "me" ? undefined : "var(--c-text)" }}>主页</span>
+                    <span className="chat-tab-label">主页</span>
                 </button>
             </nav>
 

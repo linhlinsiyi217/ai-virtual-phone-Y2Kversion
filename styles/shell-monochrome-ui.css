@@ -1,0 +1,97 @@
+/* Shared phone-shell design. Individual apps may keep their own local themes. */
+:root {
+  --shell-header: #ffffff;
+  --shell-background: #f5f5f7;
+  --shell-surface: #ffffff;
+  --shell-border: #e2e2e6;
+  --shell-ink: #0a0a0b;
+  --shell-muted: #5f5f66;
+  --shell-soft: #8a8a91;
+  --shell-accent: #111113;
+  --shell-input: #f1f1f3;
+  --ui-press-scale: 0.91;
+  --ui-spring-duration: 420ms;
+  --floating-dock-radius: 24px;
+  --floating-dock-opacity: 0.92;
+
+  --c-header-bg: var(--shell-header);
+  --c-page-body-bg: var(--shell-background);
+  --c-card: var(--shell-surface);
+  --c-card-border: var(--shell-border);
+  --c-panel: var(--shell-surface);
+  --c-panel-border: var(--shell-border);
+  --c-text-title: var(--shell-ink);
+  --c-text: var(--shell-muted);
+  --c-icon: var(--shell-soft);
+  --c-icon-active: var(--shell-accent);
+  --c-input: var(--shell-input);
+  --c-input-border: var(--shell-border);
+}
+
+.phone-shell {
+  color: var(--shell-ink);
+  --status-bar-color: var(--shell-ink);
+}
+
+.phone-shell .page-header,
+.phone-shell .modal-header {
+  color: var(--shell-ink);
+}
+
+.phone-shell .modal-dialog,
+.phone-shell .modal-sheet,
+.phone-shell .modal-expand,
+.phone-shell [data-ui="modal-dialog"] {
+  background: var(--shell-surface);
+  color: var(--shell-ink);
+  border-color: var(--shell-border);
+}
+
+.phone-shell .phone-shell-notice,
+.phone-shell .chat-message-notice-bar {
+  color: var(--shell-ink);
+  background: rgb(255 255 255 / 0.9);
+  border-color: var(--shell-border);
+  backdrop-filter: blur(22px) saturate(125%);
+  -webkit-backdrop-filter: blur(22px) saturate(125%);
+}
+
+.phone-shell .dock:not([data-skinned]) {
+  border-radius: var(--floating-dock-radius, 24px);
+  background: rgb(255 255 255 / var(--floating-dock-opacity, 0.92));
+  border: 1px solid color-mix(in srgb, var(--shell-ink) 9%, transparent);
+  box-shadow: 0 14px 38px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(26px) saturate(130%);
+  -webkit-backdrop-filter: blur(26px) saturate(130%);
+}
+
+/* Shared press-and-release spring. This intentionally leaves app palettes alone. */
+.phone-shell :where(button, a[href], [role="button"], .cursor-pointer):not(:disabled) {
+  transform-origin: center;
+  transition:
+    scale var(--ui-spring-duration, 420ms) cubic-bezier(0.18, 1.45, 0.32, 1),
+    color 180ms ease,
+    background-color 180ms ease,
+    border-color 180ms ease,
+    box-shadow 220ms ease,
+    opacity 180ms ease;
+  will-change: scale;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.phone-shell :where(button, a[href], [role="button"], .cursor-pointer):not(:disabled):active {
+  scale: var(--ui-press-scale, 0.91);
+  transition-duration: 75ms, 120ms, 120ms, 120ms, 120ms, 120ms;
+}
+
+.phone-shell :where(.page-body, .page-menu, .modal-body) {
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .phone-shell :where(button, a[href], [role="button"], .cursor-pointer):not(:disabled) {
+    transition-duration: 80ms;
+  }
+}

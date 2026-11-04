@@ -10,6 +10,7 @@ import {
   PaintBucket,
   Plus,
   RotateCcw,
+  SlidersHorizontal,
   Smartphone,
   Type,
   Upload,
@@ -62,6 +63,7 @@ import {
 type ThemeSection =
   | "menu"
   | "palette"
+  | "interface"
   | "wallpaper"
   | "icons"
   | "widgets"
@@ -101,6 +103,10 @@ function IconChevronRight() {
 
 function IconPalette() {
   return <PaintBucket size={22} strokeWidth={1.75} />;
+}
+
+function IconInterface() {
+  return <SlidersHorizontal size={22} strokeWidth={1.75} />;
 }
 
 function IconWallpaper() {
@@ -146,6 +152,7 @@ const MENU_ITEMS: Array<{
   glow?: string;
 }> = [
   { section: "palette", icon: IconPalette, label: "主题色", desc: "调色板预设", color: BINDING_ACCENTS.preset, glow: `color-mix(in srgb, ${BINDING_ACCENTS.preset} 35%, transparent)`, glass: "palette" },
+  { section: "interface", icon: IconInterface, label: "界面与动效", desc: "黑白主体、按钮回弹与悬浮底栏", color: "#111113", glow: "rgba(17,17,19,.16)", glass: "palette" },
   { section: "wallpaper", icon: IconWallpaper, label: "壁纸", desc: "桌面背景", color: BINDING_ACCENTS.api, glow: `color-mix(in srgb, ${BINDING_ACCENTS.api} 35%, transparent)`, glass: "wallpaper" },
   { section: "icons", icon: IconGrid, label: "图标", desc: "应用图标", color: BINDING_ACCENTS.regex, glow: `color-mix(in srgb, ${BINDING_ACCENTS.regex} 35%, transparent)`, glass: "icons" },
   { section: "widgets", icon: IconWidgets, label: "桌面组件", desc: "小组件", color: BINDING_ACCENTS.voice, glow: `color-mix(in srgb, ${BINDING_ACCENTS.voice} 35%, transparent)`, glass: "widgets" },
@@ -162,6 +169,7 @@ const menuIconStyle = (color?: string): CSSProperties => ({
 
 const SECTION_TITLES: Record<Exclude<ThemeSection, "menu">, string> = {
   palette: "\u4E3B\u9898\u8272",
+  interface: "界面与动效",
   wallpaper: "\u58C1\u7EB8",
   icons: "\u56FE\u6807",
   widgets: "\u684C\u9762\u7EC4\u4EF6",
@@ -170,7 +178,7 @@ const SECTION_TITLES: Record<Exclude<ThemeSection, "menu">, string> = {
   css: "CSS \u53D8\u91CF",
 };
 
-const THEME_SECTIONS = new Set<string>(["menu", "palette", "wallpaper", "icons", "widgets", "case", "text", "css"]);
+const THEME_SECTIONS = new Set<string>(["menu", "palette", "interface", "wallpaper", "icons", "widgets", "case", "text", "css"]);
 
 function isThemeSection(value: string): value is ThemeSection {
   return THEME_SECTIONS.has(value);
@@ -311,6 +319,22 @@ export function PhoneThemeApp({
               </div>
             </div>
 
+            <div>
+              <h3 className="appearance-menu-section-title">Design System</h3>
+              <button
+                className="app-card card-featured mt-2.5"
+                type="button"
+                onClick={() => setSection("interface")}
+              >
+                <span className="card-icon card-icon-glass"><GlassIcon name="palette" /></span>
+                <div className="card-featured-body">
+                  <div className="card-featured-label">界面与动效</div>
+                  <div className="card-featured-desc">黑白主体、按钮回弹与悬浮底栏</div>
+                </div>
+                <span className="card-featured-chevron"><IconChevronRight /></span>
+              </button>
+            </div>
+
             {/* Section 2: 系统设置 — Glass list group (has toggle) */}
             <div>
               <h3 className="appearance-menu-section-title">System Settings</h3>
@@ -436,6 +460,8 @@ export function PhoneThemeApp({
           />
         ) : section === "palette" ? (
           <PalettePresetPage draft={draft} onDraftChange={onDraftChange} onApply={onApply} onNotice={onNotice} />
+        ) : section === "interface" ? (
+          <InterfaceMotionPage draft={draft} onDraftChange={onDraftChange} onApply={onApply} onNotice={onNotice} />
         ) : section === "css" ? (
           <GlobalCSSPage draft={draft} onDraftChange={onDraftChange} onApply={onApply} onNotice={onNotice} />
         ) : section === "icons" ? (
@@ -794,6 +820,139 @@ function PalettePresetPage({
           <span>应用</span>
         </button>
       </div>
+    </div>
+  );
+}
+
+const INTERFACE_THEME_KEYS = [
+  "--shell-header", "--shell-background", "--shell-surface", "--shell-border",
+  "--shell-ink", "--shell-muted", "--shell-soft", "--shell-accent", "--shell-input",
+  "--ui-press-scale", "--ui-spring-duration", "--floating-dock-radius", "--floating-dock-opacity",
+] as const;
+
+const INTERFACE_COLOR_PRESETS = [
+  {
+    name: "黑白经典",
+    description: "主白、纯黑与中性灰",
+    colors: ["#ffffff", "#111113", "#8a8a91"],
+    vars: { "--shell-header": "#ffffff", "--shell-background": "#f5f5f7", "--shell-surface": "#ffffff", "--shell-border": "#e2e2e6", "--shell-ink": "#0a0a0b", "--shell-muted": "#5f5f66", "--shell-soft": "#8a8a91", "--shell-accent": "#111113", "--shell-input": "#f1f1f3" },
+  },
+  {
+    name: "柔雾灰白",
+    description: "更柔和的暖白与石墨灰",
+    colors: ["#fbfbf9", "#242426", "#a0a0a5"],
+    vars: { "--shell-header": "#fbfbf9", "--shell-background": "#f1f1ef", "--shell-surface": "#ffffff", "--shell-border": "#dededb", "--shell-ink": "#242426", "--shell-muted": "#69696e", "--shell-soft": "#99999f", "--shell-accent": "#242426", "--shell-input": "#eeeeec" },
+  },
+  {
+    name: "高对比黑白",
+    description: "更清晰的纯白与深黑点缀",
+    colors: ["#ffffff", "#000000", "#6e6e73"],
+    vars: { "--shell-header": "#ffffff", "--shell-background": "#ffffff", "--shell-surface": "#ffffff", "--shell-border": "#d1d1d6", "--shell-ink": "#000000", "--shell-muted": "#48484a", "--shell-soft": "#7c7c80", "--shell-accent": "#000000", "--shell-input": "#f2f2f3" },
+  },
+] as const;
+
+function InterfaceMotionPage({
+  draft,
+  onDraftChange,
+  onApply,
+  onNotice,
+}: {
+  draft: ThemeProfile;
+  onDraftChange: (next: ThemeProfile) => void;
+  onApply: (next: ThemeProfile) => Promise<void> | void;
+  onNotice: (text: string) => void;
+}) {
+  const pressScale = Number(draft.cssOverrides["--ui-press-scale"] || "0.91");
+  const springMs = Number((draft.cssOverrides["--ui-spring-duration"] || "420ms").replace("ms", ""));
+  const dockRadius = Number((draft.cssOverrides["--floating-dock-radius"] || "24px").replace("px", ""));
+  const dockOpacity = Number(draft.cssOverrides["--floating-dock-opacity"] || "0.92");
+  const bounceStrength = Math.max(0, Math.min(100, Math.round((1 - pressScale) / 0.0016)));
+
+  const applyOverrides = (values: Record<string, string>, notice?: string) => {
+    const next = normalizeThemeProfile({
+      ...draft,
+      cssOverrides: { ...draft.cssOverrides, ...values },
+    });
+    onDraftChange(next);
+    void onApply(next);
+    if (notice) onNotice(notice);
+  };
+
+  const reset = () => {
+    const cssOverrides = { ...draft.cssOverrides };
+    INTERFACE_THEME_KEYS.forEach(key => delete cssOverrides[key]);
+    const next = normalizeThemeProfile({ ...draft, cssOverrides });
+    onDraftChange(next);
+    void onApply(next);
+    onNotice("已恢复默认界面与回弹动效");
+  };
+
+  return (
+    <div className="theme-section-page" data-bottom-reserve style={{ gap: 18 }}>
+      <section>
+        <h3 className="appearance-menu-section-title">主体配色</h3>
+        <div className="flex flex-col gap-2 mt-2.5">
+          {INTERFACE_COLOR_PRESETS.map(preset => {
+            const selected = (draft.cssOverrides["--shell-accent"] || "#111113").toLowerCase() === preset.vars["--shell-accent"];
+            return (
+              <button
+                key={preset.name}
+                type="button"
+                className="menu-item"
+                aria-pressed={selected}
+                onClick={() => applyOverrides({ ...preset.vars }, `已应用「${preset.name}」`)}
+                style={selected ? { boxShadow: "inset 0 0 0 1.5px var(--c-text-title)" } : undefined}
+              >
+                <span className="flex items-center -space-x-1.5 mr-1" aria-hidden="true">
+                  {preset.colors.map(color => <span key={color} className="w-6 h-6 rounded-full border border-black/10" style={{ background: color }} />)}
+                </span>
+                <span className="flex-1 min-w-0 text-left">
+                  <span className="block ts-14 font-semibold text-[var(--c-text-title)]">{preset.name}</span>
+                  <span className="block ts-11 text-[var(--c-text)] mt-0.5">{preset.description}</span>
+                </span>
+                {selected && <span className="ts-12 font-bold">✓</span>}
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
+      <section>
+        <h3 className="appearance-menu-section-title">按钮回弹</h3>
+        <div className="menu-group mt-2.5 px-4 py-3 flex flex-col gap-4">
+          <label className="flex flex-col gap-2">
+            <span className="flex justify-between ts-12"><span>回弹力度</span><strong>{bounceStrength}%</strong></span>
+            <input className="ui-slider" type="range" min={0} max={100} value={bounceStrength} onChange={event => {
+              const strength = Number(event.target.value);
+              applyOverrides({ "--ui-press-scale": (1 - strength * 0.0016).toFixed(3) });
+            }} />
+          </label>
+          <label className="flex flex-col gap-2">
+            <span className="flex justify-between ts-12"><span>松手回弹速度</span><strong>{springMs}ms</strong></span>
+            <input className="ui-slider" type="range" min={220} max={620} step={20} value={springMs} onChange={event => applyOverrides({ "--ui-spring-duration": `${event.target.value}ms` })} />
+          </label>
+          <button type="button" className="ui-btn ui-btn-primary w-full">按一下预览回弹</button>
+        </div>
+      </section>
+
+      <section>
+        <h3 className="appearance-menu-section-title">悬浮底栏</h3>
+        <div className="menu-group mt-2.5 px-4 py-3 flex flex-col gap-4">
+          <div className="h-16 flex items-center justify-around px-3 border border-[var(--c-card-border)] shadow-lg" style={{ borderRadius: dockRadius, background: `rgba(255,255,255,${dockOpacity})` }}>
+            {[0, 1, 2, 3].map(index => <span key={index} className="w-7 h-7 rounded-full" style={{ background: index === 0 ? "var(--shell-accent, #111113)" : "var(--shell-input, #f1f1f3)" }} />)}
+          </div>
+          <label className="flex flex-col gap-2">
+            <span className="flex justify-between ts-12"><span>圆角</span><strong>{dockRadius}px</strong></span>
+            <input className="ui-slider" type="range" min={16} max={38} value={dockRadius} onChange={event => applyOverrides({ "--floating-dock-radius": `${event.target.value}px` })} />
+          </label>
+          <label className="flex flex-col gap-2">
+            <span className="flex justify-between ts-12"><span>透明度</span><strong>{Math.round(dockOpacity * 100)}%</strong></span>
+            <input className="ui-slider" type="range" min={65} max={100} value={dockOpacity * 100} onChange={event => applyOverrides({ "--floating-dock-opacity": (Number(event.target.value) / 100).toFixed(2) })} />
+          </label>
+        </div>
+      </section>
+
+      <button type="button" className="ui-btn w-full" onClick={reset}><RotateCcw size={15} />恢复默认</button>
     </div>
   );
 }

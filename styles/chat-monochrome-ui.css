@@ -1,0 +1,114 @@
+/* Chat visual system: monochrome, floating dock, spring interactions. */
+.chat-app {
+  color-scheme: light;
+  --c-header-bg: var(--shell-header, #ffffff);
+  --c-page-body-bg: var(--shell-background, #f5f5f7);
+  --c-card: var(--shell-surface, #ffffff);
+  --c-card-border: var(--shell-border, #e3e3e7);
+  --c-panel: var(--shell-surface, #ffffff);
+  --c-panel-border: var(--shell-border, #dedee3);
+  --c-text-title: var(--shell-ink, #0a0a0b);
+  --c-text: var(--shell-muted, #5f5f66);
+  --c-icon: var(--shell-soft, #8a8a91);
+  --c-icon-active: var(--shell-accent, #111113);
+  --c-input: var(--shell-input, #f1f1f3);
+  --c-input-border: var(--shell-border, #dedee3);
+  --c-bubble-self: var(--shell-accent, #171719);
+  --c-bubble-other: var(--shell-surface, #ffffff);
+  --chat-tabbar-content-height: 64px;
+  --chat-tabbar-safe-bottom: 0px;
+  --chat-tabbar-height: 64px;
+  --chat-floating-dock-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  --chat-floating-dock-reserve: calc(92px + env(safe-area-inset-bottom, 0px));
+  background: var(--c-page-body-bg);
+  color: var(--c-text-title);
+}
+
+.chat-app .chat-main-content,
+.chat-app .page-shell,
+.chat-app .chat-room-layer {
+  background: var(--c-page-body-bg);
+}
+
+.chat-app .page-header {
+  background: color-mix(in srgb, #ffffff 92%, transparent);
+  border-bottom-color: rgba(15, 15, 18, 0.07);
+  backdrop-filter: blur(22px) saturate(125%);
+  -webkit-backdrop-filter: blur(22px) saturate(125%);
+}
+
+.chat-app > .chat-tab-bar.chat-bottom-glass-bar {
+  left: 18px;
+  right: 18px;
+  bottom: var(--chat-floating-dock-bottom);
+  width: auto;
+  height: var(--chat-tabbar-height);
+  min-height: var(--chat-tabbar-height);
+  padding: 0;
+  align-items: stretch;
+  overflow: hidden;
+  border: 1px solid rgba(15, 15, 18, 0.09);
+  border-radius: var(--floating-dock-radius, 24px);
+  background: rgb(255 255 255 / var(--floating-dock-opacity, 0.92));
+  box-shadow: 0 14px 38px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(26px) saturate(135%);
+  -webkit-backdrop-filter: blur(26px) saturate(135%);
+}
+
+.chat-app > .chat-tab-bar.chat-bottom-glass-bar::before { display: none; }
+
+.chat-app > .chat-tab-bar .chat-tab {
+  min-width: 0;
+  min-height: 0;
+  margin: 7px 4px;
+  padding: 5px 2px 4px;
+  gap: 2px;
+  border-radius: 18px;
+  color: var(--c-icon);
+  background: transparent;
+  box-shadow: none;
+  font-size: calc(9px * var(--app-text-scale, 1));
+}
+
+.chat-app > .chat-tab-bar .chat-tab:first-child { margin-left: 7px; }
+.chat-app > .chat-tab-bar .chat-tab:last-child { margin-right: 7px; }
+
+.chat-app > .chat-tab-bar .chat-tab > svg {
+  width: 22px;
+  height: 22px;
+  flex: 0 0 22px;
+}
+
+.chat-app .chat-tab-label {
+  display: inline;
+  max-width: 100%;
+  overflow: hidden;
+  color: inherit !important;
+  font-size: calc(9px * var(--app-text-scale, 1)) !important;
+  font-weight: 600;
+  line-height: 1.1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-app > .chat-tab-bar .chat-tab-active {
+  color: #ffffff;
+  background: var(--shell-accent, #111113);
+  box-shadow: 0 5px 12px rgba(0, 0, 0, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.14);
+}
+
+.chat-app:not([data-room-active]):not([data-tabbar-hidden]) .page-shell > .page-body,
+.chat-app:not([data-room-active]):not([data-tabbar-hidden]) .page-shell.absolute > .page-body {
+  padding-bottom: var(--chat-floating-dock-reserve);
+  scroll-padding-bottom: var(--chat-floating-dock-reserve);
+}
+
+.chat-app :where(.page-body, .chat-scroll-anchored, .chat-plus-menu, .emoji-panel, .sticker-panel) {
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chat-app > .chat-tab-bar .chat-tab { transition-duration: 80ms; }
+}
