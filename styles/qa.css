@@ -341,12 +341,12 @@
   user-select: text;
 }
 
-/* ═══ 消息操作栏（复制 / 编辑 / 赞 / 踩 / 重试）═══════ */
+/* ═══ 消息操作栏（复制 / 分享 / 朗读 / 编辑 / 赞 / 踩 / 重试）═══ */
 .qa-cl-actions {
   display: flex;
-  gap: 4px;
+  gap: 2px;
   color: var(--qa-cl-mu);
-  margin: -6px 0 0 -10px;
+  margin: 4px 0 0 -10px;
 }
 .qa-cl-actions-user {
   justify-content: flex-end;
@@ -376,26 +376,38 @@
   color: var(--qa-cl-ac);
 }
 
-/* ═══ 思考时间线 ═════════════════════════════════════ */
+/* ═══ 思考区：折叠成一行（时钟 + 摘要 + 箭头），展开为竖线时间线 ═══ */
 .qa-cl-think {
   margin-bottom: 12px;
 }
 .qa-cl-think-head {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
+  width: 100%;
   color: var(--qa-cl-mu);
-  font-size: 14px;
+  font-size: 14.5px;
   border: none;
   background: none;
   padding: 0;
   cursor: pointer;
-  width: fit-content;
+  text-align: left;
+}
+.qa-cl-think-head svg {
+  flex: none;
+}
+.qa-cl-think-summary {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .qa-cl-think-label {
   white-space: nowrap;
 }
 .qa-cl-think-chevron {
+  flex: none;
   display: inline-flex;
   transition: transform 0.2s ease;
 }
@@ -490,9 +502,12 @@
   min-width: 0;
 }
 .qa-cl-step-text {
-  font-size: 14px;
+  font-size: 15px;
   color: var(--qa-cl-mu);
   line-height: 1.5;
+}
+.qa-cl-step-end {
+  padding-bottom: 4px;
 }
 .qa-cl-stage {
   display: flex;
@@ -539,7 +554,7 @@
   margin: 2px 0 0 32px;
 }
 
-/* 工具步小白条：点击展开真实参数与结果 */
+/* 工具步：无边框、透明背景（时间线里只有图标 + 一行字） */
 .qa-cl-toolwrap {
   min-width: 0;
 }
@@ -550,11 +565,11 @@
   gap: 8px;
   width: 100%;
   text-align: left;
-  border: 1px solid var(--qa-cl-ibd);
-  border-radius: 10px;
-  padding: 6px 10px;
-  font-size: 13px;
-  background: var(--qa-cl-ib);
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  font-size: 14.5px;
+  background: none;
   color: var(--qa-cl-tx);
   cursor: pointer;
 }
@@ -567,6 +582,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-weight: 500;
 }
 .qa-cl-toolcard-side {
   color: var(--qa-cl-mu);
@@ -594,18 +610,89 @@
 }
 
 /* ═══ 星芒与生成中状态 ═══════════════════════════════ */
-.qa-cl-starburst {
+.qa-cs {
   display: block;
-  animation: qa-cl-starburst-spin 4s linear infinite;
+  flex: none;
+  overflow: visible;
+  color: var(--qa-cl-mu);
 }
-@keyframes qa-cl-starburst-spin {
-  to {
-    transform: rotate(360deg);
+.qa-cs .r,
+.qa-cs .core,
+.qa-cs .all {
+  transform-box: view-box;
+}
+/* 生成中：呼吸起伏（整体微胀缩 + 每根射线各自伸缩），不转圈 */
+.qa-cs.a {
+  color: var(--qa-cl-ac);
+}
+.qa-cs.a .all {
+  transform-origin: 50px 50px;
+  animation: qa-cs-breathe 2.4s ease-in-out infinite;
+}
+.qa-cs.a .r {
+  transform-origin: 0 0;
+  animation: qa-cs-ray calc(1.5s + var(--i) * 0.13s) ease-in-out infinite;
+  animation-delay: calc(var(--i) * -0.37s);
+}
+.qa-cs.a .core {
+  transform-origin: 50px 50px;
+  animation: qa-cs-core 2.4s ease-in-out infinite;
+}
+@keyframes qa-cs-breathe {
+  0%,
+  100% {
+    transform: scale(0.94);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+@keyframes qa-cs-ray {
+  0%,
+  100% {
+    transform: scaleX(0.74);
+  }
+  50% {
+    transform: scaleX(1);
+  }
+}
+@keyframes qa-cs-core {
+  0%,
+  100% {
+    transform: scale(0.92);
+  }
+  50% {
+    transform: scale(1.08);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .qa-cs * {
+    animation: none !important;
   }
 }
 .qa-cl-generating {
   display: flex;
-  margin-top: 2px;
+  align-items: center;
+  height: 36px;
+  margin-top: -4px;
+}
+
+/* 最新回复末尾：静止星芒 + 两行灰色小字 */
+.qa-cl-ended {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+.qa-cl-ended .qa-cs {
+  color: var(--qa-cl-bd2);
+}
+.qa-cl-ended-text {
+  display: flex;
+  flex-direction: column;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--qa-cl-mu);
 }
 
 /* ═══ 生成中的过渡提示（保留类，换肤）════════════════ */
@@ -981,22 +1068,22 @@
   margin-top: 6px;
 }
 .qa-cl-plus {
-  width: 44px;
-  height: 44px;
-  margin-left: -8px;
+  width: 40px;
+  height: 40px;
+  margin-left: -4px;
   flex: none;
   display: flex;
   align-items: center;
   justify-content: center;
   border: none;
-  border-radius: 12px;
-  background: none;
+  border-radius: 50%;
+  background: var(--qa-cl-ub);
   color: var(--qa-cl-tx);
   cursor: pointer;
   transition: background 0.15s ease;
 }
 .qa-cl-plus:hover {
-  background: var(--qa-cl-ub);
+  background: var(--qa-cl-bd2);
 }
 .qa-cl-input-spacer {
   flex: 1;
@@ -1004,12 +1091,12 @@
 .qa-cl-model {
   display: inline-flex;
   align-items: center;
-  gap: 2px;
-  max-width: 40vw;
-  padding: 6px 8px;
+  gap: 3px;
+  max-width: 52vw;
+  padding: 8px 13px;
   border: none;
-  border-radius: 10px;
-  background: none;
+  border-radius: 18px;
+  background: var(--qa-cl-ub);
   font-size: 13px;
   color: var(--qa-cl-mu);
   cursor: pointer;
@@ -1017,10 +1104,10 @@
   transition: background 0.15s ease;
 }
 .qa-cl-model:hover {
-  background: var(--qa-cl-ub);
+  background: var(--qa-cl-bd2);
 }
 .qa-cl-model-name {
-  max-width: 32vw;
+  max-width: 42vw;
   overflow: hidden;
   text-overflow: ellipsis;
 }

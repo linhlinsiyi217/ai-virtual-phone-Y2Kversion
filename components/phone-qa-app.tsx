@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties, type ReactNode } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkBreaks from "remark-breaks";
@@ -159,6 +159,12 @@ const IconRetry = ({ size = 18 }: { size?: number }) => (
 const IconPencil = ({ size = 18 }: { size?: number }) => (
   <Ic size={size}><path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.4 2.6a2.1 2.1 0 0 1 3 3L12 15l-4 1 1-4z" /></Ic>
 );
+const IconShare = ({ size = 18 }: { size?: number }) => (
+  <Ic size={size}><path d="M12 3v11" /><path d="m8 7 4-4 4 4" /><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7" /></Ic>
+);
+const IconSpeaker = ({ size = 18 }: { size?: number }) => (
+  <Ic size={size}><path d="M11 5 6 9H3v6h3l5 4z" /><path d="M15.5 8.5a4.5 4.5 0 0 1 0 7" /><path d="M18.5 6a8 8 0 0 1 0 12" /></Ic>
+);
 const IconPlus = ({ size = 24 }: { size?: number }) => (
   <Ic size={size}><path d="M12 5v14M5 12h14" /></Ic>
 );
@@ -301,15 +307,52 @@ function buildQaSessionExport(session: QaSession): string {
   return lines.join("\n");
 }
 
-// ── Claude 星芒：12 条射线长短交替，4s 线性旋转（path 取自设计稿） ──
+// ── Claude 星芒：中间圆团 + 12 根粗短圆头射线（角度/长度/粗细按官方截图量出）──
+// 动画 A 方案：整体呼吸起伏 + 每根射线各自伸缩，不转圈；减少动态效果时静止
 
-const STARBURST_PATH =
-  "M12 12L23.00 12.00M12 12L19.36 16.25M12 12L17.50 21.53M12 12L12.00 20.50M12 12L6.50 21.53M12 12L4.64 16.25M12 12L1.00 12.00M12 12L4.64 7.75M12 12L6.50 2.47M12 12L12.00 3.50M12 12L17.50 2.47M12 12L19.36 7.75";
+const QA_STAR_RAYS = [
+  { angle: 242, len: 44, width: 8.1 },
+  { angle: 275, len: 37, width: 6.8 },
+  { angle: 310, len: 38, width: 9.1 },
+  { angle: 352, len: 38, width: 5.7 },
+  { angle: 13, len: 39, width: 6.0 },
+  { angle: 45, len: 41, width: 5.5 },
+  { angle: 63, len: 40, width: 8.3 },
+  { angle: 97, len: 42, width: 6.8 },
+  { angle: 122, len: 41, width: 7.3 },
+  { angle: 147, len: 40, width: 6.5 },
+  { angle: 179, len: 44, width: 5.5 },
+  { angle: 212, len: 43.6, width: 7.3 },
+];
 
-function QaStarburst({ size = 16 }: { size?: number }) {
+function QaStarburst({ size = 16, animated = false }: { size?: number; animated?: boolean }) {
   return (
-    <svg className="qa-cl-starburst" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="var(--qa-cl-ac)" strokeWidth={2.6} strokeLinecap="round" aria-hidden="true">
-      <path d={STARBURST_PATH} />
+    <svg
+      className={`qa-cs ${animated ? "a" : ""}`}
+      width={size}
+      height={size}
+      viewBox="0 0 100 100"
+      fill="none"
+      aria-hidden="true"
+    >
+      <g className="all">
+        <circle className="core" cx={50} cy={50} r={12} fill="currentColor" />
+        <g stroke="currentColor" strokeLinecap="round" fill="none">
+          {QA_STAR_RAYS.map((ray, i) => (
+            <g key={i} transform={`translate(50 50) rotate(${ray.angle})`}>
+              <line
+                className="r"
+                style={{ "--i": i } as CSSProperties}
+                x1={0}
+                y1={0}
+                x2={ray.len}
+                y2={0}
+                strokeWidth={ray.width}
+              />
+            </g>
+          ))}
+        </g>
+      </g>
     </svg>
   );
 }
@@ -553,14 +596,14 @@ function QaThinkBody({ msg, isStreaming }: { msg: QaMsg; isStreaming: boolean })
 
   return (
     <>
-      <div className="qa-cl-timeline">
+      <div className="qa-cl-timeline qa-cl-timeline-steps">
         {steps.map((step, i) => (
           <div className="qa-cl-step" key={i}>
             <span className="qa-cl-step-dot">
               {step.kind === "thought" ? (
-                <IconSparkle size={16} />
+                <IconClock size={16} />
               ) : step.tool.running ? (
-                <QaStarburst size={16} />
+                <QaStarburst size={16} animated />
               ) : (
                 <ToolLineIcon name={step.tool.name} />
               )}
@@ -582,8 +625,8 @@ function QaThinkBody({ msg, isStreaming }: { msg: QaMsg; isStreaming: boolean })
           </div>
         ))}
         {showEnd && (
-          <div className="qa-cl-step">
-            <span className="qa-cl-step-dot">{failed ? <IconXCircle size={16} /> : <IconCheckCircle size={16} />}</span>
+          <div className="qa-cl-step qa-cl-step-end">
+            <span className="qa-cl-step-dot">{failed ? <IconXCircle size={20} /> : <IconCheckCircle size={20} />}</span>
             <div className="qa-cl-step-text">{failed ? "失败" : "完成"}</div>
           </div>
         )}
@@ -618,6 +661,7 @@ function QaStreamingText({ text }: { text: string }) {
 const QaMessageItem = memo(function QaMessageItem({
   msg,
   isStreaming,
+  isLast,
   onRetry,
   onViewImage,
   onCopy,
@@ -625,6 +669,7 @@ const QaMessageItem = memo(function QaMessageItem({
 }: {
   msg: QaMsg;
   isStreaming: boolean;
+  isLast: boolean;
   onRetry: (id: string) => void;
   onViewImage: (url: string) => void;
   onCopy: (content: string) => void;
@@ -648,7 +693,6 @@ const QaMessageItem = memo(function QaMessageItem({
   }, [isStreaming]);
 
   const hasThink = Boolean(msg.reasoning?.trim() || (msg.tools && msg.tools.length > 0));
-  const thinkLabel = msg.thinkingMs != null ? `思考过程 · ${Math.max(0, Math.round(msg.thinkingMs / 1000))} 秒` : "思考过程";
 
   // 正文 = segments 里的全部文字段（工具行已上移到思考时间线）；旧消息回退 msg.content
   const bodyText = useMemo(() => {
@@ -664,6 +708,45 @@ const QaMessageItem = memo(function QaMessageItem({
   const showReplyTime = !isStreaming && !hasThink && Boolean(bodyText) && replySeconds != null;
   // 无思考内容区块的展开态（默认展开卡片与说明，点击标题可收起）
   const [replyTimeOpen, setReplyTimeOpen] = useState(true);
+
+  // 折叠行摘要（真实来源）：reasoning 第一句 → 最后一个工具 → 回复用时
+  const thinkSummary = useMemo(() => {
+    if (isStreaming) return `思考中… ${Math.max(0, Math.floor((nowTick - msg.ts) / 1000))} 秒`;
+    const firstThought = (msg.reasoning ?? "")
+      .split("\n")
+      .map((line) => line.trim())
+      .find(Boolean);
+    if (firstThought) return firstThought.length > 34 ? `${firstThought.slice(0, 34)}…` : firstThought;
+    const lastTool = (msg.tools ?? [])[(msg.tools ?? []).length - 1];
+    if (lastTool) {
+      const side = lastTool.running ? "进行中" : lastTool.success === false ? "失败" : "";
+      return `${lastTool.name}${lastTool.subtitle ? ` · ${lastTool.subtitle}` : ""}${side ? `（${side}）` : ""}`;
+    }
+    return replySeconds != null ? `回复用时 ${replySeconds} 秒` : "";
+  }, [isStreaming, nowTick, msg.ts, msg.reasoning, msg.tools, replySeconds]);
+
+  // 朗读能力：浏览器必须真实支持语音合成才显示按钮
+  const canSpeak = typeof window !== "undefined" && "speechSynthesis" in window;
+  // 分享能力：必须真实支持 Web Share 才显示按钮
+  const canShare = typeof navigator !== "undefined" && typeof navigator.share === "function";
+  const [speaking, setSpeaking] = useState(false);
+  const handleSpeak = useCallback(() => {
+    if (!("speechSynthesis" in window)) return;
+    if (speaking) {
+      window.speechSynthesis.cancel();
+      setSpeaking(false);
+      return;
+    }
+    const utterance = new SpeechSynthesisUtterance(bodyText);
+    utterance.lang = /[\u4e00-\u9fa5]/.test(bodyText) ? "zh-CN" : "en-US";
+    utterance.onend = () => setSpeaking(false);
+    utterance.onerror = () => setSpeaking(false);
+    window.speechSynthesis.speak(utterance);
+    setSpeaking(true);
+  }, [speaking, bodyText]);
+  const handleShare = useCallback(() => {
+    void navigator.share?.({ text: bodyText }).catch(() => {});
+  }, [bodyText]);
 
   if (msg.role === "user") {
     return (
@@ -708,16 +791,10 @@ const QaMessageItem = memo(function QaMessageItem({
       {hasThink && (
         <div className="qa-cl-think">
           <button type="button" className="qa-cl-think-head" onClick={() => setThinkOpen((v) => !v)} aria-expanded={thinkOpen}>
-            {isStreaming ? (
-              <>
-                <QaStarburst size={16} />
-                <span className="qa-cl-think-label">正在思考… {Math.max(0, Math.floor((nowTick - msg.ts) / 1000))} 秒</span>
-              </>
-            ) : (
-              <span className="qa-cl-think-label">{thinkLabel}</span>
-            )}
+            <IconClock size={18} />
+            <span className="qa-cl-think-summary">{thinkSummary}</span>
             <span className={`qa-cl-think-chevron ${thinkOpen ? "is-open" : ""}`}>
-              <IconChevronDown size={16} />
+              <IconChevronDown size={18} />
             </span>
           </button>
           {thinkOpen && <QaThinkBody msg={msg} isStreaming={isStreaming} />}
@@ -750,9 +827,7 @@ const QaMessageItem = memo(function QaMessageItem({
         </div>
       )}
 
-      {thinkingOnly ? (
-        <div className="qa-thinking">{msg.toolDrafting ? "正在编写工具调用…" : msg.reasoning ? "正在思考…" : "正在生成…"}</div>
-      ) : isStreaming ? (
+      {thinkingOnly ? null : isStreaming ? (
         bodyText ? (
           <div className="qa-markdown">
             <QaStreamingText text={bodyText} />
@@ -779,14 +854,41 @@ const QaMessageItem = memo(function QaMessageItem({
         </div>
       )}
 
-      {/* 生成中：消息左下角转动星芒；无完成行、无操作栏 */}
-      {isStreaming && <div className="qa-cl-generating" aria-hidden><QaStarburst size={26} /></div>}
+      {/* 生成中：消息左下角 30px 呼吸星芒；无完成行、无操作栏 */}
+      {isStreaming && <div className="qa-cl-generating" aria-hidden><QaStarburst size={30} animated /></div>}
+
+      {/* 最新回复末尾：静止星芒 26px + 两行灰色小字 */}
+      {!isStreaming && isLast && bodyText && !msg.error && (
+        <div className="qa-cl-ended">
+          <QaStarburst size={26} />
+          <div className="qa-cl-ended-text">
+            <span>本对话由 Claude 生成</span>
+            <span>重要信息建议自行核对</span>
+          </div>
+        </div>
+      )}
 
       {showActions && (
         <div className="qa-cl-actions">
-          <button type="button" className="qa-cl-action" aria-label="复制原始内容" title="复制" onClick={() => onCopy(msg.content)}>
+          <button type="button" className="qa-cl-action" aria-label="复制回复" title="复制" onClick={() => onCopy(msg.content)}>
             <IconCopy size={18} />
           </button>
+          {canShare && (
+            <button type="button" className="qa-cl-action" aria-label="分享回复" title="分享" onClick={handleShare}>
+              <IconShare size={18} />
+            </button>
+          )}
+          {canSpeak && (
+            <button
+              type="button"
+              className={`qa-cl-action ${speaking ? "is-active" : ""}`}
+              aria-label={speaking ? "停止朗读" : "朗读回复"}
+              title={speaking ? "停止朗读" : "朗读"}
+              onClick={handleSpeak}
+            >
+              <IconSpeaker size={18} />
+            </button>
+          )}
           <button type="button" className="qa-cl-action" aria-label="编辑原始内容" title="编辑" onClick={() => onEdit(msg)}>
             <IconPencil size={18} />
           </button>
@@ -895,6 +997,16 @@ function QaConversationOutline({
 
 // ── 会话侧栏（左侧滑出：新会话 / 当前会话 / 项目仓库 / 记忆结转 / 置顶与最近 / 账号行） ──
 
+/** 侧栏标题清洗：去掉引用前缀与重复的接续标签，只留正文标题 */
+function displaySessionTitle(title: string): string {
+  const cleaned = title
+    .replace(/^引用[：:]\s*/, "")
+    .replace(/[·\s]*接续[·\s]*$/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  return cleaned || "会话";
+}
+
 function QaSessionSidebar({
   open,
   sessions,
@@ -973,7 +1085,7 @@ function QaSessionSidebar({
               className={`qa-cl-drow qa-cl-drow-session ${session.id === activeId ? "on" : ""}`}
               onClick={() => onSelect(session.id)}
             >
-              <b>{session.title}</b>
+              <b>{displaySessionTitle(session.title)}</b>
               <span className="qa-cl-drow-end">
                 {session.isPinned && <span className="qa-cl-pin" aria-label="已置顶"><IconPin size={14} /></span>}
                 <button
@@ -1144,6 +1256,17 @@ function QaTopMenu({
 }
 
 // ── 模型选择弹层（真实切换工坊绑定的 API 配置） ──────
+
+/** 模型短名：去掉接口返回里的价格系数、括注与标签，只留可读名称 */
+function shortModelName(raw: string): string {
+  const cleaned = raw
+    .replace(/\[[^\]]*\]/g, "")
+    .replace(/（[^）]*）/g, "")
+    .replace(/\([^)]*\)/g, "")
+    .replace(/[-:：]\s*\d+(\.\d+)?(\/\d+(\.\d+)?)?\s*$/, "")
+    .trim();
+  return cleaned || raw;
+}
 
 function QaModelSheet({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
   const configs = useMemo(() => loadApiConfigs(), []);
@@ -3927,8 +4050,17 @@ export function PhoneQaApp({ onClose, onNotice }: PhoneQaAppProps) {
           </div>
         ) : (
           <div className="qa-cl-msgs">
-            {messages.map((msg) => (
-              <QaMessageItem key={msg.id} msg={msg} isStreaming={msg.id === streamingMsgId} onRetry={handleRetry} onViewImage={setViewerImage} onCopy={handleCopyMessage} onEdit={handleEditMessage} />
+            {messages.map((msg, index) => (
+              <QaMessageItem
+                key={msg.id}
+                msg={msg}
+                isStreaming={msg.id === streamingMsgId}
+                isLast={index === messages.length - 1}
+                onRetry={handleRetry}
+                onViewImage={setViewerImage}
+                onCopy={handleCopyMessage}
+                onEdit={handleEditMessage}
+              />
             ))}
           </div>
         )}
@@ -4082,8 +4214,8 @@ export function PhoneQaApp({ onClose, onNotice }: PhoneQaAppProps) {
             </button>
             <span className="qa-cl-input-spacer" />
             {modelName && (
-              <button type="button" className="qa-cl-model" onClick={() => setModelSheetOpen(true)} aria-label="切换工坊模型">
-                <span className="qa-cl-model-name">{modelName}</span>
+              <button type="button" className="qa-cl-model" onClick={() => setModelSheetOpen(true)} aria-label="切换工坊模型" title={modelName}>
+                <span className="qa-cl-model-name">{shortModelName(modelName)}</span>
                 <IconChevronDown size={14} />
               </button>
             )}
