@@ -239,11 +239,12 @@ export async function retryChatGeneratedImage(
     message: ChatMessage,
     characterId?: string,
     nextDescription?: string,
+    useReferenceImage?: boolean,
 ): Promise<ChatMessage> {
     return generateAndApplyChatGeneratedImage(message, characterId, { description: nextDescription });
 }
 
-export async function retryMomentGeneratedPhoto(post: MomentPost, nextDescription?: string): Promise<MomentPost> {
+export async function retryMomentGeneratedPhoto(post: MomentPost, nextDescription?: string, useReferenceImage?: boolean): Promise<MomentPost> {
     const description = (nextDescription ?? post.photoDescription)?.trim();
     if (!description) throw new Error("缺少图片描述，无法重新生成");
 
@@ -259,7 +260,7 @@ export async function retryMomentGeneratedPhoto(post: MomentPost, nextDescriptio
         const generated = await generateImageFromConfiguredApi({
             description,
             characterId: post.authorType === "character" ? post.authorId : undefined,
-            useReferenceImage: post.photoUseReferenceImage === true,
+            useReferenceImage: useReferenceImage ?? post.photoUseReferenceImage === true,
         });
         if (!generated) throw new Error("生图配置未启用或不完整");
 

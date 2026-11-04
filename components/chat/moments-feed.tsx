@@ -278,7 +278,7 @@ export function MomentsFeed({ onCloseApp }: MomentsFeedProps) {
     useEffect(() => {
         const bodyEl = getScrollElement();
         if (!bodyEl) return;
-        
+
         const handleScroll = () => {
             setHeaderScrolled(bodyEl.scrollTop > 160);
         };
@@ -380,7 +380,7 @@ export function MomentsFeed({ onCloseApp }: MomentsFeedProps) {
             />
         )}
         <PageShell
-            title={<span className="moments-section-label">MOMENTS</span>}
+            title="动态"
             onBack={onCloseApp}
             rightAction={
                 <button
@@ -389,16 +389,15 @@ export function MomentsFeed({ onCloseApp }: MomentsFeedProps) {
                     title="发布朋友圈"
                     type="button"
                     aria-label="发布朋友圈"
-                    data-edge-back="off"
                 >
-                    <svg className="feed-compose-camera" width={22} height={22} viewBox="0 0 24 24" fill="none" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" stroke="currentColor">
+                    <svg width={22} height={22} viewBox="0 0 24 24" fill="none" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" stroke="currentColor">
                         <rect x="2" y="6" width="20" height="14" rx="2" />
                         <circle cx="12" cy="13" r="4" />
                         <path d="M8 6l1-3h6l1 3" />
                     </svg>
                 </button>
             }
-            className={`moments-feed-page apple-social-page ${headerScrolled ? "is-scrolled" : ""} ${activeComposer ? "has-comment-modal" : ""}`}
+            className={`moments-feed-page ${headerScrolled ? "is-scrolled" : ""} ${activeComposer ? "has-comment-modal" : ""}`}
             bodyRef={scrollRef}
             footer={showCompose ? (
                 <MomentsCompose
@@ -461,15 +460,15 @@ export function MomentsFeed({ onCloseApp }: MomentsFeedProps) {
         >
                 {/* Cover card + avatar wrapper */}
                 <div className="feed-cover-shell w-full relative mb-4">
-                    
+
                     {/* Background Absolute Cover */}
                     <div
                         onClick={() => coverInputRef.current?.click()}
                         className="feed-cover-bg absolute inset-0 w-full h-full bg-[var(--c-input)] cursor-pointer z-0"
-                        role="button"
-                        tabIndex={0}
-                        aria-label="更换动态封面"
-                        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); coverInputRef.current?.click(); } }}
+                        style={{
+                            maskImage: "linear-gradient(to bottom, black 40%, transparent 100%)",
+                            WebkitMaskImage: "linear-gradient(to bottom, black 40%, transparent 100%)"
+                        }}
                     >
                         {coverUrl && (
                             <img
@@ -490,6 +489,7 @@ export function MomentsFeed({ onCloseApp }: MomentsFeedProps) {
                     {/* Content Container (Layered above absolute bg) */}
                     <div
                         className="feed-profile relative w-full px-5 pb-5 pointer-events-none"
+                        style={{ paddingTop: "calc(var(--page-header-safe-top, 48px) + var(--page-header-content-height, 54px) + 160px)" }}
                     >
                         {/* Avatar */}
                         <div className="feed-profile-avatar w-[72px] h-[72px] rounded-full border-[3px] border-[var(--c-page-body-bg)] bg-[var(--c-input)] overflow-hidden flex items-center justify-center translate-x-[2px] pointer-events-auto">
@@ -499,11 +499,16 @@ export function MomentsFeed({ onCloseApp }: MomentsFeedProps) {
                                 <span className="feed-profile-avatar-fallback ts-24 text-[var(--c-icon)] font-bold">{(userIdentity?.name ?? "我")[0]}</span>
                             )}
                         </div>
-                        
+
                         {/* Name and Flex Data */}
                         <div className="feed-profile-info flex flex-col gap-1 mt-3 ml-[6px] pointer-events-auto">
                             <span className="feed-profile-name ts-20 font-bold text-[var(--c-text-title)]">{userIdentity?.name ?? "我"}</span>
-                            
+                            <div className="feed-profile-stats flex gap-4 ts-13 text-[var(--c-icon)] font-medium mt-[2px]">
+                                <span className="feed-profile-stat"><strong className="feed-profile-stat-value text-[var(--c-text-title)]">128</strong> 关注</span>
+                                <span className="feed-profile-stat"><strong className="feed-profile-stat-value text-[var(--c-text-title)]">12.4K</strong> 粉丝</span>
+                                <span className="feed-profile-stat"><strong className="feed-profile-stat-value text-[var(--c-text-title)]">8.2M</strong> 获赞与收藏</span>
+                            </div>
+
                             {/* Signature */}
                             <div className="feed-profile-signature mt-[2px] text-left text-[var(--c-text)]">
                                 {editingSignature ? (

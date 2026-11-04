@@ -1,8 +1,8 @@
 "use client";
-import { voiceDisplayText, voiceSpeechText } from "@/lib/voice-expression";
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { ChatSession, ChatMessage, loadChatMessages, pushChatMessage, getLatestCharacterStateValues } from "@/lib/chat-storage";
+import { getStatusRegionConfig, isCustomStatusRegionActive } from "@/lib/chat-status-region";
 import { generateGroupChatCompletion } from "@/lib/group-chat-engine";
 import { parseAIResponse } from "@/lib/rich-message-parser";
 import { resolveUserIdentity } from "@/lib/settings-storage";
@@ -41,7 +41,7 @@ type SubtitleEntry = {
 function stripBilingualForSpeech(text: string): string {
     return text
         .split("\n")
-        .map(line => splitBilingualText(line, { allowUnchangedTranslation: true })?.original || line)
+        .map(line => splitBilingualText(line)?.original || line)
         .join("\n");
 }
 
@@ -242,16 +242,19 @@ export function GroupCallScreen({ type, session, characters, onEnd, initiator = 
                     getLatestCharacterStateValues(r.characterId),
                 );
                 const textParts = parts.filter(p => !p.mediaType && p.content.trim());
-                const spokenText = textParts.map(p => p.content).join("\n");
-                const displayText = voiceDisplayText(spokenText);
-                const speechText = voiceSpeechText(stripBilingualForSpeech(spokenText));
+                const displayText = textParts.map(p => p.content).join("\n");
+                const speechText = stripBilingualForSpeech(displayText);
 
-                if (!displayText && !speechText && !(statusPanel || innerMonologue)) continue;
+                if (!displayText && !(statusPanel || innerMonologue)) continue;
 
                 const aiMsg = pushChatMessage({
                     sessionId: session.id, role: "assistant",
                     content: displayText,
                     statusPanel: statusPanel || undefined,
+                    // 自定义状态栏渲染戳：不盖的话 custom 模式下 [状态栏] 原文按 markdown 渲染
+                    statusRegionMode: statusPanel && isCustomStatusRegionActive(getStatusRegionConfig(session.id))
+                        ? ("custom" as const)
+                        : undefined,
                     innerMonologue: innerMonologue || undefined,
                     stateValues: stateValues.length > 0 ? stateValues : undefined,
                     freshStateValues,
@@ -260,7 +263,7 @@ export function GroupCallScreen({ type, session, characters, onEnd, initiator = 
                 });
                 messagesRef.current = [...messagesRef.current, aiMsg];
 
-                if (displayText) setSubtitles(prev => [...prev, {
+                setSubtitles(prev => [...prev, {
                     id: aiMsg.id, role: "assistant",
                     text: displayText,
                     senderName: r.characterName,
@@ -283,9 +286,6 @@ export function GroupCallScreen({ type, session, characters, onEnd, initiator = 
                         }
                     } catch (e) {
                         console.warn("[GroupCall] TTS failed:", e);
-                        if (voiceConfig.provider === "FishAudio" && stateRef.current !== "ENDED") setSubtitles(prev => [...prev, {
-                            id: `tts-err-${Date.now()}`, role: "assistant", text: `⚠️ ${e instanceof Error ? e.message : "Fish Audio 语音合成失败"}`,
-                        }]);
                     }
                 }
                 setSpeakingCharId(null);

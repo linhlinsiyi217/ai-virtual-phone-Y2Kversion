@@ -14,6 +14,12 @@ export type ImageGenerationResult = {
   revisedPrompt?: string;
 };
 
+export function hasCharacterReferenceImage(characterId?: string): boolean {
+  if (!characterId) return false;
+  const settings = loadImageGenerationSettings();
+  return Boolean(settings.characterReferences?.[characterId]?.assetId);
+}
+
 type ExtractedImage =
   | { kind: "b64"; b64: string; mimeType?: string; revisedPrompt?: string }
   | { kind: "url"; url: string; revisedPrompt?: string };

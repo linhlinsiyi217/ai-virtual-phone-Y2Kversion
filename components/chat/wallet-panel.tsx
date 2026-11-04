@@ -1,13 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowDownToLine, ArrowUpFromLine, Check, ChevronDown, CreditCard, Plus, Trash2, WalletCards, Wifi } from "lucide-react";
+import { ArrowDownToLine, ArrowUpFromLine, CreditCard, Plus, Trash2, WalletCards, Wifi } from "lucide-react";
 
 import { ConfirmDialog } from "@/components/ui";
 import { PageShell } from "@/components/ui/page-shell";
 import {
   adjustWalletCardAccount,
-  changeWalletCurrency,
   createWalletCard,
   deleteWalletCard,
   formatWalletAmount,
@@ -18,7 +17,6 @@ import {
   WALLET_UPDATED_EVENT,
 } from "@/lib/wallet-storage";
 import type { WalletCard, WalletCardStyle, WalletState } from "@/lib/wallet-types";
-import { WALLET_CURRENCY_OPTIONS } from "@/lib/exchange-rates";
 
 type WalletPanelProps = {
   onBack: () => void;
@@ -116,17 +114,6 @@ function WalletBankCard({
 
 export function WalletPanel({ onBack }: WalletPanelProps) {
   const [wallet, setWallet] = useState<WalletState>(() => loadWalletState());
-  const [changingCurrency, setChangingCurrency] = useState(false);
-  const currencyPickerRef = useRef<HTMLDetailsElement>(null);
-  const currencyTriggerRef = useRef<HTMLElement>(null);
-  useEffect(() => {
-    const dismiss = (event: PointerEvent) => {
-      const picker = currencyPickerRef.current;
-      if (picker && !picker.contains(event.target as Node)) picker.open = false;
-    };
-    document.addEventListener("pointerdown", dismiss);
-    return () => document.removeEventListener("pointerdown", dismiss);
-  }, []);
   const [activeCardId, setActiveCardId] = useState(() => wallet.defaultCardId || wallet.cards[0]?.id || "");
   const [balanceTransferMode, setBalanceTransferMode] = useState<"deposit" | "withdraw" | null>(null);
   const [transferScope, setTransferScope] = useState<"balance" | "card">("balance");
@@ -360,44 +347,6 @@ export function WalletPanel({ onBack }: WalletPanelProps) {
       `}</style>
 
       <div className="p-4 flex flex-col gap-4 pb-24">
-        <details className="wallet-currency-picker" ref={currencyPickerRef} onKeyDown={event => {
-          if (event.key === "Escape") { event.preventDefault(); if (currencyPickerRef.current) currencyPickerRef.current.open = false; currencyTriggerRef.current?.focus(); }
-        }}>
-          <summary ref={currencyTriggerRef} aria-label="钱包地区和币种" onClick={event => { if (changingCurrency) event.preventDefault(); }} aria-disabled={changingCurrency}>
-            <span className="wallet-currency-label">地区与币种</span>
-            <span className="wallet-currency-value"><span>{WALLET_CURRENCY_OPTIONS.find(item => item.code === (wallet.currency || "CNY"))?.region}<small>{wallet.currency || "CNY"}</small></span><ChevronDown size={15} /></span>
-          </summary>
-          <div className="wallet-currency-menu" role="group" aria-label="选择钱包币种">
-            {WALLET_CURRENCY_OPTIONS.map(item => <button type="button" key={item.code} aria-pressed={item.code === (wallet.currency || "CNY")} disabled={changingCurrency} onClick={async () => {
-              if (changingCurrency) return;
-              if (currencyPickerRef.current) currencyPickerRef.current.open = false;
-              currencyTriggerRef.current?.focus();
-              const target = item.code;
-              setChangingCurrency(true); setError(null);
-              try { const result = await changeWalletCurrency(target); setWallet(result.state); if (!result.ok) setError(result.error || "切换失败"); }
-              finally { setChangingCurrency(false); }
-            }}><span><strong>{item.region}</strong><small>{item.label} · {item.code}</small></span><Check size={18} aria-hidden="true" style={{ visibility: item.code === (wallet.currency || "CNY") ? "visible" : "hidden" }} /></button>)}
-          </div>
-        </details>
-        <style>{`
-          .wallet-currency-picker { position:relative; z-index:5; font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",sans-serif; --wallet-material:rgba(250,250,252,.94); --wallet-ink:#1c1c1e; --wallet-muted:#6c6c70; --wallet-rim:rgba(255,255,255,.75); color:var(--c-text-title,var(--wallet-ink)); }
-          .wallet-currency-picker summary { list-style:none; display:flex; align-items:center; justify-content:space-between; gap:12px; padding:16px 18px; min-height:64px; border-radius:22px; cursor:pointer; background:var(--c-card,rgba(120,120,128,.08)); box-shadow:inset 0 1px 0 rgba(255,255,255,.2); }
-          .wallet-currency-picker summary::-webkit-details-marker { display:none; }
-          .wallet-currency-label { font-size:15px; font-weight:500; }
-          .wallet-currency-value { display:flex; align-items:center; gap:12px; text-align:right; font-size:14px; color:var(--c-text,var(--wallet-muted)); }
-          .wallet-currency-value small { display:block; font-size:11px; letter-spacing:.04em; margin-top:3px; opacity:.75; }
-          .wallet-currency-menu { position:absolute; top:calc(100% + 8px); right:0; width:100%; max-height:min(440px,60dvh); overflow:auto; overscroll-behavior:contain; padding:6px; border-radius:26px; background:var(--wallet-material); color:var(--wallet-ink); backdrop-filter:blur(28px) saturate(150%); -webkit-backdrop-filter:blur(28px) saturate(150%); border:1px solid var(--wallet-rim); box-shadow:0 16px 48px rgba(0,0,0,.16),0 2px 8px rgba(0,0,0,.06); }
-          .wallet-currency-menu button { appearance:none; border:0; width:100%; display:flex; align-items:center; justify-content:space-between; padding:11px 14px; min-height:58px; border-radius:20px; text-align:left; background:transparent; color:inherit; font:inherit; cursor:pointer; }
-          .wallet-currency-menu strong { display:block; font-size:15px; font-weight:500; }
-          .wallet-currency-menu small { display:block; font-size:12px; color:var(--wallet-muted); margin-top:3px; }
-          .wallet-currency-menu button[aria-pressed=true] { background:rgba(120,120,128,.1); }
-          .wallet-currency-menu svg { color:#007aff; flex-shrink:0; }
-          .wallet-currency-picker :focus-visible { outline:2px solid #007aff; outline-offset:3px; }
-          .wallet-currency-picker [aria-disabled=true],.wallet-currency-menu button:disabled { opacity:.5; cursor:wait; }
-          @media (hover:hover) { .wallet-currency-menu button:hover { opacity:.72; } }
-          @media (prefers-color-scheme:dark) { .wallet-currency-picker { --wallet-material:rgba(36,36,38,.94); --wallet-ink:#f5f5f7; --wallet-muted:#aeaeb2; --wallet-rim:rgba(255,255,255,.12); } .wallet-currency-menu svg { color:#0a84ff; } }
-        `}</style>
-        {changingCurrency && <span role="status" className="ts-12 text-[var(--c-text)]">正在按汇率换算余额与银行卡…</span>}
         <section className="rounded-2xl p-5 overflow-hidden relative min-h-[156px] flex flex-col justify-between" style={{ background: "#eaf5ff", boxShadow: "0 8px 24px rgba(0,0,0,0.025)", border: "1px solid rgba(255,255,255,0.72)", color: "#172033" }}>
           <div className="relative flex items-start justify-between gap-4">
             <div>
@@ -510,9 +459,9 @@ export function WalletPanel({ onBack }: WalletPanelProps) {
                   </div>
                   <div className="text-right shrink-0">
                     <div className={`ts-13 font-bold ${outgoing ? "text-[var(--c-danger)]" : "text-[var(--c-success)]"}`}>
-                      {outgoing ? "-" : "+"}{formatWalletAmount(Math.abs(transaction.amount), transaction.currency || "CNY")}
+                      {outgoing ? "-" : "+"}{formatWalletAmount(Math.abs(transaction.amount))}
                     </div>
-                    <div className="ts-10 text-[var(--c-text)] opacity-50">余 {formatWalletAmount(transaction.balanceAfter, transaction.currency || "CNY")}</div>
+                    <div className="ts-10 text-[var(--c-text)] opacity-50">余 {formatWalletAmount(transaction.balanceAfter)}</div>
                   </div>
                 </div>
               );

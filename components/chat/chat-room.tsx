@@ -1,46 +1,25 @@
 "use client";
-import "@/styles/imessage-composer-polish.css";
-import { registerFloatingPageContext } from "@/lib/floating-tools-context";
 
 import { forwardRef, Fragment, memo, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ChatSession, ChatMessage, CHAT_APP_SETTINGS_UPDATED_EVENT, CHAT_INITIAL_VISIBLE_MESSAGE_COUNT, CHAT_LOAD_MORE_MESSAGE_COUNT, CHAT_REQUEST_REPLY_EVENT, loadChatAppSettings, loadChatMessages, loadChatContacts, loadChatSessions, saveChatSessions, pushChatMessage, updateChatMessage, deleteChatMessage, deleteChatMessagesFrom, deleteChatMessagesByIds, retractChatMessage, editChatMessage, updateMessageMediaData, replaceResponseBatchWithParts, replaceGroupResponseRound, isReadingDiscussMessage, isSystemInstructionMessage, createResponseBatchId, createResponseRoundId, getLatestStateValues, getLatestCharacterStateValues, compareChatMessages, isSessionStreamingEnabled } from "@/lib/chat-storage";
 import ChatMusicPanel from "@/components/music/chat-music-panel";
 import { waitForListeningInviteDraft } from "@/lib/listening-invite-reply";
 import { getCurrentIdentityId } from "@/lib/identity-runtime";
-import { getListeningRoom, inviteListeningRoom, inviteGroupListeningRoom, leaveListeningRoom, applyListeningRoomReply } from "@/lib/listen-together";
-import { captureMusicListeningContext } from "@/lib/music-listening-capture";
+import { getListeningRoom, inviteListeningRoom, inviteGroupListeningRoom, leaveListeningRoom } from "@/lib/listen-together";
 import type { MusicListeningContext } from "@/lib/music-listening";
 import { cleanStreamText, splitStreamPreviewSegments, stripLiteralTexts, stripXmlTagBlocks } from "@/lib/stream-preview";
 import type { StateValue } from "@/lib/chat-storage";
 import { parseStateValues, mergeStateValues } from "@/lib/state-value-parser";
 import { parseAIResponse, type ParsedMessagePart } from "@/lib/rich-message-parser";
-import { applyAssistantPhotoMarkupAction, describePhotoAnnotations } from "@/lib/chat-photo-markup";
-import { applyAssistantChatRenameAction } from "@/lib/chat-rename-action";
-import { applyAvatarAction } from "@/lib/chat-avatar-action";
-import { CHAT_SESSION_AVATARS_UPDATED_EVENT, withChatCharacterAvatar } from "@/lib/chat-session-avatar";
-import { useChatCharacter } from "./use-chat-character";
 import { isKnownStickerLabel } from "@/lib/sticker-data";
 import { translateReasoningText } from "@/lib/reasoning-translate";
 import { MessageBubble, MediaDetailModal, prewarmStickerCache, BilingualTextBlock, isStandaloneHtmlPreviewContent, normalizeTextBubbleContent } from "./message-bubble";
 import { GeneratedImageErrorDialog } from "./generated-image-error-dialog";
 import { PhotoInputModal, TextPhotoModal, VoiceRecordModal, RedPacketModal, LocationInputModal, SystemInstructionModal } from "./rich-input-modals";
 import { EmojiPanel, StickerPanel } from "./emoji-panel";
-import { IMessageTapbackBadge } from "./imessage-tapback-badge";
 import { StickerSearchSuggest } from "./sticker-search-suggest";
-import { useGroupMentions } from "./use-group-mentions";
-import { MentionAvatar } from "./mention-avatar";
-import { useEchoSendGesture } from "./use-echo-send-gesture";
-import { canUseEcho, hasEcho } from "@/lib/chat-echo";
-import { canUseLove, hasLove } from "@/lib/chat-love";
-import { canUseFireworks, hasFireworks } from "@/lib/chat-fireworks";
-import { useChatEcho } from "./use-chat-echo";
 import { DrawingBoard, DrawingGlyph } from "./drawing-board";
-import type { MentionMember } from "@/lib/group-mentions";
-import { ForwardChatSheet } from "./forwarded-chat";
-import { Send } from "lucide-react";
 import { StateValuesPanel } from "./state-values-panel";
-
-
 import { generateChatCompletion, generateOfflineChatCompletion, flattenCompletionResult, ChatEngineError } from "@/lib/chat-engine";
 import { formatOfflineTurnXml as formatOfflineTurnXmlShared, buildOfflinePromptHistory as buildOfflinePromptHistoryShared } from "@/lib/offline-prompt-builder";
 import { getStatusRegionConfig, isCustomStatusRegionActive } from "@/lib/chat-status-region";
@@ -52,7 +31,7 @@ import { useChatBottomReserve } from "./use-chat-bottom-reserve";
 import ReactMarkdown from "react-markdown";
 import rehypeRaw from "rehype-raw";
 import remarkGfm from "remark-gfm";
-import { createPortal, flushSync } from "react-dom";
+import { createPortal } from "react-dom";
 
 import { loadInteractableCharacters as loadCharacters } from "@/lib/character-storage";
 import { Character } from "@/lib/character-types";
@@ -67,24 +46,19 @@ import { VoiceCallScreen } from "./voice-call-screen";
 import { VideoCallScreen } from "./video-call-screen";
 import { GroupCallScreen } from "./group-call-screen";
 import { TransferTargetModal } from "./transfer-target-modal";
-import { normalizeCurrency, fetchExchangeRate, cnyAmount } from "@/lib/exchange-rates";
 import { GiftPickerModal } from "./gift-picker-modal";
 import { ConfirmDialog } from "@/components/ui/modal";
-import { RetryGuidanceDialog } from "./retry-guidance-dialog";
-import { withRetryGuidance } from "@/lib/chat-retry-guidance";
-import { beginRetryVersion, finishRetryVersion, findRetrySeries, recoverPendingRetryVersions, retryMessageStart, retrySourceText, selectRetryVersion, type RetrySeries } from "@/lib/chat-retry-versions";
-import { queueGroupDirectorNote, getGroupDirectorNote, consumeGroupDirectorNote } from "@/lib/group-director-note";
 import { deleteWeixinCloudMessagesFromCloud, emitWeixinSyncToast, syncAllWeixinBotRuntimesToCloud } from "@/lib/weixin-cloud-sync";
-import { loadBindingConfig, loadImageGenerationSettings, loadPresets, loadRegexes, resolveBinding, resolveUserIdentity } from "@/lib/settings-storage";
+import { loadBindingConfig, loadPresets, loadRegexes, resolveBinding, resolveUserIdentity } from "@/lib/settings-storage";
 import { generateGroupChatCompletion, generateGroupOfflineChatCompletion, parseGroupChatResponse, buildEditableGroupRoundText } from "@/lib/group-chat-engine";
 import { appendChatOfflineTurn, deleteChatOfflineTurn, deleteChatOfflineTurnsFrom, extractThinkingTag, loadChatOfflineTurns, parseOfflineResponse, saveChatOfflineTurns, updateChatOfflineTurn, type ChatOfflineTurn } from "@/lib/chat-offline-storage";
 import { applyDisplayRegex, applyEditRegex } from "@/lib/llm-prompt-assembler";
-import { scheduleFollowUp, cancelFollowUp, cancelBackgroundGeneration, isBackgroundReplyGenerating, getBackgroundReplyStream } from "@/lib/follow-up-service";
-import { useChatIdleAutoReply } from "@/components/chat/use-chat-idle-auto-reply";
+import { scheduleFollowUp, cancelFollowUp, cancelBackgroundGeneration, isBackgroundReplyGenerating } from "@/lib/follow-up-service";
+import { useKeyboardDismissAutoSend } from "@/components/chat/use-keyboard-dismiss-auto-send";
 import { cancelBailoutKey } from "@/lib/push-bailout-client";
 import { PENDING_REPLY_PREFIX } from "@/lib/friend-request-engine";
 import type { UserIdentity } from "@/components/settings/user-identity";
-import { AlertCircle, Blocks, Check, Copy, FileText, ListChecks, ListX, Pencil, RotateCcw, Trash2, Undo2, User, ChevronLeft, ChevronRight, Clapperboard, Clock, Gift, Languages, Loader2, MoreHorizontal, X } from "lucide-react";
+import { AlertCircle, Blocks, Check, Trash2, User, ChevronLeft, ChevronRight, Clapperboard, Clock, Gift, Languages, Loader2, MoreHorizontal, X } from "lucide-react";
 import { setDebugChatState } from "@/lib/debug-store";
 import { SessionCustomCSS } from "@/components/ui/session-custom-css";
 import { setChatActive } from "@/lib/music-action-queue";
@@ -92,10 +66,10 @@ import { getMusicControlBridge } from "@/lib/music-control-bridge";
 import { findPlayableMatch, getNeteaseLyrics, getNeteaseSongDetail } from "@/lib/music-service";
 import { approveMemoryWriteRequest } from "@/lib/tool-executor";
 import type { MemoryWriteRequest, ToolResult } from "@/lib/tool-executor";
-import { formatChatUiTime, shouldShowTimestamp } from "@/lib/chat-time";
+import { formatChatUiTime } from "@/lib/chat-time";
 import { parseActionTags } from "@/lib/action-parser";
 import { kvGet, kvSet, kvRemove } from "@/lib/kv-db";
-import { creditWalletBalance, payWithWalletBalance, loadWalletState } from "@/lib/wallet-storage";
+import { creditWalletBalance, payWithWalletBalance } from "@/lib/wallet-storage";
 import { loadDeliveredShoppingGifts, type ShoppingGiftCandidate } from "@/lib/shopping-gift-utils";
 import { settleShoppingPaymentRequest } from "@/lib/shopping-payment-request";
 import type { RegexConfig } from "@/lib/settings-types";
@@ -103,25 +77,10 @@ import { MacroEngine } from "@/lib/macro-engine";
 import {
     createPendingChatGeneratedImageData,
     generateAndApplyChatGeneratedImage,
-    generateAndApplyChatGeneratedImageGroup,
-    isMultiImageGenerationExecutor,
     isPendingChatGeneratedImageMessage,
 } from "@/lib/generated-image-retry";
 import { scrollElementWithinContainer } from "@/lib/dom-scroll";
-import { hasUsableImageGenerationConfig, shouldHidePendingAssistantImage } from "@/lib/image-delivery-protocol";
 import { ChatFallbackAvatar } from "./chat-fallback-avatar";
-import { GroupAvatar } from "./group-avatar";
-import { GroupSenderName } from "./group-sender-name";
-import { useGroupBubbleTint } from "./use-group-bubble-tint";
-import { resolveChatBeautyPreset } from "@/lib/chat-beauty-preset";
-import { getQuotePreview } from "@/lib/chat-quote-preview";
-import { SortablePlusMenu } from "./sortable-plus-menu";
-import { useChatAppearance } from "./use-chat-appearance";
-import { useGlassContrast } from "./use-glass-contrast";
-import { HeaderVideoIcon } from "./header-video-icon";
-import { ChatUnreadPill } from "./chat-unread-pill";
-import { useChatEdgeTint } from "./use-chat-edge-tint";
-import { getGroupTapbacks, setGroupTapback, applyGroupAssistantTapback } from "@/lib/chat-tapback";
 import { ChatScreenEffectOverlay, type ActiveScreenEffect } from "./chat-screen-effect";
 import {
     formatChatDiceResultMessage,
@@ -135,17 +94,6 @@ import { extractTextToolDirectiveText } from "@/lib/text-tool-protocol";
 import { emitChatPluginEvent, getChatPluginHookBus, runChatPluginTransform } from "@/lib/chat-plugin-hooks";
 import { CHAT_PLUGIN_TOAST_EVENT, getChatPluginRuntime } from "@/lib/chat-plugin-runtime";
 import { ChatPluginSlot } from "@/components/chat/chat-plugin-slot";
-import {
-    applyAssistantTapback,
-    getTapbackGlyph,
-    IMESSAGE_TAPBACK_APPLIED_EVENT,
-    IMESSAGE_TAPBACKS_UPDATED_EVENT,
-    isNativeTapbackEmoji,
-    loadIMessageTapbacks,
-    saveIMessageTapbacks,
-    type IMessageTapbackCandidate,
-    type MessageTapback,
-} from "@/lib/chat-tapback";
 
 // ── Call system message detection ──────────────────────────
 // Call messages are stored with user/assistant role for correct prompt alternation,
@@ -155,11 +103,11 @@ function isCallSysMsg(msg: ChatMessage): boolean {
     return CALL_SYS_RE.test(msg.content);
 }
 /** Returns the effective UI role: call messages render as "system" regardless of stored role */
-const ACTION_MEDIA_TYPES = new Set(["poke", "tapback_action", "avatar_action", "photo_markup_action", "chat_background_change", "private_alias_action", "group_name_action", "accept_red_packet", "decline_red_packet", "accept_transfer", "decline_transfer", "accept_payment_request", "decline_payment_request", "group_admin_notice"]);
+const ACTION_MEDIA_TYPES = new Set(["poke", "accept_red_packet", "decline_red_packet", "accept_transfer", "decline_transfer", "accept_payment_request", "decline_payment_request", "group_admin_notice"]);
 // 拍一拍/群管理通知/通话留痕渲染成灰色系统小字，没有 💭 面板入口——
 // 状态栏/内心独白/状态值挂上去会被显示层吞掉，挂载时必须跳过它们
 function canCarryFoldedPanel(part: { content?: string; mediaType?: ChatMessage["mediaType"] }): boolean {
-    if (part.mediaType === "poke" || part.mediaType === "group_admin_notice" || part.mediaType === "photo_markup_action" || part.mediaType === "chat_background_change" || part.mediaType === "private_alias_action" || part.mediaType === "group_name_action") return false;
+    if (part.mediaType === "poke" || part.mediaType === "group_admin_notice") return false;
     return !CALL_SYS_RE.test(part.content || "");
 }
 function uiRole(msg: ChatMessage): string {
@@ -230,7 +178,6 @@ const OfflineAssistantTextBlock = memo(function OfflineAssistantTextBlock({
 });
 
 const CHAT_VISUAL_MEDIA_TYPES = new Set([
-    "forwarded_chat",
     "sticker",
     "dice",
     "red_packet",
@@ -241,7 +188,6 @@ const CHAT_VISUAL_MEDIA_TYPES = new Set([
     "image",
     "location",
     "music_share",
-    "listening_invite",
     "xiaohongshu_note_share",
     "app_card",
     "audio",
@@ -280,7 +226,6 @@ function getWeixinCloudDeleteTargetCount(messages: ChatMessage[]): number {
 }
 
 const CHAT_MEDIA_BUBBLE_TYPES = new Set([
-    "forwarded_chat",
     "sticker",
     "dice",
     "red_packet",
@@ -291,7 +236,6 @@ const CHAT_MEDIA_BUBBLE_TYPES = new Set([
     "image",
     "location",
     "music_share",
-    "listening_invite",
     "xiaohongshu_note_share",
     "app_card",
     "media_file",
@@ -336,14 +280,6 @@ function reasoningPreviewLine(text: string): string {
 
 function isHiddenChatFlowMessage(msg: ChatMessage, displayContent?: string): boolean {
     if (msg.mediaType === "tool_result" || msg.mediaType === "tool_call") return true;
-    // Generated photos are published to storage first so generation can be retried and
-    // cancelled safely, but they should not enter the visible chat flow until the real
-    // image (or the final text-photo fallback) is ready.
-    if (shouldHidePendingAssistantImage({
-        role: msg.role,
-        mediaType: msg.mediaType,
-        imageGenerationStatus: msg.mediaData?.imageGenerationStatus,
-    })) return true;
     return !isChatVisualMedia(msg)
         && !getChatFlowVisibleContent(msg, displayContent)
         && uiRole(msg) !== "system"
@@ -383,7 +319,6 @@ type ManagedGenerationOptions = {
     history: ChatMessage[];
     errorPrefix?: string;
     onDecline?: () => void | Promise<void>;
-    retryVersionRun?: boolean;
 };
 
 const activeGenerationRuns = new Map<string, ActiveGenerationRun>();
@@ -518,6 +453,13 @@ function cancelOfflineGenerationRun(sessionId: string): boolean {
 
 // ── Rich media reprocessing on mount ──────────────────────────
 
+const TIME_GAP = 1 * 60 * 1000;
+
+function shouldShowTimestamp(currentMsg: string, prevMsg: string | null): boolean {
+    if (!prevMsg) return true; // First message always shows time
+    return new Date(currentMsg).getTime() - new Date(prevMsg).getTime() > TIME_GAP;
+}
+
 type ChatRoomProps = {
     session: ChatSession;
     lyricQuote?: MusicListeningContext;
@@ -535,11 +477,9 @@ type OfflineActionTarget = {
 type ContextMenuAnchor = {
     x: number;
     y: number;
-    focusBubble?: boolean;
 };
 
 type RenderChatMessage = ChatMessage & {
-    echoPlaybackKey?: string;
     displayProjected?: boolean;
     displaySourceId?: string;
 };
@@ -555,14 +495,11 @@ type PendingMessageJump = {
 };
 
 const TRANSIENT_MESSAGE_PREFIX = "ui-transient-";
-type RichModalKind = "music" | "photo" | "text_photo" | "red_packet" | "transfer" | "location" | "transfer_target" | "voice_msg" | "gift" | "system_instruction" | "drawing";
+type RichModalKind = "music" | "drawing" | "photo" | "text_photo" | "red_packet" | "transfer" | "location" | "transfer_target" | "voice_msg" | "gift" | "system_instruction";
 type ChatTextInputHandle = {
     appendText: (text: string, options?: { focus?: boolean }) => void;
-    mention: (member: MentionMember) => void;
     clear: () => void;
-    focus: () => void;
 };
-
 type OfflineTextInputHandle = {
     clear: () => void;
     setText: (text: string) => void;
@@ -672,7 +609,6 @@ const ChatTextInputBar = memo(forwardRef<ChatTextInputHandle, {
     characterName: string;
     characterId: string;
     stickerCharacterIds?: string[];
-    mentionMembers: MentionMember[];
     isGroup: boolean;
     isSpectator: boolean;
     muteUntilMs: number;
@@ -680,7 +616,6 @@ const ChatTextInputBar = memo(forwardRef<ChatTextInputHandle, {
     theaterMode: boolean;
     enterToSendEnabled: boolean;
     quotingMessage: ChatMessage | null;
-    quoteSourceStyle?: React.CSSProperties;
     showEmojiPanel: boolean;
     showStickerPanel: boolean;
     showPlusMenu: boolean;
@@ -697,16 +632,14 @@ const ChatTextInputBar = memo(forwardRef<ChatTextInputHandle, {
     onOpenCustomPlusAction: (action: RegisteredCustomAppChatPlusAction) => void;
     onStartVideoCall: () => void;
     onStartVoiceCall: () => void;
-    onSendText: (text: string, options?: { autoReply?: boolean; screenEffect?: "echo" | "love" | "fireworks"; mentions?: { characterId: string; name: string }[] }) => boolean;
+    onSendText: (text: string, options?: { autoReply?: boolean }) => boolean;
     onStopGeneration: () => void;
     onTriggerAIResponse: () => void;
-    onSendDirectorNote: (text: string) => boolean;
 	onSendSticker: (name: string, url?: string) => void;
 }>(function ChatTextInputBar({
     characterName,
     characterId,
     stickerCharacterIds,
-    mentionMembers,
     isGroup,
     isSpectator,
     muteUntilMs,
@@ -714,7 +647,6 @@ const ChatTextInputBar = memo(forwardRef<ChatTextInputHandle, {
     theaterMode,
     enterToSendEnabled,
     quotingMessage,
-    quoteSourceStyle,
     showEmojiPanel,
     showStickerPanel,
     showPlusMenu,
@@ -731,15 +663,12 @@ const ChatTextInputBar = memo(forwardRef<ChatTextInputHandle, {
     onOpenCustomPlusAction,
     onStartVideoCall,
     onStartVoiceCall,
-    onSendText: sendText,
+    onSendText,
     onStopGeneration,
     onTriggerAIResponse,
-    onSendDirectorNote,
     onSendSticker,
 }, ref) {
     const [inputText, setInputText] = useState("");
-    const [inputFocused, setInputFocused] = useState(false);
-    const [showSendEffectPicker, setShowSendEffectPicker] = useState(false);
     const textareaRef = useRef<HTMLTextAreaElement | null>(null);
     // 表情包搜索联想：ESC/失焦置 true 隐藏，输入变化重新开启
     const [suggestClosed, setSuggestClosed] = useState(false);
@@ -752,9 +681,6 @@ const ChatTextInputBar = memo(forwardRef<ChatTextInputHandle, {
     }, [muteUntilMs]);
     const muteRemainingMs = muteUntilMs > muteNowTick ? muteUntilMs - muteNowTick : 0;
     const inputLocked = isSpectator || muteRemainingMs > 0;
-    const mentions = useGroupMentions(inputText, setInputText, textareaRef, mentionMembers,
-        isGroup && !inputLocked && inputFocused && !showEmojiPanel && !showStickerPanel && !showPlusMenu);
-    const onSendText = (text: string, options?: { autoReply?: boolean; screenEffect?: "echo" | "love" | "fireworks" }) => sendText(text, { ...options, mentions: mentions.identities(text) });
 
     const resetTextareaHeight = () => {
         if (textareaRef.current) textareaRef.current.style.height = "auto";
@@ -773,72 +699,23 @@ const ChatTextInputBar = memo(forwardRef<ChatTextInputHandle, {
 
     useImperativeHandle(ref, () => ({
         appendText,
-        mention: (member: MentionMember) => { if (!inputLocked) mentions.insert(member, false); },
         clear: () => {
             setInputText("");
             resetTextareaHeight();
         },
-        focus: () => textareaRef.current?.focus(),
-    }), [appendText, mentions.insert, inputLocked]);
-
-    const sendDraft = (autoReply?: boolean) => {
-        const trimmed = inputText.trim();
-        if (!trimmed || !onSendText(trimmed, { autoReply })) return;
-        setInputText("");
-        resetTextareaHeight();
-        onClosePanels();
-    };
-    const sendOnlyGesture = useEchoSendGesture(false, () => {}, () => sendDraft(false));
+    }), [appendText]);
 
     const handleSubmit = () => {
+        if (inputLocked) return;
         if (isGenerating) {
             onStopGeneration();
             return;
         }
-        if (isGroup && isSpectator) {
-            if (!onSendDirectorNote(inputText.trim())) return;
-            setInputText("");
-            resetTextareaHeight();
-            onClosePanels();
-            return;
-        }
-        if (inputLocked && !isGroup) return;
-        if (!inputLocked && inputText.trim()) {
-            sendDraft(true);
-        } else {
-            onTriggerAIResponse();
-            onClosePanels();
-        }
-    };
-
-    const sendEffectDraft = (screenEffect: "echo" | "love" | "fireworks") => {
-        const eligible = screenEffect === "love" ? canUseLove({ content: inputText }) : canUseEcho({ content: inputText });
-        if (inputLocked || isGenerating || !eligible) return;
-        if (!onSendText(inputText.trim(), { screenEffect })) return;
-        setShowSendEffectPicker(false);
-        setInputText(""); resetTextareaHeight(); onClosePanels(); textareaRef.current?.blur();
-    };
-    const echoGesture = useEchoSendGesture(!inputLocked && !isGenerating && canUseEcho({ content: inputText }), () => {
-        onClosePanels();
-        setShowSendEffectPicker(true);
-        textareaRef.current?.blur();
-    },
-        handleSubmit);
-
-    useEffect(() => {
-        if (inputLocked || isGenerating || !canUseEcho({ content: inputText })) setShowSendEffectPicker(false);
-    }, [inputLocked, isGenerating, inputText]);
-
-    const handleAIReply = () => {
-        if (isGroup && isSpectator) { handleSubmit(); return; }
         const trimmed = inputText.trim();
-        if (!inputLocked && trimmed) {
-            if (!onSendText(trimmed, { autoReply: true })) return;
-            setInputText("");
-            resetTextareaHeight();
-        } else {
-            onTriggerAIResponse();
-        }
+        if (!trimmed) return;
+        if (!onSendText(trimmed)) return;
+        setInputText("");
+        resetTextareaHeight();
         onClosePanels();
     };
 
@@ -848,21 +725,21 @@ const ChatTextInputBar = memo(forwardRef<ChatTextInputHandle, {
         [isGroup, stickerCharacterIds, characterId],
     );
     const suggestEnabled = !inputLocked && !panelOpen && !suggestClosed && inputText.trim().length > 0;
-    const imessageMenuIcon = (fileName: string) => (
-        <img className="imessage-plus-app-icon" src={`/imessage26/apps/${fileName}`} alt="" aria-hidden="true" />
-    );
     const plusMenuItems = [
-        { icon: <img src="/apple-music-app.png" alt="" className="imessage-apple-music-icon" draggable={false} />, label: "音乐", onClick: () => onOpenRichModal("music") },
-        { icon: imessageMenuIcon("offline-mode.jpg"), label: "线下模式", onClick: onToggleOfflineMode },
-        { icon: imessageMenuIcon("photo-wall.jpg"), label: "照片墙", onClick: () => onOpenRichModal("photo") },
-        { icon: imessageMenuIcon("text-image.jpg"), label: !isGroup ? "文字图" : "文字图片", onClick: () => onOpenRichModal("text_photo") },
-        { icon: <span className="imessage-drawing-icon"><DrawingGlyph /></span>, label: "绘图", onClick: () => onOpenRichModal("drawing") },
-        { icon: imessageMenuIcon("system-instruction.jpg"), label: "系统指令", onClick: () => onOpenRichModal("system_instruction") },
-        { icon: imessageMenuIcon("red-packet.jpg"), label: "红包", onClick: () => onOpenRichModal("red_packet") },
-        { icon: imessageMenuIcon("gift.jpg"), label: "礼物", onClick: () => onOpenRichModal("gift") },
-        { icon: imessageMenuIcon("location.jpg"), label: "位置", onClick: () => onOpenRichModal("location") },
-        { icon: imessageMenuIcon("transfer.jpg"), label: "转账", onClick: () => onOpenRichModal(isGroup ? "transfer_target" : "transfer") },
-        { icon: imessageMenuIcon("theater-mode.jpg"), label: "番外指令模式", active: theaterMode, onClick: onToggleTheaterMode },
+        { icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--c-text)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18V5l11-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="17" cy="16" r="3" /></svg>, label: "音乐", onClick: () => onOpenRichModal("music") },
+        { icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--c-text)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0Z" /><circle cx="12" cy="10" r="3" /></svg>, label: "线下模式", onClick: onToggleOfflineMode },
+        { icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--c-text)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></svg>, label: "照片墙", onClick: () => onOpenRichModal("photo") },
+        { icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--c-text)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2" /><line x1="7" y1="8" x2="17" y2="8" /><line x1="7" y1="12" x2="14" y2="12" /><line x1="7" y1="16" x2="11" y2="16" /></svg>, label: "文字图片", onClick: () => onOpenRichModal("text_photo") },
+        { icon: <DrawingGlyph />, label: "绘图", onClick: () => onOpenRichModal("drawing") },
+        { icon: <AlertCircle size={22} strokeWidth={1.5} color="var(--c-text)" />, label: "系统指令", onClick: () => onOpenRichModal("system_instruction") },
+        { icon: <Clapperboard size={22} strokeWidth={1.5} color={theaterMode ? "var(--c-icon-active)" : "var(--c-text)"} />, label: "番外指令模式", active: theaterMode, onClick: onToggleTheaterMode },
+        { icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--c-text)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M23 7l-7 5 7 5V7z" /><rect x="1" y="5" width="15" height="14" rx="2" ry="2" /></svg>, label: "视频通话", onClick: onStartVideoCall },
+        { icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--c-text)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" /><path d="M19 10v2a7 7 0 0 1-14 0v-2" /><line x1="12" y1="19" x2="12" y2="22" /></svg>, label: "语音通话", onClick: onStartVoiceCall },
+        { icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--c-text)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="5" width="20" height="14" rx="2" /><line x1="2" y1="10" x2="22" y2="10" /></svg>, label: "红包", onClick: () => onOpenRichModal("red_packet") },
+        { icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--c-text)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><text x="12" y="16" textAnchor="middle" fontSize="12" fill="var(--c-text)" stroke="none">¥</text></svg>, label: "转账", onClick: () => onOpenRichModal(isGroup ? "transfer_target" : "transfer") },
+        { icon: <Gift size={22} strokeWidth={1.5} color="var(--c-text)" />, label: "礼物", onClick: () => onOpenRichModal("gift") },
+        { icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--c-text)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" /></svg>, label: "位置", onClick: () => onOpenRichModal("location") },
+        { icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--c-text)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" /><path d="M19 10v2a7 7 0 0 1-14 0v-2" /><line x1="12" y1="19" x2="12" y2="22" /><line x1="8" y1="22" x2="16" y2="22" /></svg>, label: "语音条", onClick: () => onOpenRichModal("voice_msg") },
         ...customPlusActions.map(action => ({
             icon: action.appIconDataUrl
                 ? <span className="chat-plus-custom-app-icon" style={{ backgroundImage: `url(${action.appIconDataUrl})` }} aria-hidden="true" />
@@ -873,27 +750,7 @@ const ChatTextInputBar = memo(forwardRef<ChatTextInputHandle, {
     ];
 
     return (
-        <div
-            className="chat-input-bar chat-room-main-pane flex flex-col"
-            onFocusCapture={event => setInputFocused(!(event.target as HTMLElement).closest(".chat-voice-message-btn"))}
-            onBlurCapture={e => {
-                if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setInputFocused(false);
-            }}
-            data-ui="input"
-            data-imessage-private=""
-            {...(inputText.trim() ? { "data-has-text": "" } : {})}
-            {...(inputFocused || inputText.trim() || isGenerating || (isGroup && inputLocked) ? { "data-show-send": "" } : {})}
-        >
-            {showSendEffectPicker && (
-                <>
-                    <button type="button" className="imessage-send-effect-dismiss" onClick={() => setShowSendEffectPicker(false)} aria-label="关闭发送特效" />
-                    <div className="imessage-send-effect-picker" role="menu" aria-label="选择发送特效" data-chat-idle-busy>
-                        {([['echo', '回声'], ['love', '爱心'], ['fireworks', '烟花']] as const).map(([effect, label]) => (
-                            <button key={effect} type="button" role="menuitem" onClick={() => sendEffectDraft(effect)} className="imessage-send-effect-option">{label}</button>
-                        ))}
-                    </div>
-                </>
-            )}
+        <div className="chat-input-bar chat-room-main-pane flex flex-col" data-ui="input">
             {theaterMode && (
                 <div className="chat-theater-mode-strip" role="status">
                     <span className="chat-theater-mode-icon" aria-hidden="true">
@@ -912,25 +769,15 @@ const ChatTextInputBar = memo(forwardRef<ChatTextInputHandle, {
                 </div>
             )}
             {quotingMessage && (
-                <div className="imessage-quote-compose-layer" data-quote-role={quotingMessage.role}>
-                    <div className="imessage-quote-compose-bubble" data-role={quotingMessage.role} style={quoteSourceStyle}>
-                        <span className="imessage-bubble-surface" aria-hidden="true" />
-                        {getQuotePreview(quotingMessage)}
+                <div className="chat-quote-bar">
+                    <div className="flex-1 ts-12 text-[var(--c-icon)] overflow-hidden text-ellipsis whitespace-nowrap">
+                        引用 {quotingMessage.role === "user" ? "你" : characterName}: {quotingMessage.content.slice(0, 40)}
                     </div>
-                    <button
-                        type="button"
-                        onClick={onClearQuote}
-                        className="imessage-quote-compose-close"
-                        aria-label="取消引用"
-                        title="取消引用"
-                    >
-                        <X size={22} strokeWidth={1.8} aria-hidden="true" />
-                    </button>
+                    <button onClick={onClearQuote} className="ui-bare-btn text-[var(--c-icon)] ts-16 leading-none p-[2px]">✕</button>
                 </div>
             )}
 
-            {mentions.panel}
-            {suggestEnabled && !mentions.open && (
+            {suggestEnabled && (
                 <StickerSearchSuggest
                     query={inputText}
                     characterIds={suggestCharacterIds}
@@ -942,63 +789,17 @@ const ChatTextInputBar = memo(forwardRef<ChatTextInputHandle, {
                     onClose={() => setSuggestClosed(true)}
                 />
             )}
-            {(
-                <div className="imessage-composer-subject">
-                    <span className="imessage-composer-subject-label">{isSpectator ? "导演旁白" : "主题"}</span>
-                    <div className="imessage-composer-shortcuts">
-                        <button
-                            type="button"
-                            onClick={onToggleEmojiPanel}
-                            disabled={inputLocked}
-                            className="imessage-composer-shortcut imessage-composer-emoji"
-                            aria-label="表情"
-                            title="表情"
-                            aria-pressed={showEmojiPanel}
-                            {...(showEmojiPanel ? { "data-active": "" } : {})}
-                        >
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M8.5 14s1.25 1.75 3.5 1.75S15.5 14 15.5 14" /><path d="M9 9.25h.01M15 9.25h.01" /></svg>
-                        </button>
-                        <button
-                            type="button"
-                            onClick={onToggleStickerPanel}
-                            disabled={inputLocked}
-                            className="imessage-composer-shortcut imessage-composer-sticker"
-                            aria-label="贴纸"
-                            title="贴纸"
-                            aria-pressed={showStickerPanel}
-                            {...(showStickerPanel ? { "data-active": "" } : {})}
-                        >
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M15.5 3H6a3 3 0 0 0-3 3v12a3 3 0 0 0 3 3h8.5L21 14.5V8.5Z" /><path d="M14.5 21v-4a2.5 2.5 0 0 1 2.5-2.5h4" /></svg>
-                        </button>
-                    </div>
-                    {!isGenerating && (
-                        <button
-                            type="button"
-                            {...sendOnlyGesture.handlers}
-                            disabled={inputLocked || !inputText.trim()}
-                            className="imessage-composer-shortcut imessage-composer-ai-reply"
-                            style={{ opacity: 0, color: "transparent" }}
-                            aria-label="仅发送"
-                            title="发送消息；自动回复按本聊天设置执行"
-                        >
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.55" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9.94 15.5A2 2 0 0 0 8.5 14.06l-6.14-1.58a.5.5 0 0 1 0-.96L8.5 9.94A2 2 0 0 0 9.94 8.5l1.58-6.14a.5.5 0 0 1 .96 0l1.58 6.14a2 2 0 0 0 1.44 1.44l6.14 1.58a.5.5 0 0 1 0 .96l-6.14 1.58a2 2 0 0 0-1.44 1.44l-1.58 6.14a.5.5 0 0 1-.96 0Z" /></svg>
-                        </button>
-                    )}
-                </div>
-            )}
             <textarea
                 ref={textareaRef}
                 rows={1}
                 value={inputText}
                 onChange={e => {
-                    mentions.change(e.target.value, e.target.selectionStart);
                     setInputText(e.target.value);
                     setSuggestClosed(false);
                     e.target.style.height = "auto";
                     e.target.style.height = Math.min(e.target.scrollHeight, 120) + "px";
                 }}
                 onFocus={(e) => {
-                    setInputFocused(true);
                     if (panelOpen) {
                         e.target.blur();
                         onClosePanels();
@@ -1007,37 +808,23 @@ const ChatTextInputBar = memo(forwardRef<ChatTextInputHandle, {
                     }
                     setSuggestClosed(false);
                 }}
-                onBlur={() => {
-                    setSuggestClosed(true);
-                    mentions.close();
-                }}
-                onSelect={e => mentions.select(e.currentTarget.selectionStart)}
-                onCompositionStart={() => mentions.composition(true)}
-                onCompositionEnd={() => mentions.composition(false)}
-                aria-expanded={mentions.open}
-                role={isGroup ? "combobox" : undefined}
-                aria-controls={mentions.open ? mentions.listId : undefined}
-                aria-activedescendant={mentions.activeOptionId}
-                aria-autocomplete={isGroup ? "list" : undefined}
+                onBlur={() => setSuggestClosed(true)}
                 onKeyDown={e => {
-                    if (mentions.keyDown(e)) return;
                     if (e.key === "Escape") {
                         setSuggestClosed(true);
                         return;
                     }
-                    if (inputText.trim() && shouldSendChatInputOnEnter(e, enterToSendEnabled)) {
+                    if (shouldSendChatInputOnEnter(e, enterToSendEnabled)) {
                         e.preventDefault();
-                        if (isGenerating) return;
-                        if (isGroup && isSpectator) handleSubmit();
-                        else if (!inputLocked) sendDraft(false);
+                        handleSubmit();
                     }
                 }}
                 enterKeyHint={enterToSendEnabled ? "send" : "enter"}
                 className="chat-input-textarea"
-                disabled={inputLocked && !isSpectator}
-                placeholder={isSpectator ? "留空让他们自己聊" : inputLocked
+                disabled={inputLocked}
+                placeholder={inputLocked
                     ? (isSpectator ? "围观中，你不在这个群里" : `禁言中，剩余${Math.ceil(muteRemainingMs / 60000)}分钟`)
-                    : (theaterMode ? "写下番外指令..." : "iMessage 信息")}
+                    : (theaterMode ? "写下番外指令..." : undefined)}
             />
 
             <div className="chat-input-actions">
@@ -1052,23 +839,22 @@ const ChatTextInputBar = memo(forwardRef<ChatTextInputHandle, {
                         <circle cx="12" cy="10" r="3" />
                     </svg>
                 </button>
-                <button onClick={onToggleEmojiPanel} disabled={inputLocked} className="ui-bare-btn text-[var(--c-text)] chat-emoji-toggle" style={inputLocked ? { opacity: 0.35 } : undefined}>
+                <button onClick={onToggleEmojiPanel} disabled={inputLocked} className="ui-bare-btn text-[var(--c-text)]" style={inputLocked ? { opacity: 0.35 } : undefined}>
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="M8 14s1.5 2 4 2 4-2 4-2" /><line x1="9" y1="9" x2="9.01" y2="9" /><line x1="15" y1="9" x2="15.01" y2="9" /></svg>
                 </button>
-                <button onClick={onToggleStickerPanel} disabled={inputLocked} className="ui-bare-btn text-[var(--c-text)] chat-sticker-toggle" style={inputLocked ? { opacity: 0.35 } : undefined}>
+                <button onClick={onToggleStickerPanel} disabled={inputLocked} className="ui-bare-btn text-[var(--c-text)]" style={inputLocked ? { opacity: 0.35 } : undefined}>
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M15.5 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8.5L15.5 3Z" /><polyline points="14 3 14 8 21 8" /><path d="M8 13h0" /><path d="M16 13h0" /><path d="M10 17c.5.3 1.2.5 2 .5s1.5-.2 2-.5" /></svg>
                 </button>
-                <button onClick={onTogglePlusMenu} disabled={inputLocked} className="ui-bare-btn text-[var(--c-text)] chat-plus-toggle" style={inputLocked ? { opacity: 0.35 } : undefined}>
+                <button onClick={onTogglePlusMenu} disabled={inputLocked} className="ui-bare-btn text-[var(--c-text)]" style={inputLocked ? { opacity: 0.35 } : undefined}>
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="16" /><line x1="8" y1="12" x2="16" y2="12" /></svg>
                 </button>
                 <button
-                    {...echoGesture.handlers}
-                    disabled={!isGenerating && inputLocked && !isGroup}
-                    style={inputLocked && !isGroup && !isGenerating ? { opacity: 0.35 } : undefined}
-                    className="ui-bare-btn text-[var(--c-text)] chat-send-btn"
-                    aria-label={isGenerating ? "停止本轮生成" : !inputLocked && inputText.trim() ? (isGroup ? "发送并让群成员回复" : "发送并让TA回复") : (isGroup ? "让群成员回复" : "让TA回复")}
-                    title={isGenerating ? "停止本轮生成" : isGroup ? "发送并让群成员回复；无文字时继续聊天" : inputText.trim() ? "发送并让TA回复" : "让TA回复"}
-                    data-generating={isGenerating || undefined}
+                    onClick={handleSubmit}
+                    disabled={!isGenerating && (inputLocked || !inputText.trim())}
+                    style={inputLocked && !isGenerating ? { opacity: 0.35 } : undefined}
+                    className="ui-bare-btn text-[var(--c-text)]"
+                    aria-label={isGenerating ? "停止本轮生成" : "发送"}
+                    title={isGenerating ? "停止本轮生成" : "发送"}
                 >
                     {isGenerating ? (
                         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -1079,25 +865,23 @@ const ChatTextInputBar = memo(forwardRef<ChatTextInputHandle, {
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" /></svg>
                     )}
                 </button>
-                {(
-                    <button
-                        type="button"
-                        className="ui-bare-btn text-[var(--c-text)] chat-voice-message-btn"
-                        onClick={() => onOpenRichModal("voice_msg")}
-                        disabled={inputLocked}
-                        aria-label="语音消息"
-                        title="语音消息"
-                    >
-                        <svg viewBox="0 0 24 24" aria-hidden="true">
-                            <path fill="currentColor" fillRule="evenodd" clipRule="evenodd" d="M12 3.25a.75.75 0 0 1 .75.75v16a.75.75 0 0 1-1.5 0V4a.75.75 0 0 1 .75-.75m-4 3a.75.75 0 0 1 .75.75v10a.75.75 0 0 1-1.5 0V7A.75.75 0 0 1 8 6.25m8 0a.75.75 0 0 1 .75.75v10a.75.75 0 0 1-1.5 0V7a.75.75 0 0 1 .75-.75m-12 4a.75.75 0 0 1 .75.75v2a.75.75 0 0 1-1.5 0v-2a.75.75 0 0 1 .75-.75m16 0a.75.75 0 0 1 .75.75v2a.75.75 0 0 1-1.5 0v-2a.75.75 0 0 1 .75-.75" />
-                        </svg>
-                    </button>
-                )}
                 {!isGenerating && (
                     <button
-                        className="ui-bare-btn text-[var(--c-text)] chat-ai-reply-btn"
+                        className="ui-bare-btn text-[var(--c-text)]"
                         title={!inputLocked && inputText.trim() ? "发送输入框内容并触发回复" : "触发 AI 主动回复"}
-                        onClick={handleAIReply}
+                        onClick={() => {
+                            const trimmed = inputText.trim();
+                            // 输入框已有文字：发送输入框内容并立即触发模型回复（一次按键完成），
+                            // 避免「打完字却忘记发送」；没文字时才只触发 AI 主动回复
+                            if (!inputLocked && trimmed) {
+                                if (!onSendText(trimmed, { autoReply: true })) return;
+                                setInputText("");
+                                resetTextareaHeight();
+                            } else {
+                                onTriggerAIResponse();
+                            }
+                            onClosePanels();
+                        }}
                     >
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.582a.5.5 0 0 1 0 .963L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z" />
@@ -1108,33 +892,38 @@ const ChatTextInputBar = memo(forwardRef<ChatTextInputHandle, {
             </div>
 
             {showPlusMenu && (
-                <SortablePlusMenu isGroup={isGroup} items={plusMenuItems} />
+                <div className="chat-plus-menu">
+                    {plusMenuItems.map((item, i) => (
+                        <div key={`${item.label}-${i}`} onClick={item.onClick} className="chat-plus-menu-item flex flex-col items-center gap-1.5 cursor-pointer" {...(item.active ? { "data-active": "" } : {})}>
+                            <div className="chat-plus-icon-box">
+                                {item.icon}
+                            </div>
+                            <span className="ts-11 text-[var(--c-text)]">{item.label}</span>
+                        </div>
+                    ))}
+                </div>
             )}
             {showPlusMenu && (
                 <ChatPluginSlot name="chat.inputToolbar" slotProps={{ isGroup }} className="chat-plugin-input-toolbar" />
             )}
 
             {showEmojiPanel && (
-                <div className="chat-emoji-panel-wrap">
-                    <EmojiPanel
-                        onSelect={(emoji) => appendText(emoji, { focus: false })}
-                        onEffectSend={(text) => {
-                            if (inputLocked || isGenerating) return;
-                            onSendText(text);
-                            onClosePanels();
-                        }}
-                    />
-                </div>
+                <EmojiPanel
+                    onSelect={(emoji) => appendText(emoji, { focus: false })}
+                    onEffectSend={(text) => {
+                        if (inputLocked || isGenerating) return;
+                        onSendText(text);
+                        onClosePanels();
+                    }}
+                />
             )}
 
             {showStickerPanel && (
-                <div className="chat-emoji-panel-wrap chat-sticker-panel">
-                    <StickerPanel
-                        onSend={onSendSticker}
-                        characterId={characterId}
-                        characterIds={stickerCharacterIds}
-                    />
-                </div>
+                <StickerPanel
+                    onSend={onSendSticker}
+                    characterId={characterId}
+                    characterIds={stickerCharacterIds}
+                />
             )}
         </div>
     );
@@ -1219,7 +1008,7 @@ const OfflineTextInputBar = memo(forwardRef<OfflineTextInputHandle, {
     };
 
     return (
-        <div className="chat-input-bar chat-room-main-pane flex flex-col" data-ui="input" data-offline-input="">
+        <div className="chat-input-bar chat-room-main-pane flex flex-col" data-ui="input">
             <textarea
                 ref={textareaRef}
                 rows={1}
@@ -1246,7 +1035,8 @@ const OfflineTextInputBar = memo(forwardRef<OfflineTextInputHandle, {
                 }}
                 enterKeyHint={enterToSendEnabled ? "send" : "enter"}
                 className="chat-input-textarea"
-                placeholder={isSpectator ? "导演旁白 · 留空让他们自己聊" : undefined}
+                disabled={isSpectator}
+                placeholder={isSpectator ? "围观中，点右侧按钮推进他们的线下互动" : undefined}
             />
             <div className="chat-input-actions">
                 <button
@@ -1303,27 +1093,12 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [transientMessages, setTransientMessages] = useState<ChatMessage[]>([]);
     const [stickerReady, setStickerReady] = useState(false);
-    const storedCharacter = useChatCharacter(session.contactId);
-    const [sessionAvatarRevision, setSessionAvatarRevision] = useState(0);
-    useEffect(() => {
-        const refresh = (event: Event) => {
-            const detail = (event as CustomEvent<{ sessionId?: string }>).detail;
-            if (!detail?.sessionId || detail.sessionId === session.id) setSessionAvatarRevision(value => value + 1);
-        };
-        window.addEventListener(CHAT_SESSION_AVATARS_UPDATED_EVENT, refresh);
-        return () => window.removeEventListener(CHAT_SESSION_AVATARS_UPDATED_EVENT, refresh);
-    }, [session.id]);
-    const character = useMemo(() => {
-        if (!storedCharacter) return storedCharacter;
-        const currentSession = loadChatSessions().find(item => item.id === session.id) || session;
-        return withChatCharacterAvatar(currentSession, storedCharacter);
-    }, [session, session.id, sessionAvatarRevision, storedCharacter]);
+    const [character, setCharacter] = useState<Character | null>(() => {
+        const chars = loadCharacters();
+        return chars.find(c => c.id === session.contactId) || null;
+    });
     const [isGenerating, setIsGenerating] = useState(false);
     const [offlineMode, setOfflineMode] = useState(false);
-    useEffect(() => {
-        if (!offlineMode) return;
-        return registerFloatingPageContext({ ownerApp: "chat", appId: session.isGroup ? "group_chat" : "chat", sessionId: session.id, characterId: session.isGroup ? undefined : session.contactId, label: "当前聊天 · 线下模式" });
-    }, [offlineMode, session.id, session.isGroup, session.contactId]);
     const [theaterMode, setTheaterMode] = useState(() => kvGet(CHAT_THEATER_MODE_PREFIX + session.id) === "1");
     const [offlineTurns, setOfflineTurns] = useState<ChatOfflineTurn[]>([]);
     const [offlineVisibleCount, setOfflineVisibleCount] = useState(OFFLINE_INITIAL_LOAD);
@@ -1348,7 +1123,6 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
     const [regexRevision, setRegexRevision] = useState(0);
     // Whether there are unsent user messages waiting for AI generation
     const [pendingGenerate, setPendingGenerate] = useState(false);
-    const [pendingTextTransforms, setPendingTextTransforms] = useState(0);
     const [chatToast, setChatToast] = useState<string | null>(null);
     const chatToastTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
     // 自动生图失败：弹一次弹窗提示，关掉即消失（同一轮里多张失败只提示第一条）
@@ -1356,20 +1130,14 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
     const [cloudDeletePending, setCloudDeletePending] = useState<{ count: number } | null>(null);
     const [showPlusMenu, setShowPlusMenu] = useState(false);
     const [customPlusActions, setCustomPlusActions] = useState<RegisteredCustomAppChatPlusAction[]>(() => loadCustomAppChatPlusActions());
-    const [tapbackCandidates, setTapbackCandidates] = useState<IMessageTapbackCandidate[]>(() => loadIMessageTapbacks());
     const [activeCustomChatPlus, setActiveCustomChatPlus] = useState<ActiveCustomChatPlus | null>(null);
     const [showSettings, setShowSettings] = useState(false);
     const [showVoiceCall, setShowVoiceCall] = useState(false);
     const [showVideoCall, setShowVideoCall] = useState(false);
-    const [showHeaderCallMenu, setShowHeaderCallMenu] = useState(false);
+    const [callMinimized, setCallMinimized] = useState(false);
     const [callInitiator, setCallInitiator] = useState<"user" | "character">("user");
     const [callInitiatorName, setCallInitiatorName] = useState<string>("");
     const [userIdentity, setUserIdentity] = useState<UserIdentity | null>(null);
-    useEffect(() => {
-        const refresh = () => setUserIdentity(resolveUserIdentity(session.contactId, "chat"));
-        window.addEventListener("settings-updated", refresh);
-        return () => window.removeEventListener("settings-updated", refresh);
-    }, [session.contactId]);
     const [enterToSendEnabled, setEnterToSendEnabled] = useState(() => loadChatAppSettings().enterToSendEnabled === true);
 
     // Rich media input modals
@@ -1382,8 +1150,12 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
     useEffect(() => {
         if (!lyricQuote?.reference) return;
         setQuotingMessage({
-            id: "lyric-draft", sessionId: session.id, role: "user", status: "sent",
-            createdAt: lyricQuote.capturedAt, content: lyricQuote.reference.text,
+            id: "lyric-draft",
+            sessionId: session.id,
+            role: "user",
+            status: "sent",
+            createdAt: lyricQuote.capturedAt,
+            content: lyricQuote.reference.text,
             listeningContext: lyricQuote,
         });
         onLyricQuoteConsumed?.();
@@ -1448,21 +1220,12 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
     }, []);
 
     const [bgImageResolved, setBgImageResolved] = useState<string | null>(null);
-    const chatAppearance = useChatAppearance(bgImageResolved);
-    const beautyPreset = resolveChatBeautyPreset(session);
     const [bgLoading, setBgLoading] = useState(!!session.backgroundImage);
 
     const wrapperRef = useRef<HTMLDivElement>(null);
-    useGlassContrast(wrapperRef, bgImageResolved, beautyPreset === "glass", chatAppearance.dark);
 
     // 全屏特效：命中触发词的新消息播放表情雨/礼花（微信同款）
     const [activeScreenEffect, setActiveScreenEffect] = useState<ActiveScreenEffect | null>(null);
-
-    useEffect(() => {
-        const refreshTapbacks = () => setTapbackCandidates(loadIMessageTapbacks());
-        window.addEventListener(IMESSAGE_TAPBACKS_UPDATED_EVENT, refreshTapbacks);
-        return () => window.removeEventListener(IMESSAGE_TAPBACKS_UPDATED_EVENT, refreshTapbacks);
-    }, []);
     const screenFxSeenRef = useRef<Set<string>>(new Set());
     const screenFxMountedAtRef = useRef(Date.now());
 
@@ -1472,7 +1235,6 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
         for (const msg of messages) {
             if (seen.has(msg.id)) continue;
             seen.add(msg.id);
-            if (hasEcho(msg) || hasLove(msg) || hasFireworks(msg)) continue;
             if (msg.role !== "user" && msg.role !== "assistant") continue;
             // 只对本次打开聊天室之后产生的消息生效，历史加载/翻页不触发
             if (new Date(msg.createdAt).getTime() < screenFxMountedAtRef.current) continue;
@@ -1541,23 +1303,9 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
 
     // Message Actions state
     const [activeMessageId, setActiveMessageId] = useState<string | null>(null);
-    const [tapbackInputTarget, setTapbackInputTarget] = useState<
-        { mode: "react"; message: ChatMessage } | { mode: "replace"; message: ChatMessage; index: number } | null
-    >(null);
-    const [tapbackInputDraft, setTapbackInputDraft] = useState("");
-    const [tapbackInputError, setTapbackInputError] = useState("");
-    const tapbackInputRef = useRef<HTMLInputElement>(null);
-    const tapbackPressRef = useRef<{ id: string; pointerId: number; startedAt: number } | null>(null);
-    const suppressTapbackClickRef = useRef<string | null>(null);
     const [contextMenuAnchor, setContextMenuAnchor] = useState<ContextMenuAnchor | null>(null);
-    const [retryTarget, setRetryTarget] = useState<{ id: string; offline?: boolean; series?: RetrySeries } | null>(null);
-    const [retryVersionBusy, setRetryVersionBusy] = useState(false);
-    const retryVersionRunRef = useRef(false);
-    const [contextFocusShift, setContextFocusShift] = useState(0);
     const [isMultiSelectMode, setIsMultiSelectMode] = useState(false);
     const [selectedMessageIds, setSelectedMessageIds] = useState<Set<string>>(new Set());
-    const [showForwardSheet, setShowForwardSheet] = useState(false);
-    const [selectionPurpose, setSelectionPurpose] = useState<"delete" | "forward">("delete");
     const [showConfirmMultiDelete, setShowConfirmMultiDelete] = useState(false);
     const [expandedMonologueId, setExpandedThinkingId] = useState<string | null>(null);
     // 思维链底部弹窗：存当前查看的 reasoning 文本，null = 关闭
@@ -1605,30 +1353,8 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
     const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
     const startPosRef = useRef<{ x: number, y: number } | null>(null);
     const longPressTriggeredRef = useRef(false);
-    const swipeReplyRef = useRef<{
-        pointerId: number;
-        msgId: string;
-        startX: number;
-        startY: number;
-        element: HTMLElement;
-        dragging: boolean;
-    } | null>(null);
 
     const scrollRef = useRef<HTMLDivElement>(null);
-    useEffect(() => {
-        const node = wrapperRef.current;
-        // Cancel native vertical panning only after a rightward intent is clear.
-        // Pointer capture alone cannot stop mobile browsers cancelling a gesture.
-        const retainReplyGesture = (e: TouchEvent) => {
-            const swipe = swipeReplyRef.current;
-            const touch = e.touches[0];
-            if (!swipe || !touch || e.touches.length !== 1 || longPressTriggeredRef.current) return;
-            const dx = touch.clientX - swipe.startX, dy = Math.abs(touch.clientY - swipe.startY);
-            if ((swipe.dragging || (dx >= 5 && dx >= dy * .65)) && e.cancelable) e.preventDefault();
-        };
-        node?.addEventListener("touchmove", retainReplyGesture, { passive: false });
-        return () => node?.removeEventListener("touchmove", retainReplyGesture);
-    }, []);
     const mountedRef = useRef(true);
     const isGeneratingRef = useRef(false);
     const visibleMessagesRef = useRef<ChatMessage[]>([]);
@@ -1637,7 +1363,6 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
     useEffect(() => () => { mountedRef.current = false; }, []);
     useEffect(() => { visibleMessagesRef.current = messages; }, [messages]);
     useEffect(() => { hasMoreRef.current = hasMore; }, [hasMore]);
-    useChatEdgeTint(scrollRef);
     useChatBottomReserve(
         wrapperRef,
         scrollRef,
@@ -1682,217 +1407,22 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
         applyStoredMessageWindow(loadChatMessages(session.id));
     }, [applyStoredMessageWindow, session.id]);
 
-    useEffect(() => {
-        let active = true;
-        if (activeGenerationRuns.has(session.id) || activeOfflineGenerationRuns.has(session.id)) return;
-        retryVersionRunRef.current = true;
-        void recoverPendingRetryVersions(session.id).then(changed => {
-            if (!active || !changed) return;
-            syncMessagesFromStorage();
-            setOfflineTurns(loadChatOfflineTurns(session.id));
-        }).catch(error => { if (active) showChatToast(`恢复重试版本失败：${error instanceof Error ? error.message : String(error)}`); })
-            .finally(() => { if (active) retryVersionRunRef.current = false; });
-        return () => { active = false; retryVersionRunRef.current = false; };
-    }, [session.id, syncMessagesFromStorage]);
-
-    useEffect(() => {
-        const syncAppliedTapback = (event: Event) => {
-            const detail = (event as CustomEvent<{ sessionId?: string }>).detail;
-            if (detail?.sessionId === session.id) syncMessagesFromStorage();
-        };
-        window.addEventListener(IMESSAGE_TAPBACK_APPLIED_EVENT, syncAppliedTapback);
-        return () => window.removeEventListener(IMESSAGE_TAPBACK_APPLIED_EVENT, syncAppliedTapback);
-    }, [session.id, syncMessagesFromStorage]);
-
     const closeContextMenu = () => {
         setActiveMessageId(null);
         setActiveOfflineTarget(null);
         setContextMenuAnchor(null);
-        setContextFocusShift(0);
-        setTapbackInputTarget(null);
-        setTapbackInputError("");
     };
 
-    const openMessageContextMenu = (msgId: string, anchor: ContextMenuAnchor, target?: HTMLElement | null) => {
-        // Opening a menu ends the current swipe; its bubble is no longer a reply gesture target.
-        resetSwipeReply(false);
-        const focusBubble = target?.dataset.msgId === msgId;
-        setContextFocusShift(0);
+    const openMessageContextMenu = (msgId: string, anchor: ContextMenuAnchor) => {
         setActiveOfflineTarget(null);
-        setContextMenuAnchor({
-            ...anchor,
-            ...(focusBubble ? { focusBubble: true } : {}),
-        });
+        setContextMenuAnchor(anchor);
         setActiveMessageId(msgId);
     };
-
-    useLayoutEffect(() => {
-        if (!activeMessageId || !contextMenuAnchor?.focusBubble || !wrapperRef.current) {
-            return;
-        }
-
-        const root = wrapperRef.current;
-        const frame = window.requestAnimationFrame(() => {
-            const bubble = Array.from(root.querySelectorAll<HTMLElement>("[data-msg-id][data-active]"))
-                .find(element => element.dataset.msgId === activeMessageId);
-            const row = bubble?.closest<HTMLElement>(".chat-msg-wrapper");
-            const tapbar = bubble?.querySelector<HTMLElement>(".imessage-context-tapbar");
-            const index = bubble?.querySelector<HTMLElement>(".imessage-context-index");
-            if (!bubble || !row || !tapbar || !index) return;
-
-            const rootRect = root.getBoundingClientRect();
-            const bubbleRect = bubble.getBoundingClientRect();
-            const tapbarRect = tapbar.getBoundingClientRect();
-            const indexRect = index.getBoundingClientRect();
-            const groupTop = Math.min(tapbarRect.top, bubbleRect.top, indexRect.top);
-            const groupBottom = Math.max(tapbarRect.bottom, bubbleRect.bottom, indexRect.bottom);
-            const safeTop = rootRect.top + 18;
-            const composer = root.querySelector<HTMLElement>(":scope > .chat-input-bar");
-            const composerTop = composer?.getBoundingClientRect().top ?? rootRect.bottom;
-            const safeBottom = Math.min(rootRect.bottom, composerTop) - 18;
-            const minimumShift = safeTop - groupTop;
-            const maximumShift = safeBottom - groupBottom;
-
-            // Keep an already-valid bubble exactly where it is. Only move the
-            // whole bubble/menu stack by the smallest amount needed to reveal
-            // the tapbar above or the complete action index below.
-            let nextShift = 0;
-            if (minimumShift > 0 && maximumShift >= minimumShift) {
-                nextShift = minimumShift;
-            } else if (maximumShift < 0 && minimumShift <= maximumShift) {
-                nextShift = maximumShift;
-            } else if (minimumShift > maximumShift) {
-                // Extremely tall content cannot fit both constraints at once;
-                // keep the tapbar accessible and let the index use its own scroll.
-                nextShift = minimumShift;
-            }
-            nextShift = Math.round(nextShift);
-            setContextFocusShift(nextShift);
-        });
-
-        return () => window.cancelAnimationFrame(frame);
-    }, [activeMessageId, contextMenuAnchor?.focusBubble, tapbackInputTarget]);
 
     const openOfflineContextMenu = (target: OfflineActionTarget, anchor: ContextMenuAnchor) => {
         setActiveMessageId(null);
         setContextMenuAnchor(anchor);
         setActiveOfflineTarget(target);
-    };
-
-    const beginQuoteReply = (message: ChatMessage) => {
-        const activeBubble = Array.from(wrapperRef.current?.querySelectorAll<HTMLElement>("[data-msg-id]") || [])
-            .find(element => element.dataset.msgId === message.id);
-        // In click-to-translate mode this is the language currently on screen;
-        // in auto mode the first section is the original, so the translation is not duplicated.
-        const visibleText = activeBubble?.querySelector<HTMLElement>(".chat-bilingual-section")?.innerText.trim();
-        setQuotingMessage(visibleText ? { ...message, content: visibleText } : message);
-        closeContextMenu();
-        requestAnimationFrame(() => chatTextInputRef.current?.focus());
-    };
-
-    const handleTapback = (message: ChatMessage, tapback: MessageTapback) => {
-        const groupPhotos = message.mediaData?.photoGroupId ? loadChatMessages(session.id)
-            .filter(item => item.mediaData?.photoGroupId === message.mediaData?.photoGroupId)
-            .sort((a, b) => (a.mediaData?.photoGroupIndex || 0) - (b.mediaData?.photoGroupIndex || 0)) : [];
-        const lead = groupPhotos[(groupPhotos[0]?.mediaData?.photoGroupActiveIndex ?? 0)];
-        const storedMessageId = lead?.id || getStoredActionMessageId(message);
-        const stored = loadChatMessages(session.id).find(item => item.id === storedMessageId);
-        if (!stored) return;
-        if (session.isGroup) {
-            setGroupTapback(session.id, storedMessageId, { actorId: "self", actorName: userIdentity?.name || "你" }, tapback, true);
-            syncMessagesFromStorage();
-            closeContextMenu();
-            return;
-        }
-        const nextMediaData = { ...stored.mediaData };
-        if (nextMediaData.tapback === tapback && nextMediaData.tapbackBy === "user") {
-            delete nextMediaData.tapback;
-            delete nextMediaData.tapbackBy;
-        } else {
-            nextMediaData.tapback = tapback;
-            nextMediaData.tapbackBy = "user";
-        }
-        updateMessageMediaData(storedMessageId, nextMediaData);
-        syncMessagesFromStorage();
-        closeContextMenu();
-    };
-
-    const openTapbackInput = (target: NonNullable<typeof tapbackInputTarget>) => {
-        flushSync(() => {
-            setTapbackInputTarget(target);
-            setTapbackInputDraft("");
-            setTapbackInputError("");
-        });
-        // Focusing in the user's pointer/click event gives mobile browsers the
-        // best chance to show the keyboard; the field also remains tappable.
-        tapbackInputRef.current?.focus();
-    };
-
-    const submitTapbackInput = () => {
-        if (!tapbackInputTarget) return;
-        const emoji = tapbackInputDraft.trim();
-        if (!isNativeTapbackEmoji(emoji)) {
-            setTapbackInputError("请输入一个完整的 emoji 表情");
-            return;
-        }
-        if (tapbackInputTarget.mode === "replace") {
-            const glyphs = tapbackCandidates.map((item, index) => index === tapbackInputTarget.index ? emoji : item.glyph);
-            try {
-                setTapbackCandidates(saveIMessageTapbacks(glyphs));
-            } catch (error) {
-                setTapbackInputError(error instanceof Error ? error.message : "保存失败");
-                return;
-            }
-        } else {
-            handleTapback(tapbackInputTarget.message, emoji);
-        }
-        closeContextMenu();
-    };
-
-    const handleUserPhotoAnnotationsSave = (
-        target: ChatMessage,
-        annotations: NonNullable<ChatMessage["mediaData"]>["photoAnnotations"] = [],
-        previous: NonNullable<ChatMessage["mediaData"]>["photoAnnotations"] = [],
-    ) => {
-        const before = previous || [];
-        const actorName = userIdentity?.name || "你";
-        const after = (annotations || []).map(annotation => before.some(item => item.id === annotation.id)
-            ? annotation
-            : { ...annotation, actorId: "self", actorName, createdAt: annotation.createdAt || new Date().toISOString() });
-        if (JSON.stringify(before) === JSON.stringify(after)) return;
-        const mediaData = { ...target.mediaData, photoAnnotations: after };
-        updateMessageMediaData(target.id, mediaData);
-
-        const added = after.filter(annotation => !before.some(item => item.id === annotation.id));
-        const summary = added.length
-            ? describePhotoAnnotations(added)
-            : (after.length < before.length ? "移除了之前的部分标记" : describePhotoAnnotations(after));
-        const count = target.mediaData?.photoGroupCount || 1;
-        const index = target.mediaData?.photoGroupIndex || 0;
-        const event = pushChatMessage({
-            sessionId: session.id,
-            role: "user",
-            content: count > 1 ? `${actorName}标记了第 ${index + 1} 张照片` : `${actorName}标记了照片`,
-            mediaType: "photo_markup_action",
-            mediaData: {
-                photoMarkupTargetMessageId: target.id,
-                photoMarkupTargetGroupId: target.mediaData?.photoGroupId,
-                photoMarkTargetIndex: index,
-                photoMarkupActorId: "self",
-                photoMarkupActorName: actorName,
-                photoMarkupSummary: summary,
-                photoMarkupTargetLabel: target.mediaData?.label,
-                photoMarkupTargetGroupCount: count,
-                photoMarkupTargetPhotoKind: target.mediaData?.photoKind,
-            },
-        });
-        setMessages(prev => [
-            ...prev.map(message => message.id === target.id ? { ...message, mediaData } : message),
-            event,
-        ]);
-        cancelFollowUp(session.id);
-        setPendingGenerate(true);
-        queueMicrotask(() => window.dispatchEvent(new CustomEvent(CHAT_REQUEST_REPLY_EVENT, { detail: { sessionId: session.id } })));
     };
 
     const getContextMenuInitialStyle = () => {
@@ -1949,8 +1479,6 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
         return () => { setChatActive(false); };
     }, [session.id]);
 
-    const backgroundStreamRendererRef = useRef<(text: string) => void>(() => {});
-    const backgroundStreamTextRef = useRef("");
     // --- Follow-up: listen for background service events ---
     useEffect(() => {
         const onStarted = (e: Event) => {
@@ -1976,38 +1504,18 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
                 // Reload messages from storage (the service already saved them)
                 syncMessagesFromStorage();
                 setIsGenerating(false);
-                if (streamParseFrameRef.current) cancelAnimationFrame(streamParseFrameRef.current);
-                streamParseFrameRef.current = 0;
-                backgroundStreamTextRef.current = "";
-                setStreamPreview(null);
             }
         };
-        const showBackgroundStream = (text: string) => {
-            backgroundStreamTextRef.current = text;
-            if (streamParseFrameRef.current) return;
-            streamParseFrameRef.current = window.requestAnimationFrame(() => {
-                streamParseFrameRef.current = 0;
-                backgroundStreamRendererRef.current(backgroundStreamTextRef.current);
-            });
-        };
-        const onStream = (e: Event) => {
-            const detail = (e as CustomEvent<{ sessionId: string; text: string }>).detail;
-            if (detail?.sessionId === session.id) showBackgroundStream(detail.text);
-        };
         window.addEventListener("followup-started", onStarted);
-        window.addEventListener("followup-stream", onStream);
         window.addEventListener("followup-message-saved", onMessageSaved);
         window.addEventListener("followup-fired", onFired);
         // 生成中途才进入聊天室会错过 followup-started 事件，
         // 挂载时主动查一次后台生成状态，把「正在输入」补回来
         if (isBackgroundReplyGenerating(session.id)) {
             setIsGenerating(true);
-            const text = getBackgroundReplyStream(session.id);
-            if (text) showBackgroundStream(text);
         }
         return () => {
             window.removeEventListener("followup-started", onStarted);
-            window.removeEventListener("followup-stream", onStream);
             window.removeEventListener("followup-message-saved", onMessageSaved);
             window.removeEventListener("followup-fired", onFired);
         };
@@ -2076,22 +1584,6 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
     }, [session.id, syncMessagesFromStorage]);
 
 
-    const [groupIdentityRevision, setGroupIdentityRevision] = useState(0);
-    useEffect(() => {
-        const refresh = () => {
-            setGroupIdentityRevision(value => value + 1);
-        };
-        window.addEventListener("chat-characters-updated", refresh);
-        window.addEventListener("focus", refresh);
-        return () => {
-            window.removeEventListener("chat-characters-updated", refresh);
-            window.removeEventListener("focus", refresh);
-        };
-    }, [session.isGroup, session.contactId]);
-    const groupPrivateAliases = new Map(session.isGroup
-        ? loadChatSessions().filter(s => !s.isGroup && s.alias?.trim()).map(s => [s.contactId, s.alias!.trim()])
-        : []);
-
     // Group chat: map of characterId → Character for quick lookup
     const groupCharMap = useMemo(() => {
         if (!session.isGroup) return new Map<string, Character>();
@@ -2099,35 +1591,13 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
         const map = new Map<string, Character>();
         for (const id of session.participantIds || []) {
             const c = chars.find(ch => ch.id === id);
-            if (c) map.set(id, withChatCharacterAvatar(loadChatSessions().find(item => item.id === session.id) || session, c));
+            if (c) map.set(id, c);
         }
         return map;
-    }, [session, session.id, session.isGroup, session.participantIds, groupIdentityRevision, sessionAvatarRevision]);
+    }, [session.isGroup, session.participantIds]);
 
     // Flat array of group characters for components that need it
     const groupCharacters = useMemo(() => [...groupCharMap.values()], [groupCharMap]);
-    const tintCharacters = useMemo(() => session.isGroup ? groupCharacters : character ? [character] : [], [session.isGroup, groupCharacters, character]);
-    const groupBubbleTint = useGroupBubbleTint(tintCharacters, session.id, chatAppearance.dark, beautyPreset);
-    const reactionStyleForActor = useCallback((actorId: string): React.CSSProperties => {
-        const isUser = actorId === "self" || actorId === "user";
-        const characterId = actorId === "legacy-assistant" ? session.contactId : actorId;
-        const tint = groupBubbleTint(isUser ? undefined : characterId, isUser) as Record<string, string | number>;
-        return {
-            "--im26-tapback-fill": tint["--im26-base-blue"] || tint["--im26-base-incoming"] || tint["--bubble-surface-color"],
-            "--im26-tapback-glyph": tint["--bubble-text-ink"],
-        } as React.CSSProperties;
-    }, [groupBubbleTint, session.contactId]);
-    const quoteStyle = (source?: ChatMessage): React.CSSProperties | undefined => {
-        if (!source) return undefined;
-        const tint = groupBubbleTint(source.senderCharacterId || session.contactId, source.role === "user") as Record<string, string | number>;
-        // Resolve on every render from the same live settings as normal bubbles.
-        // Use an opaque pigment for the outline; manual text/alpha belongs to the filled bubble only.
-        return {
-            "--quote-source-bg": tint["--bubble-surface-color"],
-            "--quote-source-ink": tint["--bubble-text-ink"],
-            "--quote-source-opacity": tint["--bubble-surface-opacity"],
-        } as React.CSSProperties;
-    };
     const groupCharacterNames = useMemo(() => groupCharacters.map(item => item.name).filter(Boolean).join("、"), [groupCharacters]);
 
     const activeRegexes = useMemo<RegexConfig[]>(() => {
@@ -2159,19 +1629,6 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
             stripTexts: (preset?.strip_texts || []).filter(Boolean),
         };
     }, [regexRevision, session.contactId, session.isGroup]);
-
-    backgroundStreamRendererRef.current = (text: string) => {
-        const clean = (value: string) => splitStreamPreviewSegments(cleanStreamText(value, {
-            stripXmlTags: streamPreviewTagConfig.online, stripLiterals: streamPreviewTagConfig.stripTexts,
-        }));
-        if (session.isGroup) {
-            const nameToId = new Map(groupCharacters.map(item => [item.name, item.id]));
-            const parts = parseGroupChatResponse(text, nameToId).map(item => ({
-                characterId: item.characterId, characterName: item.characterName, texts: clean(item.responseText),
-            }));
-            setStreamPreview({ parts });
-        } else setStreamPreview({ texts: clean(text) });
-    };
 
     const displayRegexMacroEngine = useMemo(() => {
         const charName = session.isGroup
@@ -2313,7 +1770,7 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
         const charIds = session.isGroup && session.participantIds
             ? session.participantIds
             : [session.contactId];
-        Promise.allSettled(charIds.map(id => prewarmStickerCache(id))).then(() => {
+        Promise.all(charIds.map(id => prewarmStickerCache(id))).then(() => {
             setStickerReady(true);
             needsInitialScrollRef.current = true;
             prevMsgCountRef.current = 0;
@@ -2672,7 +2129,7 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
         rawResponseText,
     });
 
-    const handleAIMediaAction = async (actionType: string, charN: string, userN: string) => {
+    const handleAIMediaAction = (actionType: string, charN: string, userN: string) => {
         // Find the target message in current messages (most recent matching user message with pending status)
         const targetMediaType = actionType.includes("payment_request")
             ? "payment_request"
@@ -2728,10 +2185,8 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
         }
 
         const refundReason = actionType === "decline_red_packet" ? "红包退回" : actionType === "decline_transfer" ? "转账退回" : null;
-        const refunded = refundReason ? await refundOutgoingMoneyMessage(targetMsg, refundReason) : targetMsg.mediaData;
-        if (refundReason && !refunded) return;
         const updatedMediaData = {
-            ...refunded,
+            ...(refundReason ? refundOutgoingMoneyMessage(targetMsg, refundReason) : targetMsg.mediaData),
             status: newStatus,
             ...(targetMediaType === "payment_request" ? {
                 paymentResolvedAt: new Date().toISOString(),
@@ -2833,7 +2288,7 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
     };
 
     // 转账：按 ownerName 匹配发送人，且验证 claimerName === recipientName
-    const handleGroupTransferAction = async (action: "accept" | "decline", claimerName: string, ownerName?: string) => {
+    const handleGroupTransferAction = (action: "accept" | "decline", claimerName: string, ownerName?: string) => {
         const freshMessages = loadChatMessages(session.id);
         const targetMsg = [...freshMessages].reverse().find(m => {
             if (m.mediaType !== "transfer" || m.mediaData?.status !== "pending") return false;
@@ -2849,9 +2304,8 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
         const ownerDisplay = owner === (userIdentity?.name) ? "你" : owner;
         const newStatus = action === "accept" ? "received" as const : "declined" as const;
         const refundData = action === "decline" && targetMsg.role === "user"
-            ? await refundOutgoingMoneyMessage(targetMsg, "转账退回")
+            ? refundOutgoingMoneyMessage(targetMsg, "转账退回")
             : targetMsg.mediaData;
-        if (action === "decline" && targetMsg.role === "user" && !refundData) return;
         const updatedData = { ...refundData, status: newStatus };
         updateMessageMediaData(targetMsg.id, updatedData);
         setMessages(prev => prev.map(m => m.id === targetMsg.id ? { ...m, mediaData: updatedData } : m));
@@ -2970,7 +2424,6 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
             return roundReasoning;
         };
         const imageReplacementTasks: Promise<unknown>[] = [];
-        const reactedCharacters = new Set<string>();
         const currentStateByCharacter = new Map<string, StateValue[]>();
         const getCurrentStateForCharacter = (characterId: string): StateValue[] => {
             const cached = currentStateByCharacter.get(characterId);
@@ -2986,55 +2439,12 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
             if (!(session.participantIds || []).includes(r.characterId)) continue;
             if (isGroupMuted(session, r.characterId)) continue;
             const responseBatchId = createResponseBatchId();
-            const { parts: rawParts, stateValues, freshStateValues, statusPanel, innerMonologue } = parseAIResponse(applyListeningRoomReply(r.responseText, session.id, r.characterId, responseRoundId), getCurrentStateForCharacter(r.characterId));
+            const { parts: rawParts, stateValues, freshStateValues, statusPanel, innerMonologue } = parseAIResponse(r.responseText, getCurrentStateForCharacter(r.characterId));
             const parts = stripInvalidStickerParts(rawParts, r.characterId);
             let attachedState = false;
             let savedAnyPart = false;
             for (const part of parts) {
                 throwIfGenerationStopped(guard);
-                if (part.mediaType === "photo_markup_action") {
-                    const applied = applyAssistantPhotoMarkupAction({
-                        sessionId: session.id,
-                        actorId: r.characterId,
-                        actorName: r.characterName,
-                        markData: part.mediaData,
-                        responseBatchId,
-                        responseRoundId,
-                    });
-                    if (applied) {
-                        savedAnyPart = true;
-                        msgsSetter(prev => [...prev.map(message => message.id === applied.target.id ? applied.target : message), applied.event]);
-                    }
-                    continue;
-                }
-                if (part.mediaType === "group_name_action" || part.mediaType === "private_alias_action") {
-                    const applied = applyAssistantChatRenameAction({
-                        sessionId: session.id,
-                        actorId: r.characterId,
-                        actorName: r.characterName,
-                        actionData: part.mediaData,
-                        responseBatchId,
-                        responseRoundId,
-                        liveSession: session,
-                    });
-                    if (applied) {
-                        savedAnyPart = true;
-                        msgsSetter(prev => [...prev, applied.event]);
-                    }
-                    continue;
-                }
-                if (part.mediaType === "avatar_action") {
-                    applyAvatarAction(session.id, r.characterId, part.mediaData?.avatarImageId);
-                    syncMessagesFromStorage();
-                    continue;
-                }
-                if (part.mediaType === "tapback_action") {
-                    if (!reactedCharacters.has(r.characterId) && applyGroupAssistantTapback(session.id, part.mediaData?.tapback, { actorId: r.characterId, actorName: r.characterName })) {
-                        reactedCharacters.add(r.characterId);
-                        syncMessagesFromStorage();
-                    }
-                    continue;
-                }
                 // Filter action types
                 if (part.mediaType === "voice_call" || part.mediaType === "video_call") {
                     if (session.isSpectator) continue; // 围观群不能把用户卷进群通话
@@ -3351,21 +2761,6 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
         if (!description) return draft;
 
         throwIfGenerationStopped(guard);
-        const imageSettings = loadImageGenerationSettings();
-        const hasUsableImageApi = hasUsableImageGenerationConfig(imageSettings);
-        if (!hasUsableImageApi) {
-            return {
-                ...draft,
-                mediaType: "image",
-                mediaData: {
-                    ...part.mediaData,
-                    label: description,
-                    photoKind: "text_photo",
-                    imageGenerationStatus: "fallback",
-                    imageGenerationError: undefined,
-                },
-            };
-        }
         return {
             ...draft,
             mediaType: "image",
@@ -3379,12 +2774,7 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
         guard?: GenerationRunGuard,
     ): Promise<ChatMessage | null> => {
         if (!isPendingChatGeneratedImageMessage(message)) return Promise.resolve(null);
-        if (message.mediaData?.multiImagePlan && !isMultiImageGenerationExecutor(message)) return Promise.resolve(null);
-        const replacement = message.mediaData?.multiImagePlan
-            ? generateAndApplyChatGeneratedImageGroup(message, characterId || session.contactId, { signal: guard?.signal })
-                .then(updated => updated[0] ?? null)
-            : generateAndApplyChatGeneratedImage(message, characterId || session.contactId, { signal: guard?.signal });
-        return replacement
+        return generateAndApplyChatGeneratedImage(message, characterId || session.contactId, { signal: guard?.signal })
             .catch(error => {
                 if (!isAbortLikeError(error)) {
                     console.warn("[ImageGeneration] Failed to generate chat image:", error);
@@ -3396,19 +2786,35 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
     };
 
     // ── Music Card Click-to-Play ──
-    const handleMusicCardPlay = async (title: string, artist?: string, sharedTrack?: import("@/lib/music-storage").MusicTrack) => {
+    const handleMusicCardPlay = async (title: string, artist?: string) => {
         const musicBridge = getMusicControlBridge();
         if (!musicBridge) { showChatToast("音乐播放器未就绪"); return; }
         showPersistentChatToast("加载音乐中...");
         try {
-            if (sharedTrack) {
-                const result = await musicBridge.playTrack(sharedTrack);
-                showChatToast(result.message);
+            const found = await findPlayableMatch(title, artist);
+            if (!found) {
+                showChatToast("没有找到该音乐哦~");
                 return;
             }
-            const result = await musicBridge.playByQuery(title, artist);
-            showChatToast(result.message);
-
+            const { result: match, playUrl } = found;
+            if (match.source === "local" && match.localTrack) {
+                await musicBridge.playTrack(match.localTrack);
+            } else if (match.source === "netease" && match.neteaseResult && playUrl) {
+                const r = match.neteaseResult;
+                const detail = await getNeteaseSongDetail(r.id);
+                const lyrics = await getNeteaseLyrics(r.id);
+                await musicBridge.playTrack({
+                    id: `netease_${r.id}`,
+                    title: detail?.name || r.name,
+                    artist: detail?.artists || r.artists,
+                    duration: r.duration / 1000,
+                    coverUrl: detail?.coverUrl,
+                    lyrics,
+                    liked: false,
+                    addedAt: new Date().toISOString(),
+                });
+            }
+            clearChatToast();
         } catch {
             showChatToast("没有找到该音乐哦~");
         }
@@ -3434,7 +2840,6 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
             ? getLatestStateValues(session.id)
             : getLatestCharacterStateValues(session.contactId);
 
-        aiResponseText = applyListeningRoomReply(aiResponseText, session.id);
         const { parts: rawParts, stateValues, freshStateValues, statusPanel, innerMonologue } = parseAIResponse(aiResponseText, previousState);
         const parts = stripInvalidStickerParts(rawParts);
         throwIfGenerationStopped(options);
@@ -3442,9 +2847,6 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
         // Detect call triggers and AI media actions, filter them out
         let triggerCall: "voice" | "video" | undefined;
         let hasDecline = false;
-        let hasTapbackAction = false;
-        let hasPhotoMarkupAction = false;
-        let hasChatRenameAction = false;
         const charN = character?.name || "对方";
         const userN = userIdentity?.name || "你";
         const filteredParts: typeof parts = [];
@@ -3455,51 +2857,8 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
         };
         for (const p of parts) {
             throwIfGenerationStopped(options);
-            if (p.mediaType === "photo_markup_action") {
-                const applied = applyAssistantPhotoMarkupAction({
-                    sessionId: session.id,
-                    actorId: session.contactId,
-                    actorName: charN,
-                    markData: p.mediaData,
-                    responseBatchId,
-                });
-                if (applied) {
-                    hasPhotoMarkupAction = true;
-                    setMessages(prev => [...prev.map(message => message.id === applied.target.id ? applied.target : message), applied.event]);
-                }
-                continue;
-            }
-            if (p.mediaType === "private_alias_action" || p.mediaType === "group_name_action") {
-                const applied = applyAssistantChatRenameAction({
-                    sessionId: session.id,
-                    actorId: session.contactId,
-                    actorName: charN,
-                    actionData: p.mediaData,
-                    responseBatchId,
-                    liveSession: session,
-                });
-                if (applied) {
-                    hasChatRenameAction = true;
-                    setMessages(prev => [...prev, applied.event]);
-                }
-                continue;
-            }
             if (p.mediaType === "voice_call") { triggerCall = "voice"; continue; }
             if (p.mediaType === "video_call") { triggerCall = "video"; continue; }
-            if (p.mediaType === "avatar_action") {
-                applyAvatarAction(session.id, session.contactId, p.mediaData?.avatarImageId);
-                setMessages(loadChatMessages(session.id));
-                continue;
-            }
-            if (p.mediaType === "tapback_action") {
-                if (hasTapbackAction) continue;
-                const updatedTarget = applyAssistantTapback(session.id, p.mediaData?.tapback);
-                if (updatedTarget) {
-                    hasTapbackAction = true;
-                    setMessages(prev => prev.map(message => message.id === updatedTarget.id ? updatedTarget : message));
-                }
-                continue;
-            }
             if (p.mediaType === "accept_red_packet" || p.mediaType === "decline_red_packet"
                 || p.mediaType === "accept_transfer" || p.mediaType === "decline_transfer"
                 || p.mediaType === "accept_payment_request" || p.mediaType === "decline_payment_request") {
@@ -3554,7 +2913,7 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
                 });
                 setMessages(prev => [...prev, aiMsg]);
             }
-            return { hasVisible: hasTapbackAction || hasPhotoMarkupAction || hasChatRenameAction, stateValues, triggerCall, hasDecline };
+            return { hasVisible: false, stateValues, triggerCall, hasDecline };
         }
 
         // Build rich-media drafts first, then publish them in the same order as the UI display.
@@ -3868,9 +3227,7 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
         history,
         errorPrefix = "发送失败",
         onDecline,
-        retryVersionRun = false,
     }: ManagedGenerationOptions) => {
-        if (retryVersionRunRef.current && !retryVersionRun) return;
         if (isGeneratingRef.current) {
             if (activeGenerationRuns.has(session.id)) return;
             // 上一轮被外部取消/顶替后收尾提前返回过，标记已是陈旧状态：复位后继续本次请求
@@ -3881,7 +3238,6 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
 
         const generationRun = createGenerationRun(session.id);
         const generationRunId = generationRun.runId;
-        const directorNoteId = getGroupDirectorNote(session.id)?.id;
         const isCurrentGeneration = () => isGenerationRunActive(session.id, generationRunId);
         const generationGuard: GenerationRunGuard = { signal: generationRun.controller.signal, isActive: isCurrentGeneration };
         let shouldRunDeclineReply = false;
@@ -3934,7 +3290,6 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
                 );
                 if (!isCurrentGeneration()) return;
                 await processGroupParts(results, setMessages, generationGuard, roundReasoning, { instantReveal: isSessionStreamingEnabled(session, true) });
-                if (results.length && isCurrentGeneration()) consumeGroupDirectorNote(session.id, directorNoteId);
             } else {
                 let capturedReasoning: string | undefined;
                 const cr = await generateChatCompletion(
@@ -4026,14 +3381,10 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
             return { ok: false };
         }
         const isRedPacket = mediaType === "red_packet";
-        const walletCurrency = loadWalletState().currency || "CNY";
-        const sourceCurrency = normalizeCurrency(mediaData?.currency);
-        const debitAmount = sourceCurrency === walletCurrency ? amount : mediaData?.walletDebitCurrency === walletCurrency ? mediaData.walletDebitAmount : undefined;
-        if (typeof debitAmount !== "number" || !Number.isFinite(debitAmount) || debitAmount <= 0) { showChatToast("请先完成汇率查询后发送"); return { ok: false }; }
         const result = payWithWalletBalance({
-            amount: debitAmount,
+            amount,
             title: isRedPacket ? "发红包" : "发转账",
-            detail: `${session.isGroup ? session.groupName || "群聊" : character?.name || "聊天"}：${isRedPacket ? "发红包" : "发转账"} ${amount.toFixed(2)} ${sourceCurrency}，扣款 ${debitAmount.toFixed(2)} ${walletCurrency}`,
+            detail: `${session.isGroup ? session.groupName || "群聊" : character?.name || "聊天"}：${isRedPacket ? "发红包" : "发转账"} ${amount.toFixed(2)} 元`,
             category: isRedPacket ? "红包" : "转账",
         });
         if (!result.ok || !result.transaction) {
@@ -4044,32 +3395,22 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
             ok: true,
             mediaData: {
                 ...mediaData,
-                walletDebitAmount: debitAmount,
-                walletDebitCurrency: walletCurrency,
                 walletTransactionId: result.transaction.id,
             },
         };
     };
 
-    const refundOutgoingMoneyMessage = async (msg: ChatMessage, reason: "红包退回" | "转账退回"): Promise<ChatMessage["mediaData"]> => {
+    const refundOutgoingMoneyMessage = (msg: ChatMessage, reason: "红包退回" | "转账退回"): ChatMessage["mediaData"] => {
         const data = msg.mediaData;
         if (!data?.walletTransactionId || data.walletRefundTransactionId) return data;
-        const targetCurrency = loadWalletState().currency || "CNY";
-        const sourceCurrency = data.walletDebitCurrency || "CNY";
-        const rate = await fetchExchangeRate(sourceCurrency, targetCurrency);
-        if (!rate || (loadWalletState().currency || "CNY") !== targetCurrency) { showChatToast("退款汇率查询失败，稍后重试"); return undefined; }
-        const latestData = loadChatMessages(session.id).find(item => item.id === msg.id)?.mediaData;
-        if (latestData?.walletRefundTransactionId) return latestData;
-        const amount = cnyAmount(data.walletDebitAmount ?? getMoneyMediaAmount(data), rate);
+        const amount = getMoneyMediaAmount(data);
         if (amount <= 0) return data;
         const result = creditWalletBalance(amount, reason, `${reason}：${data.label || msg.content || "聊天款项"}`, "聊天退款");
         if (!result.ok || !result.transaction) return data;
-        const refunded = {
+        return {
             ...data,
             walletRefundTransactionId: result.transaction.id,
         };
-        updateMessageMediaData(msg.id, refunded);
-        return refunded;
     };
 
     const creditIncomingMoneyMessage = (msg: ChatMessage, actionType: string): ChatMessage => {
@@ -4080,12 +3421,7 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
         const amount = actionType === "accept_red_packet"
             ? Number(data?.claimedAmounts?.[userName] ?? data?.amount ?? 0)
             : Number(data?.amount ?? 0);
-        const currency = normalizeCurrency(data?.currency);
-        const walletCurrency = loadWalletState().currency || "CNY";
-        const safeAmount = typeof data?.receivedAmount === "number" && data.receivedCurrency === walletCurrency
-            ? data.receivedAmount : currency !== walletCurrency
-            ? (walletCurrency === "CNY" && typeof data?.cnyAmount === "number" && Number.isFinite(data.cnyAmount) ? data.cnyAmount : 0)
-            : Number.isFinite(amount) ? Math.max(0, Math.round(amount * 100) / 100) : 0;
+        const safeAmount = Number.isFinite(amount) ? Math.max(0, Math.round(amount * 100) / 100) : 0;
         if (safeAmount <= 0) return msg;
         const result = creditWalletBalance(
             safeAmount,
@@ -4104,7 +3440,7 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
 
     const sendRichMessage = (mediaType: ChatMessage["mediaType"], mediaData: ChatMessage["mediaData"], content: string = "", mediaUrl?: string): boolean => {
         if (!ensureGroupSpeakPermission()) return false;
-        if (isGenerating || retryVersionRunRef.current) {
+        if (isGenerating) {
             showChatToast("请先等待对方回复");
             return false;
         }
@@ -4137,45 +3473,6 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
             ...(mediaUrl ? { mediaUrl } : {}),
         });
         setMessages(prev => [...prev, newMsg]);
-        setPendingGenerate(true);
-        return true;
-    };
-
-    const sendPhotoGroup = (items: Array<{ label: string; mediaUrl?: string; photoKind: "photo" | "text_photo" }>): boolean => {
-        if (!items.length || !ensureGroupSpeakPermission()) return false;
-        if (isGenerating) {
-            showChatToast("请先等待对方回复");
-            return false;
-        }
-        cancelFollowUp(session.id);
-        const photoGroupId = `photo_group_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-        const responseBatchId = createResponseBatchId();
-        const created = items.map((item, index) => pushChatMessage({
-            sessionId: session.id,
-            role: "user",
-            content: "",
-            mediaType: "image",
-            mediaUrl: item.mediaUrl,
-            responseBatchId,
-            mediaData: {
-                label: item.label,
-                photoKind: item.photoKind,
-                photoGroupId,
-                photoGroupIndex: index,
-                photoGroupCount: items.length,
-            },
-        }));
-        if (created[0]) {
-            const mediaData = {
-                ...created[0].mediaData,
-                photoGroupActiveIndex: 0,
-                photoGroupLeadMessageId: created[0].id,
-                photoGroupLeadLabel: created[0].mediaData?.label,
-            };
-            updateMessageMediaData(created[0].id, mediaData);
-            created[0] = { ...created[0], mediaData };
-        }
-        setMessages(prev => [...prev, ...created]);
         setPendingGenerate(true);
         return true;
     };
@@ -4278,7 +3575,6 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
     };
 
     const triggerAIResponse = async () => {
-        const directorNoteId = getGroupDirectorNote(session.id)?.id;
         if (isGeneratingRef.current) {
             if (activeGenerationRuns.has(session.id)) return;
             // 上一轮被外部取消/顶替后收尾提前返回过，标记已是陈旧状态：复位后继续本次请求
@@ -4348,55 +3644,8 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
                         const parts = stripInvalidStickerParts(rawParts, senderInfo.characterId);
                         let attachedState = false;
                         let savedAnyPart = false;
-                        let appliedTapback = false;
                         for (const part of parts) {
                             throwIfGenerationStopped(generationGuard);
-                            if (part.mediaType === "photo_markup_action") {
-                                const applied = applyAssistantPhotoMarkupAction({
-                                    sessionId: session.id,
-                                    actorId: senderInfo.characterId,
-                                    actorName: senderInfo.characterName,
-                                    markData: part.mediaData,
-                                    responseBatchId,
-                                    responseRoundId,
-                                });
-                                if (applied) {
-                                    savedAnyPart = true;
-                                    setMessages(prev => [...prev.map(message => message.id === applied.target.id ? applied.target : message), applied.event]);
-                                }
-                                continue;
-                            }
-                            if (part.mediaType === "group_name_action" || part.mediaType === "private_alias_action") {
-                                const applied = applyAssistantChatRenameAction({
-                                    sessionId: session.id,
-                                    actorId: senderInfo.characterId,
-                                    actorName: senderInfo.characterName,
-                                    actionData: part.mediaData,
-                                    responseBatchId,
-                                    responseRoundId,
-                                    liveSession: session,
-                                });
-                                if (applied) {
-                                    savedAnyPart = true;
-                                    setMessages(prev => [...prev, applied.event]);
-                                }
-                                continue;
-                            }
-                            // Streamed tool rounds must execute the action rather than save an invisible bubble.
-                            if (part.mediaType === "avatar_action") {
-                                if (!isGroupMuted(session, senderInfo.characterId)) applyAvatarAction(session.id, senderInfo.characterId, part.mediaData?.avatarImageId);
-                                syncMessagesFromStorage();
-                                continue;
-                            }
-                            if (part.mediaType === "tapback_action") {
-                                if (!appliedTapback && session.participantIds?.includes(senderInfo.characterId)
-                                    && !isGroupMuted(session, senderInfo.characterId)
-                                    && applyGroupAssistantTapback(session.id, part.mediaData?.tapback, { actorId: senderInfo.characterId, actorName: senderInfo.characterName })) {
-                                    appliedTapback = true;
-                                    syncMessagesFromStorage();
-                                }
-                                continue;
-                            }
                             if (!part.content.trim() && !part.mediaType) continue;
                             const draft = buildAssistantMessageDraft(part, {
                                 sessionId: session.id,
@@ -4518,7 +3767,6 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
                     throwIfGenerationStopped(generationGuard);
                 }
                 await processGroupParts(results, setMessages, generationGuard, pendingGroupReasoning, { instantReveal: isSessionStreamingEnabled(session, true) });
-                if (results.length && isCurrentGeneration()) consumeGroupDirectorNote(session.id, directorNoteId);
             } else {
                 let lastSendResult: Awaited<ReturnType<typeof splitAndSaveAIMessages>> | undefined;
                 // 每轮 LLM 调用的思维链，onReasoning 先于该轮 onTextPart 触发
@@ -4658,22 +3906,14 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
         if (shouldRunDeclineReply) await triggerReply();
     };
 
-    const idleReplyMessageId = useMemo(() => {
-        for (let i = messages.length - 1; i >= 0; i--) {
-            if (messages[i].role !== "system") return messages[i].role === "user" ? messages[i].id : "";
-        }
-        return "";
-    }, [messages]);
-    useChatIdleAutoReply(wrapperRef, {
-        active: !offlineMode && !isMultiSelectMode && !session.isSpectator,
+    // 收起键盘（或关掉表情/加号面板）并安静 N 秒后自动触发回复，
+    // 等价于替用户点一次「触发回复」。判定全在 hook 内部，配置关掉后与手动模式一致。
+    useKeyboardDismissAutoSend(wrapperRef, {
+        active: !offlineMode && !isMultiSelectMode,
         pending: pendingGenerate,
-        generating: isGenerating || retryVersionBusy,
-        busy: showEmojiPanel || showStickerPanel || showPlusMenu || showSettings
-            || showVoiceCall || showVideoCall || showHeaderCallMenu || !!richModal
-            || !!activeCustomChatPlus || !!activeMessageId || !!editingMessageId
-            || !!quotingMessage || pendingTextTransforms > 0,
+        generating: isGenerating,
+        panelOpen: showEmojiPanel || showStickerPanel || showPlusMenu,
         sessionId: session.id,
-        messageId: idleReplyMessageId,
         onTrigger: () => { void triggerAIResponse(); },
     });
 
@@ -4721,9 +3961,9 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
         return true;
     };
 
-    const handleSendText = (text: string, options?: { autoReply?: boolean; screenEffect?: "echo" | "love" | "fireworks"; mentions?: { characterId: string; name: string }[] }): boolean => {
+    const handleSendText = (text: string, options?: { autoReply?: boolean }): boolean => {
         if (!ensureGroupSpeakPermission()) return false;
-        if (isGenerating || retryVersionRunRef.current) {
+        if (isGenerating) {
             showChatToast("请先等待对方回复");
             return false;
         }
@@ -4735,64 +3975,28 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
 
         // If quoting a message, send as quote type
         const isQuoting = !!quotingMessage;
-        const quoteSourceMessages = quotingMessage ? loadChatMessages(session.id) : [];
-        const quoteStored = quotingMessage ? quoteSourceMessages.find(message => message.id === quotingMessage.id) || quotingMessage : undefined;
-        const quoteGroup = quoteStored?.mediaData?.photoGroupId
-            ? quoteSourceMessages
-                .filter(message => message.mediaData?.photoGroupId === quoteStored.mediaData?.photoGroupId)
-                .sort((a, b) => (a.mediaData?.photoGroupIndex ?? 0) - (b.mediaData?.photoGroupIndex ?? 0))
-            : [];
-        const quoteGroupIndex = quoteGroup.length
-            ? Math.max(0, Math.min(quoteGroup.length - 1, quoteStored?.mediaData?.photoGroupActiveIndex ?? 0))
-            : 0;
-        const quotePhoto = quoteGroup.length ? quoteGroup[quoteGroupIndex] : (quoteStored?.mediaType === "image" ? quoteStored : undefined);
-        const quoteData = quoteStored ? {
-            ...(quoteStored.id !== "lyric-draft" ? { quoteMessageId: quoteStored.id } : {}),
-            quotePreview: getQuotePreview(quotingMessage || quoteStored),
-            quoteRole: quoteStored.role,
-            ...(quotePhoto ? {
-                quotePhotoMessageId: quotePhoto.id,
-                quotePhotoLabel: quotePhoto.mediaData?.label,
-                quotePhotoGroupIndex: quoteGroupIndex,
-                quotePhotoGroupCount: quoteGroup.length || 1,
-                quotePhotoAnnotations: quotePhoto.mediaData?.photoAnnotations,
-            } : {}),
+        const quoteData = quotingMessage ? {
+            quoteMessageId: quotingMessage.id,
+            quotePreview: quotingMessage.content.slice(0, 50),
+            quoteRole: quotingMessage.role,
         } : undefined;
-        const sentAt = new Date().toISOString();
-        const listeningContext = captureMusicListeningContext(sentAt, quoteStored?.listeningContext);
         setQuotingMessage(null);
 
         const commitSendText = (currentText: string) => {
             // 掷骰子：整条消息就是骰子图标时，发骰子气泡（内容仅图标），
             // 点数由系统旁白公布——避免结果挂在 user 消息上被角色模仿格式
-            const screenEffect = options?.screenEffect === "fireworks" && canUseFireworks({ content: currentText })
-                ? "fireworks" as const
-                : options?.screenEffect === "love" && canUseLove({ content: currentText })
-                ? "love" as const
-                : options?.screenEffect === "echo" && canUseEcho({ content: currentText })
-                    ? "echo" as const
-                    : undefined;
-            const diceOnly = !screenEffect && !isQuoting && isDiceOnlyMessage(currentText);
+            const diceOnly = !isQuoting && isDiceOnlyMessage(currentText);
             const diceFace = diceOnly ? rollChatDiceFace() : 0;
 
             const newMsg = pushChatMessage({
                 sessionId: session.id,
                 role: "user",
                 content: currentText,
-                createdAt: sentAt,
-                listeningContext,
                 mediaType: diceOnly ? "dice" : isQuoting ? "quote" : undefined,
-                mediaUrl: isQuoting ? quotePhoto?.mediaUrl : undefined,
-                mediaData: diceOnly ? { diceFace } : screenEffect || isQuoting || (session.isGroup && options?.mentions?.length) ? {
-                    ...(screenEffect ? { screenEffect } : {}),
-                    ...(isQuoting ? quoteData : {}),
-                    ...(session.isGroup && options?.mentions?.length ? { mentions: options.mentions.filter(m => session.participantIds?.includes(m.characterId) && currentText.includes(`@${m.name}`)) } : {}),
-                } : undefined,
+                mediaData: diceOnly ? { diceFace } : isQuoting ? quoteData : undefined,
             });
 
             setMessages(prev => [...prev, newMsg]);
-            // Use the actual publish boundary (also after async plugins), not only history inference.
-            if (hasEcho(newMsg) || hasLove(newMsg) || hasFireworks(newMsg)) echo.published(newMsg);
             if (diceOnly) {
                 const diceAside = pushChatMessage({
                     sessionId: session.id,
@@ -4801,18 +4005,15 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
                 });
                 setMessages(prev => [...prev, diceAside]);
             }
-            // Every published bubble can receive a reply after the configured quiet interval.
-            // Enter only sends; the reply switch decides whether a quiet interval follows.
             setPendingGenerate(true);
-            // Explicit send-and-reply is immediate; send-only uses the opt-in idle hook.
-            // Run after plugins finish and the message is saved.
+            // 按回复键发送：消息落库后立即触发模型回复（无论插件是否异步改写，
+            // 都在消息真正写入后触发，避免回复基于旧上下文）
             if (options?.autoReply) void triggerAIResponse();
         };
 
         // 聊天插件织入点 user.beforeSend：无插件时走原同步路径，
         // 有插件时输入框先清空，改写/取消在异步续体里完成
         if (getChatPluginHookBus().hasHandlers("user.beforeSend")) {
-            setPendingTextTransforms(count => count + 1);
             void runChatPluginTransform("user.beforeSend", {
                 text: trimmed,
                 sessionId: session.id,
@@ -4822,7 +4023,7 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
                 if (payload.cancelled) return;
                 const finalText = typeof payload.text === "string" ? payload.text.trim() : trimmed;
                 if (finalText) commitSendText(finalText);
-            }).finally(() => setPendingTextTransforms(count => Math.max(0, count - 1)));
+            });
         } else {
             commitSendText(trimmed);
         }
@@ -4963,14 +4164,7 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
             showChatToast("线下回复生成中");
             return false;
         }
-        const draftText = inputText.trim();
-        const directorMode = !!(session.isGroup && session.isSpectator);
-        if (directorMode && !queueGroupDirectorNote(session.id, draftText)) {
-            showChatToast("旁白未保存，请控制在4000字内");
-            return false;
-        }
-        const directorNoteId = directorMode ? getGroupDirectorNote(session.id)?.id : undefined;
-        const currentText = directorMode ? "" : draftText;
+        const currentText = inputText.trim();
         if (!currentText && !(session.isGroup && session.isSpectator)) return false;
 
         cancelFollowUp(session.id);
@@ -4979,7 +4173,7 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
         setShowStickerPanel(false);
         setRichModal(null);
         setPendingOfflineUserText(currentText);
-        offlineGenerationInputRef.current = draftText;
+        offlineGenerationInputRef.current = currentText;
         setIsOfflineGenerating(true);
         offlineStreamAccumRef.current = "";
         setOfflineStreamPreview(null);
@@ -5031,10 +4225,9 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
                     thinkingTag: result.thinkingTag,
                 });
                 setOfflineTurns(prev => [...prev, saved]);
-                consumeGroupDirectorNote(session.id, directorNoteId);
             } catch (error: any) {
                 if (!isCurrentOfflineRun() || isAbortLikeError(error)) return;
-                offlineTextInputRef.current?.setText(draftText);
+                offlineTextInputRef.current?.setText(currentText);
                 showChatToast(`线下生成失败: ${error?.message || String(error)}`, 3000);
             } finally {
                 if (!finishOfflineGenerationRun(session.id, offlineRunId)) return;
@@ -5107,28 +4300,8 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
         setActiveOfflineTarget(null);
     };
 
-    const openRetryVersions = (id: string, offline = false) => {
-        if (isGeneratingRef.current || isOfflineGenerating || retryVersionBusy || retryVersionRunRef.current) { showChatToast("请先等待当前回复结束"); return; }
-        try {
-            cancelFollowUp(session.id);
-            setRetryTarget({ id, offline, series: findRetrySeries(session.id, id, offline) });
-        } catch (error) { showChatToast(error instanceof Error ? error.message : String(error)); }
-    };
-    const switchRetryVersion = async (index: number) => {
-        if (!retryTarget?.series || retryVersionBusy || isGeneratingRef.current || isOfflineGenerating || retryVersionRunRef.current) return;
-        retryVersionRunRef.current = true;
-        setRetryVersionBusy(true);
-        try {
-            const series = await selectRetryVersion(retryTarget.series, index);
-            const id = series.versions[index].memberIds[0];
-            if (retryTarget.offline) setOfflineTurns(loadChatOfflineTurns(session.id)); else syncMessagesFromStorage();
-            setRetryTarget({ ...retryTarget, id, series });
-        } catch (error) { showChatToast(error instanceof Error ? error.message : String(error)); }
-        finally { retryVersionRunRef.current = false; setRetryVersionBusy(false); }
-    };
-
-    const handleOfflineRetryFrom = async (turnId: string, guidance = "", existing?: RetrySeries) => {
-        if (isOfflineGenerating || retryVersionRunRef.current) {
+    const handleOfflineRetryFrom = async (turnId: string) => {
+        if (isOfflineGenerating) {
             showChatToast("线下回复生成中");
             return;
         }
@@ -5141,13 +4314,6 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
             showChatToast("这一轮没有可重试的用户输入");
             return;
         }
-
-        let retrySeries: RetrySeries;
-        retryVersionRunRef.current = true;
-        try { retrySeries = await beginRetryVersion(session.id, turnId, "offline", existing); }
-        catch (error) { retryVersionRunRef.current = false; showChatToast(`无法保存重试版本：${error instanceof Error ? error.message : String(error)}`); return; }
-        if (isOfflineGenerating || JSON.stringify(loadChatOfflineTurns(session.id)) !== JSON.stringify(offlineTurns)) { retryVersionRunRef.current = false; showChatToast("聊天记录刚刚发生变化，请重新打开重试窗口"); return; }
-        const beforeIds = loadChatOfflineTurns(session.id).map(turn => turn.id);
 
         cancelFollowUp(session.id);
         setActiveOfflineTarget(null);
@@ -5167,7 +4333,7 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
         const isCurrentOfflineRun = () => isOfflineGenerationRunActive(session.id, offlineRunId);
 
         try {
-            const history = withRetryGuidance(buildOfflinePromptHistory(baseTurns, retryInput), session.id, guidance, retrySourceText(retrySeries, turnId));
+            const history = buildOfflinePromptHistory(baseTurns, retryInput);
             const onOfflineDelta = (delta: string) => {
                 if (!isCurrentOfflineRun()) return;
                 offlineStreamAccumRef.current += delta;
@@ -5211,12 +4377,10 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
             setOfflineTurns([...baseTurns, saved]);
         } catch (error: any) {
             if (!isCurrentOfflineRun() || isAbortLikeError(error)) return;
+            offlineTextInputRef.current?.setText(retryInput);
             showChatToast(`线下重试失败: ${error?.message || String(error)}`, 3000);
         } finally {
-            if (!finishOfflineGenerationRun(session.id, offlineRunId) && activeOfflineGenerationRuns.has(session.id)) { retryVersionRunRef.current = false; return; }
-            try { await finishRetryVersion(retrySeries, beforeIds); setOfflineTurns(loadChatOfflineTurns(session.id)); }
-            catch (error) { showChatToast(`重试版本保存失败：${error instanceof Error ? error.message : String(error)}`); }
-            retryVersionRunRef.current = false;
+            if (!finishOfflineGenerationRun(session.id, offlineRunId)) return;
             setPendingOfflineUserText("");
             offlineGenerationInputRef.current = "";
             setIsOfflineGenerating(false);
@@ -5225,45 +4389,25 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
         }
     };
 
-    const handleRetry = async (msgId: string, guidance = "", existing?: RetrySeries) => {
-        if (isGeneratingRef.current || retryVersionRunRef.current) { showChatToast("请先等待当前回复结束"); return; }
-        const stored = loadChatMessages(session.id);
-        const targetIndex = stored.findIndex(m => m.id === msgId);
-        if (targetIndex === -1 || !["assistant", "system"].includes(stored[targetIndex].role)) return;
+    const handleRetry = async (msgId: string) => {
+        const msgIndex = messages.findIndex(m => m.id === msgId);
+        if (msgIndex === -1 || messages[msgIndex].role !== "assistant") return;
 
-        const isSystemNotice = existing ? existing.kind === "notice" : uiRole(stored[targetIndex]) === "system";
-        const msgIndex = isSystemNotice ? targetIndex : retryMessageStart(stored, msgId, existing);
-        let retrySeries: RetrySeries;
-        retryVersionRunRef.current = true;
-        try { retrySeries = await beginRetryVersion(session.id, msgId, isSystemNotice ? "notice" : "tail", existing); }
-        catch (error) { retryVersionRunRef.current = false; showChatToast(`无法保存重试版本：${error instanceof Error ? error.message : String(error)}`); return; }
-        if (isGeneratingRef.current || JSON.stringify(loadChatMessages(session.id)) !== JSON.stringify(stored)) { retryVersionRunRef.current = false; showChatToast("聊天记录刚刚发生变化，请重新打开重试窗口"); return; }
-        const noticeIds = new Set(retrySeries.versions[retrySeries.active].memberIds);
-        const contextMessages = isSystemNotice ? stored.filter(m => !noticeIds.has(m.id)) : stored.slice(0, msgIndex);
+        const contextMessages = messages.slice(0, msgIndex);
 
-        // Retrying a notice must preserve subsequent user messages and replies.
-        if (isSystemNotice) {
-            deleteChatMessagesByIds(session.id, [...noticeIds]);
-            syncMessagesFromStorage();
-        } else {
-            deleteChatMessagesFrom(stored[msgIndex].id);
-            syncMessagesFromStorage();
-        }
+        // Delete this message and everything after it
+        deleteChatMessagesFrom(msgId);
+        setMessages(prev => prev.slice(0, msgIndex));
         setActiveMessageId(null);
 
         // Cancel any pending follow-up for this session
         cancelFollowUp(session.id);
 
-        try {
         await runManagedGeneration({
-            history: withRetryGuidance(contextMessages, session.id, guidance, retrySourceText(retrySeries, msgId)),
+            history: contextMessages,
             errorPrefix: "重试失败",
-            onDecline: () => runManagedGeneration({ history: loadChatMessages(session.id), retryVersionRun: true }),
-            retryVersionRun: true,
+            onDecline: triggerReply,
         });
-        await finishRetryVersion(retrySeries, stored.map(message => message.id)); syncMessagesFromStorage(); }
-        catch (error) { showChatToast(`重试版本保存失败：${error instanceof Error ? error.message : String(error)}`); }
-        finally { retryVersionRunRef.current = false; }
     };
 
     const handleRetractMessage = (msgId: string) => {
@@ -5606,10 +4750,6 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
 
     const handleMessagePointerDown = (e: React.PointerEvent, msgId: string) => {
         if (isMultiSelectMode) return;
-        if (activeMessageId || activeOfflineTarget) {
-            handleMessagePointerCancel();
-            return;
-        }
         // Prevent right click from triggering the timer, as it has its own context menu handler
         if (e.pointerType === 'mouse' && e.button !== 0) return;
 
@@ -5620,96 +4760,15 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
         startPosRef.current = anchor;
         longPressTriggeredRef.current = false;
 
-        const element = e.currentTarget as HTMLElement;
-        swipeReplyRef.current = element.dataset.msgId === msgId
-            ? {
-                pointerId: e.pointerId,
-                msgId,
-                startX: e.clientX,
-                startY: e.clientY,
-                element,
-                dragging: false,
-            }
-            : null;
-
         if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
         longPressTimerRef.current = setTimeout(() => {
             longPressTriggeredRef.current = true;
-            openMessageContextMenu(msgId, anchor, element);
+            openMessageContextMenu(msgId, anchor);
             longPressTimerRef.current = null;
         }, 500); // 500ms long press
     };
 
-    const resetSwipeReply = (animate = true) => {
-        const swipe = swipeReplyRef.current;
-        if (!swipe) return;
-        const { element } = swipe;
-        try {
-            if (element.hasPointerCapture(swipe.pointerId)) element.releasePointerCapture(swipe.pointerId);
-        } catch { /* pointer capture may already be released by the browser */ }
-        if (animate) element.style.transition = "transform 220ms cubic-bezier(.2,.8,.2,1)";
-        element.style.transform = "translate3d(0,0,0)";
-        element.removeAttribute("data-swiping-reply");
-        element.removeAttribute("data-swipe-ready");
-        window.setTimeout(() => {
-            if (!element.isConnected || element.hasAttribute("data-swiping-reply")) return;
-            element.style.removeProperty("transition");
-            element.style.removeProperty("transform");
-        }, animate ? 230 : 0);
-        swipeReplyRef.current = null;
-    };
-
-    const handleMessagePointerMove = (e: React.PointerEvent) => {
-        if (activeMessageId || activeOfflineTarget || longPressTriggeredRef.current) {
-            resetSwipeReply(false);
-            return;
-        }
-        const swipe = swipeReplyRef.current;
-        if (!swipe || swipe.pointerId !== e.pointerId) return;
-        const dx = e.clientX - swipe.startX;
-        const dy = e.clientY - swipe.startY;
-
-        if (!swipe.dragging && Math.abs(dy) > 16 && Math.abs(dy) > Math.abs(dx) * 1.8) {
-            handleMessagePointerCancel();
-            return;
-        }
-        if (dx <= 0) {
-            if (Math.abs(dx) > 10) handleMessagePointerCancel();
-            return;
-        }
-        if (!swipe.dragging && (dx < 5 || dx < Math.abs(dy) * .65)) return;
-
-        if (longPressTimerRef.current) {
-            clearTimeout(longPressTimerRef.current);
-            longPressTimerRef.current = null;
-        }
-        swipe.dragging = true;
-        try {
-            if (!swipe.element.hasPointerCapture(e.pointerId)) swipe.element.setPointerCapture(e.pointerId);
-        } catch { /* older webviews can reject pointer capture */ }
-        e.preventDefault();
-        const offset = Math.min(72, (dx - 4) * 0.78);
-        swipe.element.style.transition = "none";
-        swipe.element.style.transform = `translate3d(${offset}px,0,0)`;
-        swipe.element.toggleAttribute("data-swiping-reply", true);
-        swipe.element.toggleAttribute("data-swipe-ready", dx >= 8);
-    };
-
     const handleMessagePointerUp = (e: React.PointerEvent) => {
-        const swipe = swipeReplyRef.current;
-        const shouldReply = Boolean(
-            swipe
-            && !activeMessageId
-            && !activeOfflineTarget
-            && !longPressTriggeredRef.current
-            && swipe.pointerId === e.pointerId
-            && swipe.dragging
-            && e.clientX - swipe.startX >= 8
-        );
-        const replyMessage = shouldReply && swipe
-            ? messages.find(message => message.id === swipe.msgId) || null
-            : null;
-        resetSwipeReply();
         startPosRef.current = null;
         if (longPressTimerRef.current) {
             clearTimeout(longPressTimerRef.current);
@@ -5721,15 +4780,9 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
             e.preventDefault();
             longPressTriggeredRef.current = false;
         }
-        if (replyMessage) {
-            e.stopPropagation();
-            e.preventDefault();
-            beginQuoteReply(replyMessage);
-        }
     };
 
     const handleMessagePointerCancel = () => {
-        resetSwipeReply();
         startPosRef.current = null;
         longPressTriggeredRef.current = false;
         if (longPressTimerRef.current) {
@@ -5788,15 +4841,10 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
             return;
         }
         setActiveMessageId(null);
-        const storedMessages = loadChatMessages(session.id);
-        const targetMsg = storedMessages.find(m => m.id === msgId);
+        const targetMsg = loadChatMessages(session.id).find(m => m.id === msgId);
         if (!targetMsg) return;
-        const photoGroupId = targetMsg.mediaData?.photoGroupId;
-        const targetMessages = photoGroupId
-            ? storedMessages.filter(message => message.mediaData?.photoGroupId === photoGroupId)
-            : [targetMsg];
-        void deleteWeixinCloudBeforeLocal(targetMessages, () => {
-            targetMessages.forEach(message => deleteChatMessage(message.id));
+        void deleteWeixinCloudBeforeLocal([targetMsg], () => {
+            deleteChatMessage(msgId);
             syncMessagesFromStorage();
         });
     };
@@ -5835,7 +4883,7 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
                 <div className="flex">
                     <button onClick={() => { copyTextToClipboard(getOfflineCopyText(turn, role)); setActiveOfflineTarget(null); }} className="ctx-menu-btn">复制</button>
                     <button onClick={() => handleOfflineEditStart(turn, role)} className="ctx-menu-btn">编辑</button>
-                    <button onClick={() => { closeContextMenu(); openRetryVersions(turn.id, true); }} className="ctx-menu-btn ctx-menu-btn-danger">重试一下</button>
+                    <button onClick={() => void handleOfflineRetryFrom(turn.id)} className="ctx-menu-btn ctx-menu-btn-danger">重试以下</button>
                 </div>
                 <div className="flex">
                     <button onClick={() => handleOfflineDeleteTurn(turn.id)} className="ctx-menu-btn ctx-menu-btn-danger">删除</button>
@@ -5853,131 +4901,15 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
 
     /** Reusable context menu for user/assistant bubbles */
     const renderBubbleContextMenu = (m: ChatMessage, options?: { allowMultiSelect?: boolean }) => {
-        if (m.mediaData?.photoGroupId) {
-            const photos = loadChatMessages(session.id).filter(item => item.mediaData?.photoGroupId === m.mediaData?.photoGroupId)
-                .sort((a, b) => (a.mediaData?.photoGroupIndex || 0) - (b.mediaData?.photoGroupIndex || 0));
-            m = photos[photos[0]?.mediaData?.photoGroupActiveIndex ?? 0] || m;
-        }
         const storedMessageId = getStoredActionMessageId(m);
-        const isTapbackInputOpen = tapbackInputTarget?.message.id === m.id;
-        const tapbackPicker = isTapbackInputOpen ? (
-            <form
-                className="imessage-tapback-inline-input"
-                data-mode={tapbackInputTarget.mode}
-                role="dialog"
-                aria-label={tapbackInputTarget.mode === "replace" ? "替换 Tapback 候选" : "输入 Tapback 表情"}
-                onSubmit={event => { event.preventDefault(); submitTapbackInput(); }}
-                onKeyDown={event => { if (event.key === "Escape") setTapbackInputTarget(null); }}
-                onPointerDown={event => event.stopPropagation()}
-            >
-                {tapbackInputTarget.mode === "replace" && (
-                    <span className="imessage-tapback-replace-glyph" aria-hidden="true">
-                        {tapbackCandidates[tapbackInputTarget.index]?.glyph}
-                    </span>
-                )}
-                <label className="imessage-tapback-inline-field">
-                    <span className="sr-only">
-                        {tapbackInputTarget.mode === "replace" ? "输入新的候选 Emoji" : "输入一个 Emoji 回应当前消息"}
-                    </span>
-                    <input
-                        ref={tapbackInputRef}
-                        type="text"
-                        value={tapbackInputDraft}
-                        onChange={event => { setTapbackInputDraft(event.target.value); setTapbackInputError(""); }}
-                        maxLength={32}
-                        autoComplete="off"
-                        autoCapitalize="off"
-                        spellCheck={false}
-                        enterKeyHint="done"
-                        aria-label="一个 emoji 表情"
-                        aria-invalid={!!tapbackInputError}
-                        placeholder={tapbackInputTarget.mode === "replace" ? "输入新 Emoji" : "输入 Emoji"}
-                    />
-                    {tapbackInputError && (
-                        <span className="imessage-tapback-inline-error" role="alert" aria-label={tapbackInputError} title={tapbackInputError}>
-                            <AlertCircle size={14} strokeWidth={2} aria-hidden="true" />
-                        </span>
-                    )}
-                </label>
-                <button
-                    type="button"
-                    className="imessage-tapback-inline-button"
-                    onClick={() => { setTapbackInputTarget(null); setTapbackInputError(""); }}
-                    aria-label="取消"
-                >
-                    <X size={17} strokeWidth={1.9} aria-hidden="true" />
-                </button>
-                <button
-                    type="submit"
-                    className="imessage-tapback-inline-button imessage-tapback-inline-submit"
-                    aria-label={tapbackInputTarget.mode === "replace" ? "替换候选" : "发送回应"}
-                >
-                    <Check size={18} strokeWidth={2.2} aria-hidden="true" />
-                </button>
-            </form>
-        ) : (
-            <div className="imessage-tapback-picker" role="group" aria-label="回应消息">
-                {tapbackCandidates.map((item, index) => (
-                    <button
-                        type="button"
-                        key={item.id}
-                        className="imessage-tapback-option"
-                        data-tapback={item.id}
-                        {...((session.isGroup ? getGroupTapbacks(m).some(reaction => reaction.actorId === "self" && reaction.emoji === item.glyph) : getTapbackGlyph(m.mediaData?.tapback) === item.glyph && m.mediaData?.tapbackBy === "user") ? { "data-selected": "" } : {})}
-                        onPointerDown={event => {
-                            if (!event.isPrimary) return;
-                            suppressTapbackClickRef.current = null;
-                            tapbackPressRef.current = { id: item.id, pointerId: event.pointerId, startedAt: Date.now() };
-                        }}
-                        onPointerUp={event => {
-                            const press = tapbackPressRef.current;
-                            tapbackPressRef.current = null;
-                            if (press?.id !== item.id || press.pointerId !== event.pointerId || Date.now() - press.startedAt < 500) return;
-                            event.preventDefault();
-                            event.stopPropagation();
-                            suppressTapbackClickRef.current = item.id;
-                            openTapbackInput({ mode: "replace", message: m, index });
-                        }}
-                        onPointerCancel={() => { tapbackPressRef.current = null; }}
-                        onPointerLeave={() => { tapbackPressRef.current = null; }}
-                        onContextMenu={event => {
-                            event.preventDefault();
-                            event.stopPropagation();
-                            suppressTapbackClickRef.current = item.id;
-                            openTapbackInput({ mode: "replace", message: m, index });
-                        }}
-                        onClick={() => {
-                            if (suppressTapbackClickRef.current === item.id) {
-                                suppressTapbackClickRef.current = null;
-                                return;
-                            }
-                            handleTapback(m, item.id);
-                        }}
-                        onKeyDown={event => {
-                            if (event.shiftKey && event.key === "Enter") {
-                                event.preventDefault();
-                                openTapbackInput({ mode: "replace", message: m, index });
-                            }
-                        }}
-                        aria-label={`${item.label}，长按可替换候选`}
-                        title={`${item.label} · 长按替换`}
-                    >
-                        <span aria-hidden="true">{item.glyph}</span>
-                    </button>
-                ))}
-                <button
-                    type="button"
-                    className="imessage-tapback-option imessage-tapback-more"
-                    onClick={event => { event.stopPropagation(); openTapbackInput({ mode: "react", message: m }); }}
-                    aria-label="输入其他 emoji 回应当前消息"
-                    title="其他 emoji"
-                ><span aria-hidden="true">＋</span></button>
-            </div>
-        );
-        const pluginActions = getChatPluginRuntime().getMessageActions(m);
-        const actionIndex = (
-            <>
-                <div className="flex imessage-context-actions">
+        const menu = (
+            <div
+                onPointerDown={e => e.stopPropagation()}
+                ref={positionFloatingContextMenu}
+                style={getContextMenuInitialStyle()}
+                className="ctx-menu chat-floating-ctx-menu flex flex-col items-center gap-[6px] py-[4px] px-0"
+                data-role={m.role}>
+                <div className="flex">
                     <button onClick={() => {
                         const text = m.content;
                         const fallbackCopy = () => {
@@ -5996,89 +4928,54 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
                             fallbackCopy();
                         }
                         setActiveMessageId(null);
-                    }} className="ctx-menu-btn"><Copy className="imessage-context-icon" aria-hidden="true" /><span>复制</span></button>
-                    {(hasEcho(m) || hasLove(m) || hasFireworks(m)) && <button type="button" onClick={() => { closeContextMenu(); echo.replay(m.id); }} className="ctx-menu-btn">
-                        <span className="imessage-context-icon" aria-hidden="true">↻</span><span>{hasFireworks(m) ? "重播烟花" : hasLove(m) ? "重播爱心" : "重播回声"}</span>
-                    </button>}
+                    }} className="ctx-menu-btn">复制</button>
                     <button onClick={() => (m.role === "assistant" ? handleEditResponseStart(m) : handleEditMessageStart(m))} className="ctx-menu-btn">
-                        <Pencil className="imessage-context-icon" aria-hidden="true" />
-                        <span>{m.role === "assistant" && (m.rawResponseText || m.editableResponseText) ? "编辑回复" : "编辑"}</span>
+                        {m.role === "assistant" && (m.rawResponseText || m.editableResponseText) ? "编辑回复" : "编辑"}
                     </button>
                     {m.mediaType === "audio" && m.mediaData?.label && (
-                        <button onClick={() => { setVoiceTextIds(prev => { const next = new Set(prev); if (next.has(m.id)) next.delete(m.id); else next.add(m.id); return next; }); setActiveMessageId(null); }} className="ctx-menu-btn"><FileText className="imessage-context-icon" aria-hidden="true" /><span>{voiceTextIds.has(m.id) ? "收起文字" : "转文字"}</span></button>
+                        <button onClick={() => { setVoiceTextIds(prev => { const next = new Set(prev); if (next.has(m.id)) next.delete(m.id); else next.add(m.id); return next; }); setActiveMessageId(null); }} className="ctx-menu-btn">转文字</button>
                     )}
                     {m.role === "user" && (
-                        <button onClick={() => handleRetractMessage(storedMessageId)} className="ctx-menu-btn"><Undo2 className="imessage-context-icon" aria-hidden="true" /><span>撤回消息</span></button>
+                        <button onClick={() => handleRetractMessage(storedMessageId)} className="ctx-menu-btn">撤回消息</button>
                     )}
-                </div>
-                {pluginActions.length > 0 && (
-                    <div className="flex imessage-context-actions">
-                        {pluginActions.map(action => (
-                            <button
-                                key={`${action.pluginId}:${action.id}`}
-                                className="ctx-menu-btn"
-                                onClick={() => {
-                                    getChatPluginRuntime().runMessageAction(action, m);
-                                    setActiveMessageId(null);
-                                }}
-                            ><Blocks className="imessage-context-icon" aria-hidden="true" /><span>{action.label}</span></button>
-                        ))}
-                    </div>
-                )}
-                {options?.allowMultiSelect !== false && (
-                    <div className="flex imessage-context-actions">
-                        <button onClick={() => startMultiSelectFromMessage(m)} className="ctx-menu-btn"><ListChecks className="imessage-context-icon" aria-hidden="true" /><span>多选</span></button>
-                        {(m.role === "user" || m.role === "assistant") && !m.isRetracted && <button onClick={() => startForwardSelection(m)} className="ctx-menu-btn"><Send className="imessage-context-icon" aria-hidden="true" /><span>转发</span></button>}
-                    </div>
-                )}
-                <div className="flex imessage-context-actions" data-menu-danger-group="">
                     {m.role === "assistant" && (
-                        <button onClick={() => { closeContextMenu(); openRetryVersions(storedMessageId); }} className="ctx-menu-btn ctx-menu-btn-danger"><RotateCcw className="imessage-context-icon" aria-hidden="true" /><span>重试一下</span></button>
+                        <button onClick={() => handleRetry(storedMessageId)} className="ctx-menu-btn ctx-menu-btn-danger">重试以下</button>
                     )}
-                    <button onClick={() => handleDeleteMessage(storedMessageId)} className="ctx-menu-btn ctx-menu-btn-danger"><Trash2 className="imessage-context-icon" aria-hidden="true" /><span>删除</span></button>
-                    <button onClick={() => handleDeleteMessagesFrom(storedMessageId)} className="ctx-menu-btn ctx-menu-btn-danger"><ListX className="imessage-context-icon" aria-hidden="true" /><span>删除以下</span></button>
                 </div>
-            </>
-        );
-        if (contextMenuAnchor?.focusBubble) {
-            const focusMenu = (
-                <>
-                    <div
-                        className="imessage-context-tapbar"
-                        data-role={m.role}
-                        onPointerDown={e => e.stopPropagation()}
-                    >
-                        {tapbackPicker}
-                    </div>
-                    {!isTapbackInputOpen && (
-                        <div
-                            className="ctx-menu imessage-context-index"
-                            data-role={m.role}
-                            onPointerDown={e => e.stopPropagation()}
-                        >
-                            {actionIndex}
-                        </div>
+                <div className="flex">
+                    <button onClick={() => { setQuotingMessage(m); setActiveMessageId(null); }} className="ctx-menu-btn">引用</button>
+                    {options?.allowMultiSelect !== false && (
+                        <button onClick={() => startMultiSelectFromMessage(m)} className="ctx-menu-btn">多选</button>
                     )}
-                </>
-            );
-            return focusMenu;
-        }
-        const menu = (
-            <div
-                onPointerDown={e => e.stopPropagation()}
-                ref={positionFloatingContextMenu}
-                style={getContextMenuInitialStyle()}
-                className="ctx-menu chat-floating-ctx-menu flex flex-col items-center gap-[6px] py-[4px] px-0"
-                data-role={m.role}>
-                {tapbackPicker}
-                {!isTapbackInputOpen && actionIndex}
-                {!isTapbackInputOpen && <div data-menu-triangle className="ctx-menu-triangle absolute -top-[6px] w-0 h-0" />}
+                    <button onClick={() => handleDeleteMessage(storedMessageId)} className="ctx-menu-btn ctx-menu-btn-danger">删除</button>
+                    <button onClick={() => handleDeleteMessagesFrom(storedMessageId)} className="ctx-menu-btn ctx-menu-btn-danger">删除以下</button>
+                </div>
+                {(() => {
+                    // 聊天插件注册的消息操作菜单项
+                    const pluginActions = getChatPluginRuntime().getMessageActions(m);
+                    if (pluginActions.length === 0) return null;
+                    return (
+                        <div className="flex">
+                            {pluginActions.map(action => (
+                                <button
+                                    key={`${action.pluginId}:${action.id}`}
+                                    className="ctx-menu-btn"
+                                    onClick={() => {
+                                        getChatPluginRuntime().runMessageAction(action, m);
+                                        setActiveMessageId(null);
+                                    }}
+                                >{action.label}</button>
+                            ))}
+                        </div>
+                    );
+                })()}
+                <div data-menu-triangle className="ctx-menu-triangle absolute -top-[6px] w-0 h-0" />
             </div>
         );
         return wrapperRef.current ? createPortal(menu, wrapperRef.current) : menu;
     };
 
-    const renderDeleteOnlyContextMenu = (onDelete: () => void, onMultiSelect?: () => void, onForward?: () => void) => {
+    const renderDeleteOnlyContextMenu = (onDelete: () => void, onMultiSelect?: () => void) => {
         const menu = (
             <div
                 onPointerDown={e => e.stopPropagation()}
@@ -6095,7 +4992,6 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
                         className="ctx-menu-btn"
                     >多选</button>
                 )}
-                {onForward && <button className="ctx-menu-btn" onClick={e => { e.stopPropagation(); onForward(); }}><Send className="imessage-context-icon" aria-hidden="true" /><span>转发</span></button>}
                 <button
                     onClick={(e) => {
                         e.stopPropagation();
@@ -6177,13 +5073,6 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
                     }}
                     className="ctx-menu-btn"
                 >多选</button>
-                {msg.role !== "user" && <button
-                    onClick={() => {
-                        closeContextMenu();
-                        openRetryVersions(storedMessageId);
-                    }}
-                    className="ctx-menu-btn"
-                >重试一下</button>}
                 <button
                     onClick={() => {
                         handleDeleteMessage(storedMessageId);
@@ -6271,19 +5160,12 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
                 // 语音条的 mediaData 里存着播放必需的状态（synthesizedFromText/voiceDuration），
                 // 直接用重解析结果整体替换会把它们丢掉，导致气泡永远判定"待重合成"而点不响。
                 // 双方都是语音条时按存储值打底、重解析字段覆盖。
-                const projectedMediaData = part.mediaType === "audio" && base.mediaType === "audio" && base.mediaData
+                const mediaData = part.mediaType === "audio" && base.mediaType === "audio" && base.mediaData
                     ? { ...base.mediaData, ...part.mediaData }
                     : part.mediaData;
-                // Display regex parsing cannot replace persisted interaction state.
-                const mediaData = { ...projectedMediaData,
-                    tapback: base.mediaData?.tapback,
-                    tapbackBy: base.mediaData?.tapbackBy,
-                    tapbacks: base.mediaData?.tapbacks,
-                };
                 projected.push({
                     ...base,
                     id,
-                    echoPlaybackKey: `${batch[0].id}__echo_${index}`,
                     content: part.content,
                     mediaType: part.mediaType,
                     mediaData,
@@ -6312,7 +5194,6 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
         }
         return projected;
     }, [dedupedMessages, normalizeDisplayParts, renderDisplayText]);
-    const echo = useChatEcho(projectedMessages, session.id, wrapperRef, !offlineMode && !showSettings && !showVoiceCall && !showVideoCall);
 
     // Build a map: startMsgId → { startIdx, endIdx, duration }
     // and a set of all message indices that belong to a voice call group
@@ -6357,76 +5238,11 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
         return { groups, memberSet };
     }, [projectedMessages]);
 
-    const imessageTailMessageIds = useMemo(() => {
-        const tailIds = new Set<string>();
-        const firstIds = new Set<string>();
-        const lastIds = new Set<string>();
-        let lastMessageId: string | null = null;
-
-        let runRole: "user" | "assistant" | null = null;
-        let runSender = "";
-        let previousCreatedAt: string | null = null;
-        let lastTextMessageId: string | null = null;
-
-        const finishRun = () => {
-            if (lastTextMessageId) tailIds.add(lastTextMessageId);
-            if (lastMessageId) lastIds.add(lastMessageId);
-            lastMessageId = null;
-            runRole = null;
-            runSender = "";
-            previousCreatedAt = null;
-            lastTextMessageId = null;
-        };
-
-        projectedMessages.forEach((message, index) => {
-            if (voiceCallGroups.memberSet.has(index)) {
-                finishRun();
-                return;
-            }
-
-            const displayContent = getMessageDisplayContent(message);
-            if (isHiddenChatFlowMessage(message, displayContent)) return;
-
-            const role = uiRole(message);
-            if ((role !== "user" && role !== "assistant") || message.isRetracted) {
-                finishRun();
-                return;
-            }
-
-            const sender = role === "assistant"
-                ? (message.senderCharacterId || (session.isGroup ? message.senderName : "") || session.contactId)
-                : "user";
-            const startsNewRun = runRole === null
-                || runRole !== role
-                || runSender !== sender
-                || (previousCreatedAt !== null && shouldShowTimestamp(message.createdAt, previousCreatedAt));
-
-            if (startsNewRun) {
-                finishRun();
-                runRole = role;
-                runSender = sender;
-                firstIds.add(message.id);
-            }
-
-            lastMessageId = message.id;
-            previousCreatedAt = message.createdAt;
-            const hasVisibleText = !!getChatFlowVisibleContent(message, displayContent);
-            const isTextBubble = hasVisibleText
-                && !isStandaloneHtmlPreviewContent(displayContent)
-                && (!message.mediaType || message.mediaType === "quote");
-            if (isTextBubble) lastTextMessageId = message.id;
-        });
-
-        finishRun();
-        return { tailIds, firstIds, lastIds };
-    }, [getMessageDisplayContent, projectedMessages, session.contactId, session.isGroup, voiceCallGroups.memberSet]);
-
     const getSelectableStoredMessageId = useCallback((msg: RenderChatMessage): string | null => {
-        if (selectionPurpose === "forward" && (msg.isRetracted || (msg.role !== "user" && msg.role !== "assistant") || ["tool_call", "tool_result", "tool_notice", "system_instruction", "memory_write_request"].includes(msg.mediaType || ""))) return null;
         const id = msg.displaySourceId || msg.id;
         if (!id || id.startsWith("vc-") || isTransientMessage(id)) return null;
         return id;
-    }, [selectionPurpose]);
+    }, []);
 
     const visibleSelectableMessageIds = useMemo(() => {
         const ids: string[] = [];
@@ -6472,8 +5288,6 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
 
     const cancelMultiSelect = useCallback(() => {
         setIsMultiSelectMode(false);
-        setSelectionPurpose("delete");
-        setShowForwardSheet(false);
         setSelectedMessageIds(new Set());
         setShowConfirmMultiDelete(false);
     }, []);
@@ -6495,15 +5309,8 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
         setShowStickerPanel(false);
         setShowPlusMenu(false);
         setIsMultiSelectMode(true);
-        setSelectionPurpose("delete");
         setSelectedMessageIds(new Set([storedId]));
     }, [getSelectableStoredMessageId]);
-
-    const startForwardSelection = (msg: RenderChatMessage) => {
-        if (msg.isRetracted || (msg.role !== "user" && msg.role !== "assistant")) return;
-        startMultiSelectFromMessage(msg);
-        setSelectionPurpose("forward");
-    };
 
     const confirmMultiDelete = useCallback(() => {
         if (multiDeleteTargetIds.length === 0) {
@@ -6578,6 +5385,7 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
     // Shared handler: reload messages + re-trigger scroll-to-bottom after call ends
     const returnFromCall = (hide: () => void) => {
         hide();
+        setCallMinimized(false);
         needsInitialScrollRef.current = true;
         prevMsgCountRef.current = 0;
         syncMessagesFromStorage();
@@ -6587,55 +5395,34 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
     const editingMessage = editingMessageId ? messages.find(m => m.id === editingMessageId) : null;
     const editingSystemInstruction = editingMessage ? isSystemInstructionMessage(editingMessage) : false;
 
-    if (showVoiceCall) {
-        if (session.isGroup && groupCharacters.length > 0) {
-            return (
-                <GroupCallScreen
-                    type="voice"
-                    session={session}
-                    characters={groupCharacters}
-                    initiator={callInitiator}
-                    initiatorName={callInitiatorName}
-                    onEnd={() => returnFromCall(() => setShowVoiceCall(false))}
-                />
-            );
-        }
-        if (character) {
-            return (
-                <VoiceCallScreen
-                    session={session}
-                    character={character}
-                    initiator={callInitiator}
-                    onEnd={() => returnFromCall(() => setShowVoiceCall(false))}
-                />
-            );
-        }
+    // 群聊通话没有缩小悬浮窗，维持原有的整屏早退渲染
+    if (showVoiceCall && session.isGroup && groupCharacters.length > 0) {
+        return (
+            <GroupCallScreen
+                type="voice"
+                session={session}
+                characters={groupCharacters}
+                initiator={callInitiator}
+                initiatorName={callInitiatorName}
+                onEnd={() => returnFromCall(() => setShowVoiceCall(false))}
+            />
+        );
     }
 
-    if (showVideoCall) {
-        if (session.isGroup && groupCharacters.length > 0) {
-            return (
-                <GroupCallScreen
-                    type="video"
-                    session={session}
-                    characters={groupCharacters}
-                    initiator={callInitiator}
-                    initiatorName={callInitiatorName}
-                    onEnd={() => returnFromCall(() => setShowVideoCall(false))}
-                />
-            );
-        }
-        if (character) {
-            return (
-                <VideoCallScreen
-                    session={session}
-                    character={character}
-                    initiator={callInitiator}
-                    onEnd={() => returnFromCall(() => setShowVideoCall(false))}
-                />
-            );
-        }
+    if (showVideoCall && session.isGroup && groupCharacters.length > 0) {
+        return (
+            <GroupCallScreen
+                type="video"
+                session={session}
+                characters={groupCharacters}
+                initiator={callInitiator}
+                initiatorName={callInitiatorName}
+                onEnd={() => returnFromCall(() => setShowVideoCall(false))}
+            />
+        );
     }
+    // 单聊语音/视频通话改为在下方主返回内联渲染（而非提前 return），
+    // 这样缩小为悬浮窗时聊天页与通话组件可以同时挂载，通话状态（计时/字幕）不会丢失。
 
     const chatRoomBackgroundStyle = bgImageResolved ? {
         backgroundColor: "#fff",
@@ -6646,48 +5433,7 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
     } : undefined;
 
     return (
-        <div
-            ref={wrapperRef}
-            className={`session-${session.id} chat-room-wrapper page-shell inset-0 flex flex-col z-20`}
-            style={{
-                ...chatRoomBackgroundStyle,
-                "--chat-send-surface": groupBubbleTint(undefined,true)["--chat-send-surface" as keyof React.CSSProperties],
-                "--chat-send-ink": groupBubbleTint(undefined,true)["--chat-send-ink" as keyof React.CSSProperties],
-                // Reactions belong to their actor, never to the media container underneath.
-                "--tapback-user-surface": reactionStyleForActor("self")["--im26-tapback-fill" as keyof React.CSSProperties],
-                "--tapback-user-ink": reactionStyleForActor("self")["--im26-tapback-glyph" as keyof React.CSSProperties],
-                "--tapback-char-surface": reactionStyleForActor("legacy-assistant")["--im26-tapback-fill" as keyof React.CSSProperties],
-                "--tapback-char-ink": reactionStyleForActor("legacy-assistant")["--im26-tapback-glyph" as keyof React.CSSProperties],
-            } as React.CSSProperties}
-            onPointerDown={(e) => {
-                const target = e.target as HTMLElement;
-                if (showHeaderCallMenu && !target.closest(".imessage-header-call-control")) {
-                    setShowHeaderCallMenu(false);
-                }
-                if (quotingMessage && !target.closest(".chat-input-bar")) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setQuotingMessage(null);
-                    return;
-                }
-                if (!contextMenuAnchor?.focusBubble || !activeMessageId) return;
-                if (target.closest(".imessage-context-tapbar, .imessage-context-index, [data-msg-id][data-active]")) return;
-                e.preventDefault();
-                e.stopPropagation();
-                closeContextMenu();
-            }}
-            data-imessage-private=""
-            data-chat-dark={chatAppearance.dark || undefined}
-            data-glass-bubbles={beautyPreset === "glass" || undefined}
-            data-beauty-preset={beautyPreset}
-            data-dark-wallpaper={chatAppearance.darkWallpaper || undefined}
-            {...(session.isGroup ? { "data-imessage-group": "" } : {})}
-            {...(quotingMessage ? { "data-imessage-quote-compose": "" } : {})}
-            {...(activeMessageId && contextMenuAnchor?.focusBubble ? { "data-imessage-context-open": "" } : {})}
-            {...(bgLoading ? { "data-loading": "" } : {})}
-            {...(bgImageResolved ? { "data-has-bg-image": "" } : {})}
-            {...(showSettings ? { "data-settings-open": "" } : {})}
-        >
+        <div ref={wrapperRef} className={`session-${session.id} chat-room-wrapper page-shell inset-0 flex flex-col z-20`} style={chatRoomBackgroundStyle} {...(bgLoading ? { "data-loading": "" } : {})} {...(bgImageResolved ? { "data-has-bg-image": "" } : {})} {...(showSettings ? { "data-settings-open": "" } : {})}>
             {/* Custom CSS Injection for this session — scoped to prevent leaking */}
             {liveCSS && (
                 <SessionCustomCSS css={liveCSS} scope={`.session-${session.id}`} />
@@ -6695,89 +5441,30 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
 
             {/* 全屏特效层（表情雨/礼花），不拦截任何触摸操作 */}
             <ChatScreenEffectOverlay active={activeScreenEffect} onDone={() => setActiveScreenEffect(null)} />
-            {echo.overlay}
             {/* Header */}
             <header className="page-header chat-room-main-pane" data-ui="header">
                 <div className="page-header-safe-area" />
-                {!session.isGroup ? (
-                    <div className="page-header-content imessage-private-header">
-                        <ChatUnreadPill sessionId={session.id} onBack={onBack} />
-                        <button className="imessage-contact-card" type="button" onClick={() => setShowSettings(true)} aria-label="联系人详情">
-                            <span className="imessage-contact-avatar">
-                                {character?.avatar ? <img src={character.avatar} alt="" /> : <ChatFallbackAvatar />}
+                <div className="page-header-content">
+                    <button className="page-back-btn" type="button" onClick={onBack} aria-label="返回">
+                        <ChevronLeft size={24} strokeWidth={1.5} />
+                    </button>
+                    <span className="page-title" style={{ position: 'relative' }}>
+                        {offlineMode ? "线下 · " : ""}
+                        {session.isGroup
+                            ? `${session.groupName || "群聊"}(${(session.participantIds?.length || 0) + (session.isSpectator ? 0 : 1)})`
+                            : (session.alias || character?.name || `User_${session.contactId.slice(-4)}`)}
+                        {(isGenerating || isOfflineGenerating) && (
+                            <span className="chat-typing-indicator">
+                                {offlineMode ? "线下生成中" : "对方正在输入"}<span className="chat-typing-dots"><i/><i/><i/></span>
                             </span>
-                            <span className="imessage-contact-name">
-                                {session.alias || character?.name || `User_${session.contactId.slice(-4)}`}
-                                <span className="imessage-contact-chevron" aria-hidden="true">›</span>
-                            </span>
+                        )}
+                    </span>
+                    <span className="page-header-right">
+                        <button className="page-back-btn" type="button" onClick={() => setShowSettings(true)} aria-label="更多">
+                            <MoreHorizontal size={22} strokeWidth={1.5} />
                         </button>
-                        <div className="imessage-header-call-control">
-                            <button
-                                className="imessage-header-button imessage-header-video"
-                                type="button"
-                                onClick={() => setShowHeaderCallMenu(open => !open)}
-                                aria-label="选择通话方式"
-                                aria-haspopup="menu"
-                                aria-expanded={showHeaderCallMenu}
-                            >
-<HeaderVideoIcon />
-                            </button>
-                            {showHeaderCallMenu && (
-                                <div className="imessage-header-call-menu" role="menu" aria-label="通话方式">
-                                    <button
-                                        type="button"
-                                        className="imessage-header-call-option"
-                                        role="menuitem"
-                                        aria-label="语音通话"
-                                        title="语音通话"
-                                        onClick={() => {
-                                            cancelFollowUp(session.id);
-                                            setShowHeaderCallMenu(false);
-                                            setCallInitiator("user");
-                                            setShowVoiceCall(true);
-                                        }}
-                                    >
-                                        <svg viewBox="0 0 24 24" aria-hidden="true">
-                                            <path fill="currentColor" d="M6.62 10.79a15.46 15.46 0 0 0 6.59 6.59l2.2-2.2a1 1 0 0 1 1.02-.24c1.12.37 2.33.57 3.57.57a1 1 0 0 1 1 1V20a1 1 0 0 1-1 1C10.61 21 3 13.39 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.57a1 1 0 0 1-.25 1.02Z" />
-                                        </svg>
-                                    </button>
-                                    <button
-                                        type="button"
-                                        className="imessage-header-call-option"
-                                        role="menuitem"
-                                        aria-label="视频通话"
-                                        title="视频通话"
-                                        onClick={() => {
-                                            cancelFollowUp(session.id);
-                                            setShowHeaderCallMenu(false);
-                                            setCallInitiator("user");
-                                            setShowVideoCall(true);
-                                        }}
-                                    >
-                                        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="12" height="12" rx="3" /><path d="m15 10 5-3v10l-5-3Z" /></svg>
-                                    </button>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                ) : (
-                    <div className="page-header-content imessage-private-header">
-                        <ChatUnreadPill sessionId={session.id} onBack={onBack} />
-                        <button className="imessage-contact-card" type="button" onClick={() => setShowSettings(true)} aria-label="群聊设置">
-                            <span className="imessage-contact-avatar"><GroupAvatar src={session.groupAvatar} members={[...(!session.isSpectator && userIdentity ? [{ avatar: userIdentity.avatarUrl }] : []), ...groupCharacters]} /></span>
-                            <span className="imessage-contact-name">{session.groupName || "群聊"}<span className="imessage-contact-chevron" aria-hidden="true">›</span></span>
-                        </button>
-                        <div className="imessage-header-call-control">
-                            <button className="imessage-header-button imessage-header-video" type="button" onClick={() => setShowHeaderCallMenu(open => !open)} aria-label="选择群通话方式" aria-expanded={showHeaderCallMenu}>
-                                <HeaderVideoIcon />
-                            </button>
-                            {showHeaderCallMenu && <div className="imessage-header-call-menu" role="menu" aria-label="群通话方式">
-                                <button className="imessage-header-call-option" type="button" role="menuitem" aria-label="群语音通话" onClick={() => { cancelFollowUp(session.id); setShowHeaderCallMenu(false); setCallInitiator("user"); setShowVoiceCall(true); }}><svg viewBox="0 0 24 24"><path fill="currentColor" d="M6.62 10.79a15.46 15.46 0 0 0 6.59 6.59l2.2-2.2a1 1 0 0 1 1.02-.24c1.12.37 2.33.57 3.57.57a1 1 0 0 1 1 1V20a1 1 0 0 1-1 1C10.61 21 3 13.39 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.57a1 1 0 0 1-.25 1.02Z" /></svg></button>
-                                <button className="imessage-header-call-option" type="button" role="menuitem" aria-label="群视频通话" onClick={() => { cancelFollowUp(session.id); setShowHeaderCallMenu(false); setCallInitiator("user"); setShowVideoCall(true); }}><svg viewBox="0 0 24 24"><rect x="3" y="6" width="12" height="12" rx="3" /><path d="m15 10 5-3v10l-5-3Z" /></svg></button>
-                            </div>}
-                        </div>
-                    </div>
-                )}
+                    </span>
+                </div>
             </header>
             <ChatPluginSlot
                 name="chat.header"
@@ -7078,7 +5765,7 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
                                                 <div key={gMsg.id} className={`flex ${gMsg.role === "user" ? "justify-end" : "justify-start"}`}>
                                                     <div className="flex flex-col min-w-0 max-w-[75%]">
                                                         {session.isGroup && gMsg.role !== "user" && (
-                                                            <GroupSenderName avatar={groupCharMap.get(gMsg.senderCharacterId || "")?.avatar}>{gMsg.senderName || ""}{renderGroupRoleBadge(gMsg.senderCharacterId)}</GroupSenderName>
+                                                            <span className="chat-group-sender-name">{gMsg.senderName || ""}{renderGroupRoleBadge(gMsg.senderCharacterId)}</span>
                                                         )}
                                                         <div
                                                             onPointerDown={(e) => { e.stopPropagation(); handleMessagePointerDown(e, gMsg.id); }}
@@ -7116,41 +5803,13 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
                     // Skip messages that belong to a voice call group (rendered above)
                     if (voiceCallGroups.memberSet.has(idx)) return null;
 
-                    const photoGroupId = msg.mediaData?.photoGroupId;
-                    const photoGroupMessages = photoGroupId
-                        ? projectedMessages
-                            .filter(candidate => (candidate.mediaType === "image" || (candidate.mediaType === "media_file" && candidate.mediaData?.fileType === "image")) && candidate.mediaData?.photoGroupId === photoGroupId)
-                            .sort((a, b) => (a.mediaData?.photoGroupIndex ?? 0) - (b.mediaData?.photoGroupIndex ?? 0))
-                        : [msg];
-                    if (photoGroupId && photoGroupMessages[0]?.id !== msg.id) return null;
-                    const renderMsg: RenderChatMessage = photoGroupMessages.length > 1 ? {
-                        ...msg,
-                        mediaData: {
-                            ...msg.mediaData,
-                            photoGroupCount: photoGroupMessages.length,
-                            photoGroupItems: photoGroupMessages.map(item => ({
-                                messageId: item.id,
-                                mediaUrl: item.mediaUrl,
-                                label: item.mediaData?.label,
-                                photoKind: item.mediaData?.photoKind,
-                                annotations: item.mediaData?.photoAnnotations,
-                                tapback: item.mediaData?.tapback,
-                                tapbackBy: item.mediaData?.tapbackBy,
-                                tapbacks: item.mediaData?.tapbacks,
-                            })),
-                        },
-                    } : msg;
+                    const renderMsg = msg;
                     const isSystemInstruction = isSystemInstructionMessage(renderMsg);
                     const bubbleDisplayContent = getMessageDisplayContent(renderMsg);
                     let prevVisibleMsg: RenderChatMessage | null = null;
                     for (let prevIdx = idx - 1; prevIdx >= 0; prevIdx -= 1) {
                         if (voiceCallGroups.memberSet.has(prevIdx)) continue;
                         const candidate = projectedMessages[prevIdx];
-                        const candidateGroupId = candidate.mediaData?.photoGroupId;
-                        if (candidateGroupId) {
-                            const firstGroupIndex = projectedMessages.findIndex(entry => entry.mediaData?.photoGroupId === candidateGroupId);
-                            if (firstGroupIndex !== prevIdx) continue;
-                        }
                         const candidateDisplayContent = getMessageDisplayContent(candidate);
                         if (isHiddenChatFlowMessage(candidate, candidateDisplayContent)) continue;
                         prevVisibleMsg = candidate;
@@ -7164,7 +5823,6 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
                     const isVisualMedia = isChatVisualMedia(renderMsg);
                     const hiddenEmpty = isHiddenChatFlowMessage(renderMsg, bubbleDisplayContent);
                     const hasFoldedPanel = !!(renderMsg.statusPanel || renderMsg.innerMonologue);
-
                     // 内心卡片只展示本轮实际输出的状态值；旧数据没有 freshStateValues 时回退到合并快照
                     const cardStateValues = msg.freshStateValues ?? msg.stateValues;
                     const isSilentThought = !visibleContent && !renderMsg.mediaType && hasFoldedPanel && msg.role !== "user";
@@ -7172,20 +5830,6 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
                     const isMediaBubble = (renderMsg.mediaType && CHAT_MEDIA_BUBBLE_TYPES.has(renderMsg.mediaType)) || isStandaloneHtmlPreview;
                     // Empty bubble: no visible content AND no visual media AND no folded panel.
                     const isEmptyBubble = !isVisualMedia && !visibleContent && uiRole(msg) !== "system" && !hasFoldedPanel;
-                    const thoughtToggle = (msg.role !== "user" && !isSilentThought && !isEmptyBubble && hasFoldedPanel && (
-                                            <button
-                                                onClick={(e) => { e.stopPropagation(); setExpandedThinkingId(prev => prev === msg.id ? null : msg.id); }}
-                                                className="chat-monologue-heart bg-none border-none cursor-pointer p-1 ts-14 leading-none self-end shrink-0 -ml-2"
-
-                                                {...(expandedMonologueId === msg.id ? { "data-active": "" } : {})}
-                                                title="查看折叠状态"
-                                                aria-label="查看折叠状态"
-                                            >
-                                                <svg viewBox="0 0 16 16" width="14" height="14" style={{display:"block"}}>
-                                                    <path d="M8 14s-6-4-6-8c0-2.5 1.5-4 3.5-4 1 0 2 .5 2.5 1.5C8.5 2.5 9.5 2 10.5 2 12.5 2 14 3.5 14 6c0 4-6 8-6 8z" fill="currentColor"/>
-                                                </svg>
-                                            </button>
-                                        ));
                     const selectableStoredId = getSelectableStoredMessageId(msg);
                     const isMultiSelectable = isMultiSelectMode && !!selectableStoredId && !hiddenEmpty;
                     const isMultiSelected = !!selectableStoredId && selectedMessageIds.has(selectableStoredId);
@@ -7228,16 +5872,8 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
                                 id={`message-${msg.id}`}
                                 className="chat-msg-wrapper"
                                 data-role={uiRole(msg)}
-                                style={{
-                                    ...(!renderMsg.mediaType || renderMsg.mediaType === "audio" || renderMsg.mediaType === "quote" || (renderMsg.mediaType === "music_share" && renderMsg.content.trim()) ? groupBubbleTint(msg.senderCharacterId || session.contactId, uiRole(msg) === "user") : {}),
-                                    ...(activeMessageId === msg.id && contextMenuAnchor?.focusBubble ? { transform: `translate3d(0, ${contextFocusShift}px, 0)` } : {}),
-                                } as React.CSSProperties}
                                 {...(isEmptyBubble && renderMsg.reasoningText ? { "data-reasoning-empty": "" } : {})}
                                 {...(isConsecutive ? { "data-consecutive": "" } : {})}
-
-                                {...(session.isGroup && uiRole(msg) === "assistant" && prevVisibleMsg && uiRole(prevVisibleMsg) === "assistant" && (prevVisibleMsg.senderCharacterId || prevVisibleMsg.senderName) !== (msg.senderCharacterId || msg.senderName) ? { "data-group-speaker-change": "" } : {})}
-                                {...(imessageTailMessageIds.tailIds.has(msg.id) ? { "data-imessage-tail": "" } : {})}
-                                {...(imessageTailMessageIds.lastIds.has(msg.id) ? { "data-group-last": "" } : {})}
                                 {...(activeMessageId === msg.id ? { "data-active": "" } : {})}
                                 {...(highlightMessageId === msg.id ? { "data-highlight": "" } : {})}
                                 {...multiSelectWrapperProps}
@@ -7312,7 +5948,7 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
                                         {...(activeMessageId === msg.id ? { "data-active": "" } : {})}
                                     >
                                         {msg.role === "user" ? "你" : (character?.name || "对方")}撤回了一条消息
-                                        {activeMessageId === msg.id && renderDeleteOnlyContextMenu(() => handleDeleteMessage(getStoredActionMessageId(msg)), () => startMultiSelectFromMessage(msg), () => startForwardSelection(msg))}
+                                        {activeMessageId === msg.id && renderDeleteOnlyContextMenu(() => handleDeleteMessage(getStoredActionMessageId(msg)), () => startMultiSelectFromMessage(msg))}
                                     </div>
                                 ) : (
                                     <>
@@ -7338,13 +5974,12 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
                                                         setExpandedThinkingId(prev => prev === msg.id ? null : msg.id);
                                                     }}
                                                     className="chat-monologue-heart flex items-center justify-center shrink-0 w-[40px] h-[24px] relative cursor-pointer"
-
                                                     title={session.isGroup ? `${msg.senderName || "群成员"}的折叠状态` : "查看折叠状态"}
                                                     aria-label={session.isGroup ? `${msg.senderName || "群成员"}的折叠状态` : "查看折叠状态"}
                                                     {...(activeMessageId === msg.id ? { "data-active": "" } : {})}
                                                 >
                                                     <span className="chat-monologue-heart ts-18 leading-none inline-block" {...(expandedMonologueId === msg.id ? { "data-active": "" } : {})}><svg viewBox="0 0 16 16" width="18" height="18" style={{display:"block"}}><path d="M8 14s-6-4-6-8c0-2.5 1.5-4 3.5-4 1 0 2 .5 2.5 1.5C8.5 2.5 9.5 2 10.5 2 12.5 2 14 3.5 14 6c0 4-6 8-6 8z" fill="currentColor"/></svg></span>
-                                                    {activeMessageId === msg.id && renderDeleteOnlyContextMenu(() => handleDeleteMessage(getStoredActionMessageId(msg)), () => startMultiSelectFromMessage(msg), () => startForwardSelection(msg))}
+                                                    {activeMessageId === msg.id && renderDeleteOnlyContextMenu(() => handleDeleteMessage(getStoredActionMessageId(msg)), () => startMultiSelectFromMessage(msg))}
                                                 </div>
                                             ) : (
                                                 <div className="chat-msg-avatar flex flex-col items-center gap-1 shrink-0">
@@ -7354,22 +5989,18 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
                                                             : character;
                                                         return (
                                                             <>
-                                                    <MentionAvatar name={senderChar?.name || "群成员"} onMention={session.isGroup && senderChar && !session.isSpectator ? () => {
-                                                        if (!ensureGroupSpeakPermission()) return;
-                                                        setShowEmojiPanel(false); setShowStickerPanel(false); setShowPlusMenu(false);
-                                                        chatTextInputRef.current?.mention({ id: senderChar.id, name: groupPrivateAliases.get(senderChar.id) || senderChar.name, avatar: senderChar.avatar });
-                                                    } : undefined} onPoke={() => {
+                                                    <div onDoubleClick={() => {
                                                         const targetChar = session.isGroup && msg.senderCharacterId
                                                             ? groupCharMap.get(msg.senderCharacterId) || character
                                                             : character;
                                                         if (targetChar) sendRichMessage("poke", { pokeTarget: targetChar.name });
-                                                    }}>
+                                                    }} className="w-[40px] h-[40px] rounded-[20px] bg-[var(--c-input)] overflow-hidden cursor-pointer">
                                                         {senderChar?.avatar ? (
                                                             <img src={senderChar.avatar} className="w-full h-full object-cover" alt="" />
                                                         ) : (
                                                             <ChatFallbackAvatar />
                                                         )}
-                                                    </MentionAvatar>
+                                                    </div>
                                                             </>
                                                         );
                                                     })()}
@@ -7379,45 +6010,36 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
                                         {!isSilentThought && !isEmptyBubble && <div
                                             className={`chat-msg-content-wrap flex flex-col min-w-0 max-w-[70%] ${isStandaloneHtmlPreview ? "chat-msg-content-wrap-html" : ""}`}
                                             {...(isStandaloneHtmlPreview ? { "data-html": "true" } : {})}
-                                            data-voice-content={renderMsg.mediaType === "audio" || undefined}
-
                                         >
-
-
-                                            {session.isGroup && msg.role !== "user" && imessageTailMessageIds.firstIds.has(msg.id) && (
-                                                <GroupSenderName avatar={groupCharMap.get(msg.senderCharacterId || "")?.avatar}>{groupPrivateAliases.get(msg.senderCharacterId || "") || groupCharMap.get(msg.senderCharacterId || "")?.name || msg.senderName || "群成员"}</GroupSenderName>
+                                            {session.isGroup && msg.role !== "user" && (
+                                                <span className="chat-group-sender-name">{msg.senderName || ""}{renderGroupRoleBadge(msg.senderCharacterId)}</span>
                                             )}
                                             <div
                                             {...(editingMessageId !== msg.id ? {
                                                 onPointerDown: (e: React.PointerEvent) => { e.stopPropagation(); handleMessagePointerDown(e, msg.id); },
                                                 onPointerUp: (e: React.PointerEvent) => handleMessagePointerUp(e),
                                                 onPointerCancel: handleMessagePointerCancel,
-                                                onPointerMove: handleMessagePointerMove,
-                                                onContextMenu: (e: React.MouseEvent) => { e.preventDefault(); openMessageContextMenu(msg.id, { x: e.clientX, y: e.clientY }, e.currentTarget as HTMLElement); },
+                                                onPointerLeave: handleMessagePointerCancel,
+                                                onPointerMove: (e: React.PointerEvent) => {
+                                                    if (startPosRef.current) {
+                                                        const dx = Math.abs(e.clientX - startPosRef.current.x);
+                                                        const dy = Math.abs(e.clientY - startPosRef.current.y);
+                                                        if (dx > 10 || dy > 10) handleMessagePointerCancel();
+                                                    }
+                                                },
+                                                onContextMenu: (e: React.MouseEvent) => { e.preventDefault(); openMessageContextMenu(msg.id, { x: e.clientX, y: e.clientY }); },
                                             } : {})}
-                                            className={`chat-bubble-role-${msg.role} ${isMediaBubble ? "chat-bubble-media" : ""} ${isStandaloneHtmlPreview ? "chat-bubble-html-preview" : ""} ${renderMsg.mediaType === "music_share" ? "chat-bubble-music-share" : ""} ${renderMsg.mediaType === "gift" || renderMsg.mediaType === "image" || renderMsg.mediaData?.photoGroupId || isStandaloneHtmlPreview ? "rounded-none" : "rounded-md"} break-words relative cursor-pointer select-none`}
+                                            className={`chat-bubble-role-${msg.role} ${isMediaBubble ? "chat-bubble-media" : ""} ${isStandaloneHtmlPreview ? "chat-bubble-html-preview" : ""} ${renderMsg.mediaType === "music_share" ? "chat-bubble-music-share" : ""} ${renderMsg.mediaType === "gift" || renderMsg.mediaType === "image" || isStandaloneHtmlPreview ? "rounded-none" : "rounded-md"} break-words relative cursor-pointer select-none`}
                                             style={isStandaloneHtmlPreview ? STANDALONE_CARD_BUBBLE_STYLE : undefined}
                                             data-ui={msg.role === "user" ? "bubble-user" : "bubble-bot"}
                                             data-msg-id={msg.id}
-                                            data-media-type={renderMsg.mediaType || "text"}
                                             {...(activeMessageId === msg.id ? { "data-active": "" } : {})}
                                             >
-                                            {(
-                                                <span className="imessage-swipe-reply-cue" aria-hidden="true">
-                                                    <svg viewBox="0 0 24 24" focusable="false">
-                                                        <path fill="currentColor" fillRule="evenodd" d="M10 2a1 1 0 0 0-1.79-.614l-7 9a1 1 0 0 0 0 1.228l7 9A1 1 0 0 0 10 20v-3.99c5.379.112 7.963 1.133 9.261 2.243c1.234 1.055 1.46 2.296 1.695 3.596l.061.335a1 1 0 0 0 1.981-.122c.171-2.748-.086-6.73-2.027-10.061C19.087 8.768 15.695 6.282 10 6.022z" clipRule="evenodd" />
-                                                    </svg>
-                                                </span>
-                                            )}
                                             {/* Message Actions Popup */}
                                             {activeMessageId === msg.id && renderBubbleContextMenu(msg)}
 
-                                            {(!renderMsg.mediaType || String(renderMsg.mediaType) === "text" || renderMsg.mediaType === "audio") && <span className="imessage-bubble-surface" aria-hidden="true" />}
                                             <MessageBubble
                                                 msg={renderMsg}
-                                                replyAccessory={renderMsg.mediaType === "quote" ? thoughtToggle : undefined}
-                                                quoteSource={renderMsg.mediaType === "quote" ? messages.find(source => source.id === renderMsg.mediaData?.quoteMessageId) : undefined}
-                                                quoteSourceStyle={renderMsg.mediaType === "quote" ? quoteStyle(messages.find(source => source.id === renderMsg.mediaData?.quoteMessageId)) : undefined}
                                                 displayContent={msg.displayProjected ? undefined : bubbleDisplayContent}
                                                 charName={character?.name}
                                                 userName={userIdentity?.name || "你"}
@@ -7425,7 +6047,6 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
                                                 onShowDetail={setMediaDetailMsg}
                                                 characterId={msg.senderCharacterId || session.contactId}
                                                 onUpdate={(updated) => setMessages(prev => prev.map(m => m.id === updated.id ? updated : m))}
-                                                onPhotoAnnotationsSave={handleUserPhotoAnnotationsSave}
                                                 onSystemMessage={(text) => {
                                                     const sysMsg = pushChatMessage({
                                                         sessionId: session.id,
@@ -7437,23 +6058,22 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
                                                 onMusicPlay={handleMusicCardPlay}
                                                 onActionSelect={(text) => chatTextInputRef.current?.appendText(text)}
                                                 defaultTranslationExpanded={session.collapseBilingualTranslation !== false ? false : true}
-                                                reactionStyleForActor={reactionStyleForActor}
                                             />
-                                            {renderMsg.mediaType !== "quote" && !renderMsg.mediaData?.photoGroupItems?.length && (renderMsg.mediaData?.tapback || renderMsg.mediaData?.tapbacks?.length) && (
-                                                <IMessageTapbackBadge
-                                                    tapback={renderMsg.mediaData.tapback}
-                                                    tapbackBy={renderMsg.mediaData.tapbackBy || "user"}
-                                                    reactions={renderMsg.mediaData.tapbacks}
-                                                    reactionStyleForActor={reactionStyleForActor}
-                                                />
-                                            )}
                                         </div>
-                                        {renderMsg.mediaType === "audio" && <>
-                                            {voiceTextIds.has(msg.id) && renderMsg.mediaData?.label && <div className="voice-msg-text-bubble"><BilingualTextBlock text={msg.displayProjected ? renderMsg.mediaData.label : renderDisplayText(renderMsg.mediaData.label, msg.role === "user" ? 1 : 2, false)} mode="markdown" defaultExpanded={session.collapseBilingualTranslation === false} /></div>}
-                                            {thoughtToggle && <div className="voice-thought-entry">{thoughtToggle}</div>}
-                                        </>}
                                         </div>}
-                                        {renderMsg.mediaType !== "quote" && renderMsg.mediaType !== "audio" && thoughtToggle}
+                                        {msg.role !== "user" && !isSilentThought && !isEmptyBubble && hasFoldedPanel && (
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); setExpandedThinkingId(prev => prev === msg.id ? null : msg.id); }}
+                                                className="chat-monologue-heart bg-none border-none cursor-pointer p-1 ts-14 leading-none self-end shrink-0 -ml-2"
+                                                {...(expandedMonologueId === msg.id ? { "data-active": "" } : {})}
+                                                title="查看折叠状态"
+                                                aria-label="查看折叠状态"
+                                            >
+                                                <svg viewBox="0 0 16 16" width="14" height="14" style={{display:"block"}}>
+                                                    <path d="M8 14s-6-4-6-8c0-2.5 1.5-4 3.5-4 1 0 2 .5 2.5 1.5C8.5 2.5 9.5 2 10.5 2 12.5 2 14 3.5 14 6c0 4-6 8-6 8z" fill="currentColor"/>
+                                                </svg>
+                                            </button>
+                                        )}
                                         {msg.role === "user" && !isEmptyBubble && (
                                             <div className="chat-msg-avatar w-[40px] h-[40px] rounded-[20px] bg-[var(--c-page-body-bg)] shrink-0 flex items-center justify-center overflow-hidden">
                                                 {userIdentity?.avatarUrl ? (
@@ -7466,6 +6086,20 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
                                     </>
                                 )}
                             </div>
+                            {/* Voice message: text transcription bubble */}
+                            {renderMsg.mediaType === "audio" && voiceTextIds.has(msg.id) && renderMsg.mediaData?.label && (
+                                <div className={`chat-msg-wrapper`} data-role={uiRole(msg)} style={{ marginTop: -12 }}>
+                                    {msg.role !== "user" && <div className="w-[40px] shrink-0" />}
+                                    <div className="voice-msg-text-bubble">
+                                        <BilingualTextBlock
+                                            text={msg.displayProjected ? (renderMsg.mediaData?.label || "") : renderDisplayText(renderMsg.mediaData?.label || "", msg.role === "user" ? 1 : 2, false)}
+                                            mode="markdown"
+                                            defaultExpanded={session.collapseBilingualTranslation !== false ? false : true}
+                                        />
+                                    </div>
+                                    {msg.role === "user" && <div className="w-[40px] shrink-0" />}
+                                </div>
+                            )}
                             {/* 状态栏：一律裸渲染，不套便利贴外框（自定义模式下交给用户的渲染代码，
                                 否则 [状态栏] 原文直接走 markdown/内联 HTML，让 AI 直出的卡片自己当外框）。
                                 状态值跟内心独白走（留在便利贴里）；这轮没有内心独白时便利贴不出现，
@@ -7486,7 +6120,7 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
                                 </div>
                             )}
                             {/* Inner monologue card (sticky note / journal style) */}
-                            {expandedMonologueId === msg.id && hasFoldedPanel && renderMsg.innerMonologue && (
+                            {hasFoldedPanel && expandedMonologueId === msg.id && renderMsg.innerMonologue && (
                                 <div className="chat-thought-card">
                                     {/* Decorative washi tape */}
                                     <div className="chat-thought-tape-left" />
@@ -7500,7 +6134,7 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
                                         <StateValuesPanel stateValues={cardStateValues} />
                                     )}
                                     <div className="chat-thought-body">
-                                        <BilingualTextBlock text={msg.displayProjected ? renderMsg.innerMonologue || "" : renderDisplayText(renderMsg.innerMonologue || "", 6, false)} mode="markdown" defaultExpanded={session.collapseBilingualTranslation !== false ? false : true} />
+                                        <BilingualTextBlock text={msg.displayProjected ? renderMsg.innerMonologue : renderDisplayText(renderMsg.innerMonologue, 6, false)} mode="markdown" defaultExpanded={session.collapseBilingualTranslation !== false ? false : true} />
                                     </div>
                                     {/* Signature */}
                                     <div className="chat-thought-sig">
@@ -7522,16 +6156,15 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
                                 return part.texts.map((segText, j) => {
                                     const isTyping = isLastPart && j === part.texts.length - 1;
                                     return (
-                                        <div key={`stream-${part.characterId}-${i}-${j}`} className="chat-msg-wrapper" style={groupBubbleTint(part.characterId) as React.CSSProperties} data-role="assistant" data-consecutive={j > 0 ? "" : undefined} data-group-speaker-change={j === 0 && i > 0 && streamPreview.parts?.[i - 1]?.characterId !== part.characterId ? "" : undefined} data-group-last={j === part.texts.length - 1 ? "" : undefined} data-imessage-tail={j === part.texts.length - 1 ? "" : undefined}>
+                                        <div key={`stream-${part.characterId}-${i}-${j}`} className="chat-msg-wrapper" data-role="assistant">
                                             <div className="chat-msg-avatar flex flex-col items-center gap-1 shrink-0">
                                                 <div className="w-[40px] h-[40px] rounded-[20px] bg-[var(--c-input)] overflow-hidden">
                                                     {senderChar?.avatar ? <img src={senderChar.avatar} className="w-full h-full object-cover" alt="" /> : <ChatFallbackAvatar />}
                                                 </div>
                                             </div>
                                             <div className="chat-msg-content-wrap flex flex-col min-w-0 max-w-[70%]">
-                                                {j === 0 && <GroupSenderName avatar={senderChar?.avatar}>{groupPrivateAliases.get(part.characterId) || senderChar?.name || part.characterName}</GroupSenderName>}
+                                                <span className="chat-group-sender-name">{part.characterName}</span>
                                                 <div className="chat-bubble-role-assistant chat-stream-bubble break-words rounded-md px-3 py-2">
-                                                    <span className="imessage-bubble-surface" aria-hidden="true" />
                                                     {/* 流式预览用轻量 pre-wrap 渲染：避免每帧跑 markdown/双语解析导致闪烁卡顿 */}
                                                     <div className="chat-stream-text whitespace-pre-wrap break-words">{segText}</div>
                                                     {isTyping && <span className="chat-stream-cursor" aria-hidden="true" />}
@@ -7545,14 +6178,7 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
                             streamPreview.texts.map((segText, j) => {
                                 const isTyping = j === (streamPreview.texts?.length ?? 0) - 1;
                                 return (
-                                    <div
-                                        key={`stream-seg-${j}`}
-                                        className="chat-msg-wrapper"
-                                        style={groupBubbleTint(session.contactId)}
-                                        data-role="assistant"
-                                        {...(j > 0 ? { "data-consecutive": "" } : {})}
-                                        {...(isTyping ? { "data-imessage-tail": "" } : {})}
-                                    >
+                                    <div key={`stream-seg-${j}`} className="chat-msg-wrapper" data-role="assistant">
                                         <div className="chat-msg-avatar flex flex-col items-center gap-1 shrink-0">
                                             <div className="w-[40px] h-[40px] rounded-[20px] bg-[var(--c-input)] overflow-hidden">
                                                 {character?.avatar ? <img src={character.avatar} className="w-full h-full object-cover" alt="" /> : <ChatFallbackAvatar />}
@@ -7560,7 +6186,6 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
                                         </div>
                                         <div className="chat-msg-content-wrap flex flex-col min-w-0 max-w-[70%]">
                                             <div className="chat-bubble-role-assistant chat-stream-bubble break-words rounded-md px-3 py-2">
-                                                <span className="imessage-bubble-surface" aria-hidden="true" />
                                                 {/* 流式预览用轻量 pre-wrap 渲染：避免每帧跑 markdown/双语解析导致闪烁卡顿 */}
                                                 <div className="chat-stream-text whitespace-pre-wrap break-words">{segText}</div>
                                                 {isTyping && <span className="chat-stream-cursor" aria-hidden="true" />}
@@ -7570,20 +6195,6 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
                                 );
                             })
                         ) : null}
-                    </div>
-                )}
-                {!offlineMode && isGenerating && !(streamPreview?.texts?.length) && !(streamPreview?.parts?.length) && (
-                    <div
-                        className="chat-msg-wrapper imessage-typing-row"
-                        data-role="assistant"
-                        role="status"
-                        aria-label="正在输入"
-                    >
-                        <div className="chat-msg-content-wrap flex flex-col min-w-0 max-w-[70%]">
-                            <div className="imessage-typing-bubble">
-                                <span className="chat-typing-dots" aria-hidden="true"><i/><i/><i/></span>
-                            </div>
-                        </div>
                     </div>
                 )}
                 {/* Scroll anchor: browser keeps this in view when content above changes height */}
@@ -7597,24 +6208,20 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
                         type="button"
                         className="chat-multi-select-icon-btn"
                         onClick={cancelMultiSelect}
-                        aria-label={selectionPurpose === "forward" ? "取消转发" : "退出多选"}
-                        title={selectionPurpose === "forward" ? "取消转发" : "退出多选"}
+                        aria-label="退出多选"
+                        title="退出多选"
                     >
                         <X size={20} strokeWidth={1.8} />
                     </button>
                     <div className="chat-multi-select-summary">
-                        <strong>{selectionPurpose === "forward" ? "转发记录" : "已选"} {selectedMessageIds.size} 条</strong>
+                        <strong>已选 {selectedMessageIds.size} 条</strong>
+                        <span>
+                            {multiDeleteTargetIds.length > selectedMessageIds.size
+                                ? `实际删除 ${multiDeleteTargetIds.length} 条，含隐藏历史`
+                                : `实际删除 ${multiDeleteTargetIds.length} 条`}
+                        </span>
                     </div>
-                    {selectionPurpose === "forward" ? <button
-                        type="button"
-                        className="chat-multi-select-icon-btn chat-multi-select-forward-btn"
-                        disabled={selectedMessageIds.size === 0}
-                        onClick={() => setShowForwardSheet(true)}
-                        aria-label="合并转发"
-                    >
-                        <Send size={18} strokeWidth={1.8} />
-                        转发
-                    </button> : <button
+                    <button
                         type="button"
                         className="chat-multi-select-delete-btn"
                         disabled={selectedMessageIds.size === 0 || multiDeleteTargetIds.length === 0}
@@ -7622,7 +6229,7 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
                     >
                         <Trash2 size={18} strokeWidth={1.8} />
                         删除
-                    </button>}
+                    </button>
                 </div>
             )}
             {!isMultiSelectMode && (offlineMode ? (
@@ -7645,7 +6252,6 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
                 characterName={character?.name || "对方"}
                 characterId={session.contactId}
 	                stickerCharacterIds={session.isGroup ? session.participantIds : undefined}
-                    mentionMembers={groupCharacters.map(c => ({ id: c.id, name: groupPrivateAliases.get(c.id) || c.name, avatar: c.avatar }))}
 	                isGroup={!!session.isGroup}
 	                isSpectator={!!session.isGroup && !!session.isSpectator}
 	                muteUntilMs={session.isGroup && session.groupMutes?.[GROUP_SELF_KEY] ? new Date(session.groupMutes[GROUP_SELF_KEY]).getTime() : 0}
@@ -7653,7 +6259,6 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
 	                theaterMode={theaterMode}
 	                enterToSendEnabled={enterToSendEnabled}
 	                quotingMessage={quotingMessage}
-                    quoteSourceStyle={quoteStyle(quotingMessage || undefined)}
                 showEmojiPanel={showEmojiPanel}
                 showStickerPanel={showStickerPanel}
                 showPlusMenu={showPlusMenu}
@@ -7673,16 +6278,6 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
                 onSendText={handleSendText}
                 onStopGeneration={clearStuckGeneration}
                 onTriggerAIResponse={triggerAIResponse}
-                onSendDirectorNote={(text) => {
-                    if (isGeneratingRef.current || isBackgroundReplyGenerating(session.id)) return false;
-                    if (!queueGroupDirectorNote(session.id, text)) {
-                        showChatToast("旁白未保存，请控制在4000字内");
-                        return false;
-                    }
-                    cancelFollowUp(session.id);
-                    void triggerAIResponse();
-                    return true;
-                }}
                 onSendSticker={(name, url) => { setShowStickerPanel(false); sendRichMessage("sticker", { label: name, stickerUrl: url }); }}
             />
             ))}
@@ -7809,43 +6404,60 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
             )}
 
             {/* Rich Media Input Modals */}
-            {richModal === "music" && <ChatMusicPanel sessionId={session.id} characterId={session.isGroup ? undefined : session.contactId}
-                name={session.isGroup ? session.groupName || "群聊" : character?.name || "对方"} avatar={character?.avatar || undefined} busy={isGenerating}
-                onClose={() => setRichModal(null)}
-                onInvite={() => {
-                    if (isGeneratingRef.current) throw new Error("对方正在回复，请稍后邀请");
-                    try {
-                        const invitation = session.isGroup ? inviteGroupListeningRoom(session.id) : inviteListeningRoom(session.id, session.contactId);
-                        const snapshot = getMusicControlBridge()?.getState();
-                        const track = snapshot?.identityId === invitation.identityId ? (snapshot.currentTrack ?? snapshot.selectedTrack) : null;
-                        pushChatMessage({ sessionId: session.id, role: "user", content: "邀请你一起听歌。", mediaType: "listening_invite", mediaData: { listeningInvite: { roomId: invitation.id, title: track?.title, artist: track?.artist, coverUrl: track?.coverUrl } } });
-                        setMessages(loadChatMessages(session.id));
-                        const identity = getCurrentIdentityId();
-                        waitForListeningInviteDraft(wrapperRef.current, () => {
-                            if (identity !== getCurrentIdentityId() || getListeningRoom()?.id !== invitation.id || getListeningRoom()?.status !== "invited" || isGeneratingRef.current) return;
-                            const history = loadChatMessages(session.id);
-                            const invitationIndex = history.findIndex(m=>m.role==="user" && m.mediaData?.listeningInvite?.roomId===invitation.id);
-                            if (invitationIndex < 0 || history.slice(invitationIndex + 1).some(m=>m.role==="assistant")) return;
-                            if (history.filter(m=>m.role==="user").at(-1)?.mediaData?.listeningInvite?.roomId !== invitation.id) return;
-                            window.dispatchEvent(new CustomEvent(CHAT_REQUEST_REPLY_EVENT,{detail:{sessionId:session.id}}));
-                        });
-                    } catch (error) {
+            {richModal === "music" && (
+                <ChatMusicPanel
+                    sessionId={session.id}
+                    characterId={session.isGroup ? undefined : session.contactId}
+                    name={session.isGroup ? session.groupName || "群聊" : character?.name || "对方"}
+                    avatar={character?.avatar || undefined}
+                    busy={isGenerating}
+                    onClose={() => setRichModal(null)}
+                    onInvite={() => {
+                        if (isGeneratingRef.current) throw new Error("对方正在回复，请稍后邀请");
+                        try {
+                            const invitation = session.isGroup
+                                ? inviteGroupListeningRoom(session.id)
+                                : inviteListeningRoom(session.id, session.contactId);
+                            const snapshot = getMusicControlBridge()?.getState();
+                            const track = snapshot?.identityId === invitation.identityId
+                                ? (snapshot.currentTrack ?? snapshot.selectedTrack)
+                                : null;
+                            pushChatMessage({
+                                sessionId: session.id,
+                                role: "user",
+                                content: "邀请你一起听歌。",
+                                mediaType: "listening_invite",
+                                mediaData: { listeningInvite: { roomId: invitation.id, title: track?.title, artist: track?.artist, coverUrl: track?.coverUrl } },
+                            });
+                            setMessages(loadChatMessages(session.id));
+                            const identity = getCurrentIdentityId();
+                            waitForListeningInviteDraft(wrapperRef.current, () => {
+                                if (identity !== getCurrentIdentityId() || getListeningRoom()?.id !== invitation.id || getListeningRoom()?.status !== "invited" || isGeneratingRef.current) return;
+                                window.dispatchEvent(new CustomEvent(CHAT_REQUEST_REPLY_EVENT, { detail: { sessionId: session.id } }));
+                            });
+                        } catch (error) {
+                            leaveListeningRoom(session.id);
+                            throw error;
+                        }
+                    }}
+                    onRetry={() => { if (!isGeneratingRef.current) void triggerAIResponse(); }}
+                    onLeave={() => {
                         leaveListeningRoom(session.id);
-                        throw error;
-                    }
-                }}
-                onRetry={() => { if (!isGeneratingRef.current) void triggerAIResponse(); }}
-                onLeave={() => {
-                    leaveListeningRoom(session.id);
-                    pushChatMessage({ sessionId: session.id, role: "system", content: session.isGroup ? "用户退出了一起听或取消了邀请。" : "用户结束了一起听或取消了邀请。" });
-                    setMessages(loadChatMessages(session.id));
-                }} />}
-            {richModal === "drawing" && <DrawingBoard key={session.id} session={session} history={messages}
-                characters={session.isGroup ? groupCharacters : character ? [character] : []}
-                onClose={() => setRichModal(null)}
-                onSend={(image, summary, process) => sendRichMessage("image", { photoKind: "photo", label: summary, drawingProcess: process }, "", image)} />}
-            {showForwardSheet && <ForwardChatSheet source={session} selectedIds={selectedMessageIds}
-                onClose={() => setShowForwardSheet(false)} onSent={() => { setShowForwardSheet(false); cancelMultiSelect(); showChatToast("已转发"); }} />}
+                        pushChatMessage({ sessionId: session.id, role: "system", content: "用户结束了一起听或取消了邀请。" });
+                        setMessages(loadChatMessages(session.id));
+                    }}
+                />
+            )}
+            {richModal === "drawing" && (
+                <DrawingBoard
+                    key={session.id}
+                    session={session}
+                    history={messages}
+                    characters={session.isGroup ? groupCharacters : character ? [character] : []}
+                    onClose={() => setRichModal(null)}
+                    onSend={(image, summary, process) => sendRichMessage("image", { photoKind: "photo", label: summary, drawingProcess: process }, "", image)}
+                />
+            )}
             {richModal === "voice_msg" && (
                 <VoiceRecordModal
                     characterId={session.contactId}
@@ -7858,19 +6470,13 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
             )}
             {richModal === "text_photo" && (
                 <TextPhotoModal
-                    onSend={(texts) => {
-                        const sent = sendPhotoGroup(texts.map(text => ({ label: text, photoKind: "text_photo" as const })));
-                        if (sent) setRichModal(null);
-                    }}
+                    onSend={(text) => { setRichModal(null); sendRichMessage("image", { label: text }); }}
                     onClose={() => setRichModal(null)}
                 />
             )}
             {richModal === "photo" && (
                 <PhotoInputModal
-                    onSend={(items) => {
-                        const sent = sendPhotoGroup(items.map(item => ({ label: item.description, mediaUrl: item.imageDataUrl, photoKind: "photo" as const })));
-                        if (sent) setRichModal(null);
-                    }}
+                    onSend={(desc, imageDataUrl) => { setRichModal(null); sendRichMessage("image", { label: desc }, "", imageDataUrl); }}
                     onClose={() => setRichModal(null)}
                 />
             )}
@@ -7891,7 +6497,7 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
                     mode="red_packet"
                     isGroup={session.isGroup}
                     onSend={(amount, label, count) => {
-                        const sent = sendRichMessage("red_packet", { amount, label, currency: loadWalletState().currency || "CNY", status: "pending", count: count || 1 });
+                        const sent = sendRichMessage("red_packet", { amount, label, status: "pending", count: count || 1 });
                         if (sent) setRichModal(null);
                     }}
                     onClose={() => setRichModal(null)}
@@ -7910,14 +6516,10 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
             {richModal === "transfer" && (
                 <RedPacketModal
                     mode="transfer"
-                    onSend={async (amount, label, _count, currency = "CNY") => {
-                        const targetCurrency = loadWalletState().currency || "CNY";
-                        const rate = await fetchExchangeRate(currency, targetCurrency);
-                        if (!rate || (loadWalletState().currency || "CNY") !== targetCurrency) { showChatToast("汇率查询失败，尚未扣款，请重试"); return; }
-                        const debit = { walletDebitAmount: cnyAmount(amount, rate), walletDebitCurrency: targetCurrency };
+                    onSend={(amount, label) => {
                         if (session.isGroup && transferTarget) {
                             const sent = sendRichMessage("transfer", {
-                                ...debit, amount, label, currency: normalizeCurrency(currency), status: "pending",
+                                amount, label, status: "pending",
                                 senderName: userIdentity?.name || "你",
                                 recipientId: transferTarget.id,
                                 recipientName: transferTarget.name,
@@ -7927,7 +6529,7 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
                                 setTransferTarget(null);
                             }
                         } else {
-                            const sent = sendRichMessage("transfer", { ...debit, amount, label, currency: normalizeCurrency(currency), status: "pending" });
+                            const sent = sendRichMessage("transfer", { amount, label, status: "pending" });
                             if (sent) setRichModal(null);
                         }
                     }}
@@ -8019,7 +6621,6 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
                 <MediaDetailModal
                     msg={mediaDetailMsg}
                     userName={userIdentity?.name || "你"}
-                    charName={character?.name || session.alias || undefined}
                     groupSize={session.isGroup ? (session.participantIds?.length || 0) + (session.isSpectator ? 0 : 1) : undefined}
                     onAccept={(updatedMsg, sysText, actionType) => {
                         const walletUpdatedMsg = updatedMsg.role === "assistant"
@@ -8086,17 +6687,6 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
                 </div>
             )}
 
-            {retryTarget && <RetryGuidanceDialog
-                versionIndex={retryTarget.series?.active ?? 0} versionCount={retryTarget.series?.versions.length ?? 1}
-                versionBusy={retryVersionBusy} onSelectVersion={index => void switchRetryVersion(index)}
-                versionText={retrySourceText(retryTarget.series, retryTarget.id) || (retryTarget.offline ? offlineTurns.find(turn => turn.id === retryTarget.id)?.assistantContent : messages.find(message => message.id === retryTarget.id)?.content) || ""}
-                preserveFollowing={retryTarget.series ? retryTarget.series.kind === "notice" : !retryTarget.offline && messages.some(m => m.id === retryTarget.id && uiRole(m) === "system")}
-                onCancel={() => { if (!retryVersionBusy) setRetryTarget(null); }} onConfirm={guidance => {
-                if (retryVersionBusy) return;
-                const target = retryTarget; setRetryTarget(null);
-                if (target.offline) void handleOfflineRetryFrom(target.id, guidance, target.series);
-                else void handleRetry(target.id, guidance, target.series);
-            }} />}
             {editingMessageId && (
                 <div className="chat-html-overlay" onClick={() => { setEditingMessageId(null); setEditingContent(""); }}>
                     <div
@@ -8213,6 +6803,32 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
                         ) : chatToast}
                     </div>
                 </div>
+            )}
+
+            {/* 单聊语音/视频通话：内联挂载（而非提前 return），使缩小为悬浮窗时通话组件
+                不被卸载，计时/字幕等状态得以保留；组件内部依据 minimized 决定渲染
+                全屏界面还是左侧悬浮窗 */}
+            {showVoiceCall && character && (
+                <VoiceCallScreen
+                    session={session}
+                    character={character}
+                    initiator={callInitiator}
+                    minimized={callMinimized}
+                    onMinimize={() => setCallMinimized(true)}
+                    onRestore={() => setCallMinimized(false)}
+                    onEnd={() => returnFromCall(() => setShowVoiceCall(false))}
+                />
+            )}
+            {showVideoCall && character && (
+                <VideoCallScreen
+                    session={session}
+                    character={character}
+                    initiator={callInitiator}
+                    minimized={callMinimized}
+                    onMinimize={() => setCallMinimized(true)}
+                    onRestore={() => setCallMinimized(false)}
+                    onEnd={() => returnFromCall(() => setShowVideoCall(false))}
+                />
             )}
 
         </div >

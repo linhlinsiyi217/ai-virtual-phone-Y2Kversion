@@ -2,9 +2,10 @@
 
 // 表情包搜索联想：输入时按名称模糊匹配本地表情包，横向列表浮在输入框正上方，
 // 点击直接发送（复用 onSendSticker 的 sticker 消息通道），发送后由父组件清空输入。
-// 只联想当前会话绑定的图片表情包，不联想普通 emoji，也不为整行绘制背景。
+// 数据源 = 内置表情包（sticker-data，emoji 兜底）+ 当前会话角色绑定的自定义贴纸包（IndexedDB 解析出 url）。
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { STICKER_PACKS } from "@/lib/sticker-data";
 import { loadStickerPacksForCharacters, resolvePackStickerMap } from "@/lib/custom-sticker-storage";
 
 export type StickerSearchItem = {
@@ -69,6 +70,15 @@ export function StickerSearchSuggest({ query, characterIds, onSend, onClose }: S
     };
   }, [characterIds]);
 
+  // ── 内置表情包（emoji 兜底） ──
+  const builtinItems = useMemo<StickerSearchItem[]>(
+    () =>
+      STICKER_PACKS.flatMap((pack) =>
+        pack.stickers.map((sticker) => ({ key: `builtin:${sticker.name}`, name: sticker.name, emoji: sticker.emoji })),
+      ),
+    [],
+  );
+
   // ── 模糊匹配 + 排序（前缀优先，再包含；同名去重，自定义优先） ──
   const results = useMemo(() => {
     const q = debouncedQuery.toLowerCase();
@@ -80,7 +90,7 @@ export function StickerSearchSuggest({ query, characterIds, onSend, onClose }: S
       if (n.includes(q)) return 2;
       return -1;
     };
-    const scored = customItems.filter(item => Boolean(item.url))
+    const scored = [...customItems, ...builtinItems]
       .map((item) => ({ item, rank: rank(item.name) }))
       .filter((entry) => entry.rank >= 0)
       .sort((a, b) => a.rank - b.rank || a.item.name.length - b.item.name.length);
@@ -93,23 +103,25 @@ export function StickerSearchSuggest({ query, characterIds, onSend, onClose }: S
       if (out.length >= MAX_RESULTS) break;
     }
     return out;
-  }, [debouncedQuery, customItems]);
+  }, [debouncedQuery, builtinItems, customItems]);
 
   if (!debouncedQuery || results.length === 0) return null;
 
   return (
     <div
       className="sticker-search-suggest"
-      style={{ position: "absolute", left: "var(--im26-composer-field-left, 0px)", right: "var(--im26-edge, 0px)", bottom: "100%", zIndex: 60, marginBottom: 6 }}
+      style={{ position: "absolute", left: 0, right: 0, bottom: "100%", zIndex: 60, marginBottom: 6 }}
       // 阻止 mousedown 默认行为：点击列表项时不触发 textarea 失焦，避免列表在 click 前被 blur 关掉
       onMouseDown={(event) => event.preventDefault()}
     >
       <div
-        className="flex items-stretch gap-2 overflow-x-auto py-1 hide-scrollbar"
+        className="flex items-stretch gap-2 overflow-x-auto px-3 py-2.5 rounded-2xl hide-scrollbar"
         style={{
-          background: "transparent",
-          border: "none",
-          boxShadow: "none",
+          background: "color-mix(in srgb, var(--c-card) 96%, transparent)",
+          border: "1px solid var(--c-card-border)",
+          boxShadow: "0 8px 28px rgba(0,0,0,0.12)",
+          backdropFilter: "blur(16px)",
+          WebkitBackdropFilter: "blur(16px)",
           maxWidth: "100%",
         }}
       >
@@ -121,19 +133,20 @@ export function StickerSearchSuggest({ query, characterIds, onSend, onClose }: S
               onSend(item.name, item.url);
               onClose();
             }}
-            className="shrink-0 flex items-center justify-center p-0 bg-transparent border-none cursor-pointer transition-transform active:scale-95"
-            style={{ width: 34, height: 34 }}
+            className="shrink-0 flex flex-col items-center gap-1 px-2.5 py-2 rounded-xl bg-transparent border-none cursor-pointer transition-transform active:scale-95"
+            style={{ minWidth: 64 }}
             title={item.name}
           >
-            <span className="flex items-center justify-center overflow-hidden" style={{ width: 34, height: 34 }}>
+            <span className="w-14 h-14 flex items-center justify-center overflow-hidden">
               {item.url ? (
-                <img src={item.url} alt={item.name} style={{ width: 34, height: 34, objectFit: "contain" }} draggable={false} />
+                <img src={item.url} alt={item.name} className="w-14 h-14 object-contain" draggable={false} />
               ) : item.emoji ? (
                 <span className="text-[32px] leading-none">{item.emoji}</span>
               ) : (
                 <span className="ts-11 text-[var(--c-text)] w-full text-center truncate">{item.name}</span>
               )}
             </span>
+            <span className="ts-11 text-[var(--c-text)] opacity-75 max-w-[64px] truncate leading-tight">{item.name}</span>
           </button>
         ))}
       </div>

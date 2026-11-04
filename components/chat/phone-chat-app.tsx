@@ -8,7 +8,7 @@ import { MomentsFeed } from "./moments-feed";
 import { ChatRoom } from "./chat-room";
 import { MascotChatRoom } from "./mascot-chat-room";
 import { UserProfilePanel } from "./user-profile-panel";
-import { MessageCircle, Users, Aperture } from "lucide-react";
+import { MessageCircle, Users, Aperture, UserRound } from "lucide-react";
 import { ChatSession, loadChatSessions, pushChatMessage, hydrateChatStorage } from "@/lib/chat-storage";
 import { notifyMascotPageContext } from "@/lib/mascot-events";
 import { loadChatAppCharacters as loadCharacters } from "@/lib/chat-app-characters";
@@ -18,7 +18,6 @@ import { formatXiaohongshuShareForPrompt, type ChatSharePayload } from "@/lib/ch
 import { CHAT_OPEN_SESSION_EVENT, CHAT_OPEN_ADD_CONTACT_EVENT } from "@/lib/chat-notification-events";
 import { CHAT_SESSIONS_MERGED_EVENT, type ChatSessionsMergedDetail } from "@/lib/chat-session-merge";
 import { getMascotSettingsSnapshot } from "@/lib/mascot-settings";
-import { CHAT_UI_MODE_EVENT, loadChatUiMode, type ChatUiMode } from "@/lib/chat-ui-mode";
 
 type TabKey = "messages" | "contacts" | "feeds" | "me";
 
@@ -33,8 +32,6 @@ export type PhoneChatAppProps = {
 };
 
 export const PhoneChatApp = memo(function PhoneChatApp({ onClose, initialSessionId, feedsRequest, sessionRequest, onSessionChange, sharePayload, onShareDone }: PhoneChatAppProps) {
-    const sharePayloadRef = useRef(sharePayload);
-    sharePayloadRef.current = sharePayload;
     const [activeTab, setActiveTab] = useState<TabKey>("messages");
     const [activeSession, setActiveSession] = useState<ChatSession | null>(null);
     const [activeMascot, setActiveMascot] = useState(false);
@@ -47,7 +44,7 @@ export const PhoneChatApp = memo(function PhoneChatApp({ onClose, initialSession
     const [visitedSessions, setVisitedSessions] = useState<Map<string, ChatSession>>(new Map());
     const [dbReady, setDbReady] = useState(false);
     const [hideTabBar, setHideTabBar] = useState(false);
-    const [chatUiMode, setChatUiMode] = useState<ChatUiMode>(() => loadChatUiMode());
+
     useEffect(() => {
         if (!dbReady || !feedsRequest || initialSessionId) return;
         setActiveSession(null);
@@ -59,18 +56,24 @@ export const PhoneChatApp = memo(function PhoneChatApp({ onClose, initialSession
     useEffect(() => {
         hydrateChatStorage().then(() => {
             setDbReady(true);
+            // Resolve initial session after hydration
+            if (initialSessionId) {
+                const s = loadChatSessions().find(s => s.id === initialSessionId);
+                if (s) setActiveSession(s);
+            }
         });
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-    // Apply the latest destination after hydration, including repeat requests.
+    // React to external session navigation (e.g., incoming call acceptance)
+    // Only fires when initialSessionId CHANGES after mount (mount case handled by hydration above)
     useEffect(() => {
-        if (!dbReady || sharePayloadRef.current) return;
+        if (!dbReady) return;
         if (!initialSessionId) {
             setActiveSession(null);
             return;
         }
         const s = loadChatSessions().find(s => s.id === initialSessionId);
-        if (s) { setActiveMascot(false); setActiveSession(s); setActiveTab("messages"); }
+        if (s) setActiveSession(s);
     }, [initialSessionId, dbReady, sessionRequest]);
 
     // When sharePayload is set, switch to contacts tab (and close any open chat room)
@@ -173,18 +176,20 @@ export const PhoneChatApp = memo(function PhoneChatApp({ onClose, initialSession
             if (sharePayload.type === "music") {
                 if (sharePayload.lyricMode === "quote" && sharePayload.listeningContext?.reference) {
                     setLyricQuote({ sessionId: sess.id, context: sharePayload.listeningContext });
-                } else pushChatMessage({
-                    sessionId: sess.id,
-                    role: "user",
-                    content: "",
-                    mediaType: "music_share",
-                    listeningContext: sharePayload.listeningContext,
-                    mediaData: {
-                        musicTitle: sharePayload.title,
-                        musicArtist: sharePayload.artist,
-                        label: `${sharePayload.title} - ${sharePayload.artist}`,
-                    },
-                });
+                } else {
+                    pushChatMessage({
+                        sessionId: sess.id,
+                        role: "user",
+                        content: "",
+                        mediaType: "music_share",
+                        listeningContext: sharePayload.listeningContext,
+                        mediaData: {
+                            musicTitle: sharePayload.title,
+                            musicArtist: sharePayload.artist,
+                            label: `${sharePayload.title} - ${sharePayload.artist}`,
+                        },
+                    });
+                }
             } else if (sharePayload.type === "music_lyric") {
                 pushChatMessage({
                     sessionId: sess.id,
@@ -244,15 +249,6 @@ export const PhoneChatApp = memo(function PhoneChatApp({ onClose, initialSession
         return () => window.removeEventListener("chat-app-css-updated", onCSSUpdate);
     }, []);
 
-    useEffect(() => {
-        const onMode = (event: Event) => {
-            const mode = (event as CustomEvent<ChatUiMode>).detail;
-            setChatUiMode(mode === "original" ? "original" : "y2k");
-        };
-        window.addEventListener(CHAT_UI_MODE_EVENT, onMode);
-        return () => window.removeEventListener(CHAT_UI_MODE_EVENT, onMode);
-    }, []);
-
     // Listen for tab bar hide/show from sub-pages (e.g. CSS editor)
     useEffect(() => {
         const onHide = (e: Event) => setHideTabBar((e as CustomEvent).detail);
@@ -268,12 +264,11 @@ export const PhoneChatApp = memo(function PhoneChatApp({ onClose, initialSession
             className="chat-app absolute inset-0 flex flex-col overflow-hidden z-10"
             {...(activeSession || activeMascot ? { "data-room-active": "" } : {})}
             {...(hideTabBar ? { "data-tabbar-hidden": "" } : {})}
-            data-chat-ui-mode={chatUiMode}
         >
             {/* Chat app-level custom CSS (lower priority than per-session CSS) */}
             {chatAppCSS && <SessionCustomCSS css={chatAppCSS} scope=".chat-app" />}
             {/* The Main Content Area */}
-            <div className="chat-main-content relative flex-1 flex flex-col overflow-hidden" data-social-pages={activeTab === "feeds" || activeTab === "me" ? "" : undefined} {...(activeSession || activeMascot ? { "data-covered-by-room": "" } : {})}>
+            <div className="chat-main-content relative flex-1 flex flex-col overflow-hidden" {...(activeSession || activeMascot ? { "data-covered-by-room": "" } : {})}>
                 {activeTab === "messages" && <ChatMessageList onCloseApp={onClose} activeSession={activeSession} onSelectSession={(session) => { setActiveMascot(false); setActiveSession(session); }} onSelectMascot={handleSelectMascot} />}
                 {activeTab === "contacts" && (
                     <ChatContactsList
@@ -298,39 +293,34 @@ export const PhoneChatApp = memo(function PhoneChatApp({ onClose, initialSession
             </div>
 
             {/* Bottom Navigation Bar — hide when inside a chat room */}
-            <nav
-                className="chat-tab-bar chat-bottom-glass-bar"
-                data-ui="nav"
-                data-active-tab={activeTab}
-                style={{ display: activeSession || activeMascot || hideTabBar ? "none" : undefined }}
-            >
+            <nav className="chat-tab-bar chat-bottom-glass-bar" data-ui="nav" style={{ display: activeSession || activeMascot || hideTabBar ? "none" : undefined }}>
                 <button
                     className={`chat-tab ${activeTab === "messages" ? "chat-tab-active" : ""}`}
                     onClick={() => setActiveTab("messages")}
                 >
                     <MessageCircleIcon active={activeTab === "messages"} />
-                    <span className="chat-tab-label">消息</span>
+                    <span style={{ fontSize: "calc(10px*var(--app-text-scale,1))", color: activeTab === "messages" ? undefined : "var(--c-text)" }}>消息</span>
                 </button>
                 <button
                     className={`chat-tab ${activeTab === "contacts" ? "chat-tab-active" : ""}`}
                     onClick={() => setActiveTab("contacts")}
                 >
                     <UsersIcon active={activeTab === "contacts"} />
-                    <span className="chat-tab-label">联系人</span>
+                    <span style={{ fontSize: "calc(10px*var(--app-text-scale,1))", color: activeTab === "contacts" ? undefined : "var(--c-text)" }}>联系人</span>
                 </button>
                 <button
                     className={`chat-tab ${activeTab === "feeds" ? "chat-tab-active" : ""}`}
                     onClick={() => setActiveTab("feeds")}
                 >
                     <CompassIcon active={activeTab === "feeds"} />
-                    <span className="chat-tab-label">动态</span>
+                    <span style={{ fontSize: "calc(10px*var(--app-text-scale,1))", color: activeTab === "feeds" ? undefined : "var(--c-text)" }}>动态</span>
                 </button>
                 <button
                     className={`chat-tab ${activeTab === "me" ? "chat-tab-active" : ""}`}
                     onClick={() => setActiveTab("me")}
                 >
                     <MeIcon active={activeTab === "me"} />
-                    <span className="chat-tab-label">主页</span>
+                    <span style={{ fontSize: "calc(10px*var(--app-text-scale,1))", color: activeTab === "me" ? undefined : "var(--c-text)" }}>主页</span>
                 </button>
             </nav>
 
@@ -366,19 +356,19 @@ export const PhoneChatApp = memo(function PhoneChatApp({ onClose, initialSession
     );
 });
 
-// Shared line icons keep the four slots visually consistent at small sizes.
+// Refined Icons
 function MessageCircleIcon({ active }: { active: boolean }) {
-    return <MessageCircle fill="none" stroke="currentColor" strokeWidth={active ? 1.8 : 1.7} />;
+    return <MessageCircle fill="none" stroke="currentColor" strokeWidth={active ? 1.8 : 1.7} size={20} style={{ transform: active ? "scale(1.1)" : "scale(1)", transition: "all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)" }} />;
 }
 
 function UsersIcon({ active }: { active: boolean }) {
-    return <Users fill="none" stroke="currentColor" strokeWidth={active ? 1.8 : 1.7} />;
+    return <Users fill="none" stroke="currentColor" strokeWidth={active ? 1.8 : 1.7} size={20} style={{ transform: active ? "scale(1.1)" : "scale(1)", transition: "all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)" }} />;
 }
 
 function CompassIcon({ active }: { active: boolean }) {
-    return <Aperture fill="none" stroke="currentColor" strokeWidth={active ? 1.8 : 1.7} />;
+    return <Aperture fill="none" stroke="currentColor" strokeWidth={active ? 1.8 : 1.7} size={20} style={{ transform: active ? "scale(1.1) rotate(25deg)" : "scale(1) rotate(0deg)", transition: "all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)" }} />;
 }
 
 function MeIcon({ active }: { active: boolean }) {
-    return <svg className="chat-tab-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10s10-4.477 10-10S17.523 2 12 2" /><path d="M4.271 18.346S6.5 15.5 12 15.5s7.73 2.846 7.73 2.846M12 12a3 3 0 1 0 0-6a3 3 0 0 0 0 6" /></svg>;
+    return <UserRound fill="none" stroke="currentColor" strokeWidth={active ? 1.8 : 1.7} size={20} style={{ transform: active ? "scale(1.1)" : "scale(1)", transition: "all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)" }} />;
 }

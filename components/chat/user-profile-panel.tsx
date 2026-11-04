@@ -2,9 +2,6 @@
 
 import { useState, useEffect, useMemo, type CSSProperties } from "react";
 import CSSSchemeBar from "@/components/ui/css-scheme-picker";
-import { readProfileImage } from "@/components/settings/user-portrait-settings";
-import { loadUserIdentities, saveUserIdentities } from "@/lib/settings-storage";
-import { getCurrentIdentityId } from "@/lib/identity-runtime";
 import {
     loadFollowUpConfig,
     saveFollowUpConfig,
@@ -24,7 +21,7 @@ import { ChatPluginPageBoundary } from "./chat-plugin-page-boundary";
 import { WalletPanel } from "./wallet-panel";
 import { loadMomentsConfig, saveMomentsConfig, DEFAULT_MOMENTS_CONFIG, type MomentsInteractionConfig, getAllPosts } from "@/lib/moments-storage";
 import { loadChatContacts } from "@/lib/chat-storage";
-import { loadChatAppCharacters as loadCharacters } from "@/lib/chat-app-characters";
+import { loadCharacters } from "@/lib/character-storage";
 import { triggerImmediatePost } from "@/lib/moments-engine";
 import type { Character } from "@/lib/character-types";
 import { requestNotificationPermission } from "@/lib/browser-notification";
@@ -38,7 +35,6 @@ import { addChatContact, createOrGetSession } from "@/lib/chat-storage";
 import { kvGet, kvSet, kvRemove } from "@/lib/kv-db";
 import { formatWalletAmount, getWalletBalance, loadWalletState, WALLET_UPDATED_EVENT } from "@/lib/wallet-storage";
 import { ChatFallbackAvatar } from "./chat-fallback-avatar";
-import { ProfileCover } from "./profile-cover";
 import {
     Loader2,
     Bell,
@@ -56,6 +52,7 @@ import {
     Radio,
     RotateCcw,
     Moon,
+    MoreHorizontal,
     Satellite,
     Send,
     X,
@@ -160,8 +157,6 @@ export function UserProfilePanel({ onClose, className }: UserProfilePanelProps) 
     const [showMomentsSettings, setShowMomentsSettings] = useState(false);
     const [showWalletPanel, setShowWalletPanel] = useState(false);
     const [identity, setIdentity] = useState<UserIdentity | null>(null);
-    const [avatarError, setAvatarError] = useState("");
-    const [avatarBusy, setAvatarBusy] = useState(false);
     const [notifEnabled, setNotifEnabled] = useState(false);
     const [notifHint, setNotifHint] = useState<string | null>(null);
     const [notifChecking, setNotifChecking] = useState(false);
@@ -324,12 +319,11 @@ export function UserProfilePanel({ onClose, className }: UserProfilePanelProps) 
                     display: none;
                 }
             `}</style>
-            <PageShell title="" onBack={onClose} className={`user-profile-page-root apple-social-page ${className || ""}`}>
-                <div className="apple-profile-content relative z-[1] w-full max-w-2xl mx-auto flex flex-col pb-8">
-                    
+            <PageShell title="" onBack={onClose} className={`user-profile-page-root ${className || ""}`}>
+                <div className="relative z-[1] w-full max-w-2xl mx-auto flex flex-col pb-8">
+
                     {/* User Info & Stats Block */}
-                    <div className="apple-profile-identity flex items-center gap-5 px-6 pt-2 pb-4">
-                        <ProfileCover />
+                    <div className="flex items-center gap-5 px-6 pt-2 pb-4">
                         {/* Avatar */}
                         <div className="relative shrink-0">
                             <div className="w-[84px] h-[84px] rounded-full overflow-hidden bg-[var(--c-card)] border-2 border-white/50 shadow-sm flex items-center justify-center relative"
@@ -340,37 +334,26 @@ export function UserProfilePanel({ onClose, className }: UserProfilePanelProps) 
                                     <User size={38} color="var(--c-icon)" />
                                 )}
                             </div>
-                            <label className="ui-link-btn mt-2 cursor-pointer">{avatarBusy ? "处理中…" : "更换聊天头像"}<input type="file" accept="image/*" className="sr-only" disabled={avatarBusy || !identity} onChange={async e => {
-                                const file = e.target.files?.[0]; e.target.value = ""; if (!file || !identity) return;
-                                const id = identity.id; const active = getCurrentIdentityId();
-                                setAvatarBusy(true); setAvatarError("");
-                                try {
-                                    const chatAvatarUrl = await readProfileImage(file);
-                                    if (getCurrentIdentityId() !== active) return;
-                                    saveUserIdentities(loadUserIdentities().map(item => item.id === id ? { ...item, chatAvatarUrl } : item));
-                                    setIdentity(resolveUserIdentity());
-                                    window.dispatchEvent(new Event("settings-updated"));
-                                    window.dispatchEvent(new Event("moments-updated"));
-                                } catch (error) { setAvatarError(error instanceof Error ? error.message : "头像保存失败"); }
-                                finally { setAvatarBusy(false); }
-                            }}/></label>
-                            {avatarError && <p role="alert" className="menu-desc">{avatarError}</p>}
                         </div>
 
                         {/* Info & Stats */}
-                        <div className="flex flex-col flex-1 min-w-0 justify-center gap-2">
+                        <div className="flex flex-col flex-1 justify-center gap-2">
                             {/* Top Row: Name and Identity Badge */}
-                            <div className="apple-profile-name-row">
+                            <div className="flex items-center justify-between w-full mb-0.5">
                                 <div className="ts-22 font-bold text-[var(--c-text-title)] leading-none truncate">{identity?.name || "未设置身份"}</div>
+                                <div className="flex items-center gap-1.5 ts-11 font-medium bg-black/5 dark:bg-white/10 px-2 py-0.5 rounded-full shrink-0 text-[var(--c-text)] opacity-80">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-blue-400 inline-block" />
+                                    手机在线
+                                </div>
                             </div>
 
                             {/* Data Stats inline */}
                             <div className="flex items-center justify-between w-full ts-12 text-[var(--c-text-title)] font-medium mt-0.5">
-                                <span className="opacity-80">聊天 <span className="font-bold opacity-100">{userStats.chats}</span></span>
+                                <span className="opacity-80">Chatting <span className="font-bold opacity-100">{userStats.chats}</span></span>
                                 <span className="opacity-20 text-[calc(10px*var(--app-text-scale,1))] transform scale-y-125">|</span>
-                                <span className="opacity-80">动态 <span className="font-bold opacity-100">{userStats.moments}</span></span>
+                                <span className="opacity-80">Moments <span className="font-bold opacity-100">{userStats.moments}</span></span>
                                 <span className="opacity-20 text-[calc(10px*var(--app-text-scale,1))] transform scale-y-125">|</span>
-                                <span className="opacity-80">访客 <span className="font-bold opacity-100">{userStats.visitors}</span></span>
+                                <span className="opacity-80">Visitors <span className="font-bold opacity-100">{userStats.visitors}</span></span>
                             </div>
                         </div>
                     </div>
@@ -379,15 +362,16 @@ export function UserProfilePanel({ onClose, className }: UserProfilePanelProps) 
 
                     <button
                         type="button"
-                        className="apple-profile-wallet mx-4 mb-4 rounded-2xl overflow-hidden text-left relative min-h-[132px] p-5 flex flex-col justify-between"
+                        className="mx-4 mb-4 rounded-2xl overflow-hidden text-left relative min-h-[132px] p-5 flex flex-col justify-between"
                         onClick={() => { window.dispatchEvent(new CustomEvent("chat-hide-tabbar", { detail: true })); setShowWalletPanel(true); }}
+                        style={{ background: "#eaf5ff", boxShadow: "0 8px 24px rgba(0,0,0,0.025)", border: "1px solid rgba(255,255,255,0.72)", color: "#172033" }}
                     >
                         <div className="relative flex items-start justify-between gap-4">
                             <div>
-                                <div className="ts-13 font-medium opacity-70">钱包余额</div>
-                                <div className="ts-30 font-semibold mt-2 apple-wallet-amount">{walletSummary.totalLabel}</div>
+                                <div className="ts-11 font-semibold opacity-70 tracking-[0.18em] uppercase">Real Balance</div>
+                                <div className="ts-30 font-semibold mt-2" style={{ fontFamily: "Georgia, serif" }}>{walletSummary.totalLabel}</div>
                             </div>
-                            <span className="ts-11 font-medium opacity-70 shrink-0">{walletSummary.cardCount}张银行卡</span>
+                            <span className="ts-11 font-semibold opacity-70 tracking-[0.18em] shrink-0" style={{ color: "#172033" }}>{walletSummary.cardCount}张银行卡</span>
                         </div>
                         <div className="relative flex items-center justify-between gap-3">
                             <span className="ts-12 opacity-75">余额管理 · 银行卡与流水</span>
@@ -644,8 +628,10 @@ function FollowUpSettingsEditor({ onBack }: { onBack: () => void }) {
 function ApiLogViewer({ onBack }: { onBack: () => void }) {
     const [logs, setLogs] = useState<DebugInfo[]>([]);
     const [expandedId, setExpandedId] = useState<string | null>(null);
-    // 来源过滤：hiddenSources 里记录被取消勾选的来源；空集 = 全部显示
+    // 来源过滤：hiddenSources 里记录被取消勾选的来源；空集 = 全部显示。
+    // 选择器收进右上角三点按钮打开的底部弹窗，列表区不再占一块
     const [hiddenSources, setHiddenSources] = useState<Set<string>>(new Set());
+    const [sourcePickerOpen, setSourcePickerOpen] = useState(false);
 
     useEffect(() => {
         setLogs([...getApiLogs()].reverse());
@@ -689,7 +675,22 @@ function ApiLogViewer({ onBack }: { onBack: () => void }) {
     };
 
     return (
-        <PageShell title="后台记录" onBack={onBack} className="absolute inset-0 z-[100]">
+        <PageShell
+            title="后台记录"
+            onBack={onBack}
+            className="absolute inset-0 z-[100]"
+            rightAction={logs.length > 0 ? (
+                <button
+                    type="button"
+                    className="page-back-btn"
+                    onClick={() => setSourcePickerOpen(true)}
+                    title="来源过滤"
+                    aria-label="来源过滤"
+                >
+                    <MoreHorizontal size={22} strokeWidth={1.5} />
+                </button>
+            ) : undefined}
+        >
             <div className="page-menu">
                 {logs.length === 0 ? (
                     <div className="ui-empty">
@@ -697,33 +698,44 @@ function ApiLogViewer({ onBack }: { onBack: () => void }) {
                     </div>
                 ) : (
                     <>
-                        {/* 显示设置：来源过滤复选框（查看原始回复请逐条展开，或到聊天界面点消息旁的「AI 原始回复」按钮） */}
-                        <div className="menu-group">
-                            <div className="px-4 py-3 flex flex-col gap-2">
-                                <div className="flex items-center justify-between">
-                                    <span className="menu-label">来源过滤</span>
-                                    <button
-                                        type="button"
-                                        className="ui-bare-btn ts-12 font-semibold text-[var(--c-icon-active)]"
-                                        onClick={toggleAll}
-                                    >
-                                        {allChecked ? "全不选" : "全选"}
-                                    </button>
-                                </div>
-                                <div className="flex flex-wrap gap-x-3 gap-y-2">
-                                    <label className="flex items-center gap-1.5 ts-12 cursor-pointer select-none">
-                                        <input type="checkbox" checked={allChecked} onChange={toggleAll} />
-                                        <span>全部</span>
-                                    </label>
-                                    {allSources.map(src => (
-                                        <label key={src} className="flex items-center gap-1.5 ts-12 cursor-pointer select-none">
-                                            <input type="checkbox" checked={!hiddenSources.has(src)} onChange={() => toggleSource(src)} />
-                                            <span className="max-w-[140px] truncate">{src}</span>
-                                        </label>
-                                    ))}
+                        {/* 来源过滤：右上角三点打开的底部弹窗，样式同记忆库的「记忆来源」 */}
+                        {sourcePickerOpen ? (
+                            <div className="modal-overlay modal-overlay-bottom" data-ui="modal" onClick={() => setSourcePickerOpen(false)}>
+                                <div className="modal-sheet memory-source-sheet" data-ui="modal-sheet" onClick={event => event.stopPropagation()}>
+                                    <div className="modal-header" data-ui="modal-header">
+                                        <button
+                                            type="button"
+                                            className="ui-bare-btn ts-12 font-semibold text-[var(--c-icon-active)]"
+                                            onClick={toggleAll}
+                                        >
+                                            {allChecked ? "全不选" : "全选"}
+                                        </button>
+                                        <h3 className="modal-title">来源过滤</h3>
+                                        <button className="modal-header-btn modal-header-btn-muted" onClick={() => setSourcePickerOpen(false)}><X size={18} /></button>
+                                    </div>
+                                    <div className="modal-body modal-body-tight" data-ui="modal-body">
+                                        <div className="memory-source-chips" style={{ "--chip-accent": "var(--c-icon-active)" } as CSSProperties}>
+                                            {allSources.map(src => {
+                                                const isChecked = !hiddenSources.has(src);
+                                                return (
+                                                    <button
+                                                        key={src}
+                                                        type="button"
+                                                        className="memory-source-chip"
+                                                        data-off={isChecked ? undefined : ""}
+                                                        aria-pressed={isChecked}
+                                                        title={src}
+                                                        onClick={() => toggleSource(src)}
+                                                    >
+                                                        {src}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
+                        ) : null}
 
                         {visibleLogs.length === 0 ? (
                             <div className="ui-empty">
@@ -757,14 +769,6 @@ function ApiLogViewer({ onBack }: { onBack: () => void }) {
                                                 </div>
                                             </div>
                                             <div className="menu-right">
-                                                <span
-                                                    className="api-log-raw-tag"
-                                                    role="button"
-                                                    tabIndex={0}
-                                                    onClick={(e) => { e.stopPropagation(); setExpandedId(isOpen ? null : log.id); }}
-                                                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setExpandedId(isOpen ? null : log.id); } }}
-                                                    title="查看这条调用的思维链原文"
-                                                >查看原始</span>
                                                 <ChevronRight
                                                     size={16}
                                                     className="ui-chevron-flip"

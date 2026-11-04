@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback, useRef, useMemo, useDeferredVa
 import { loadChatContacts, ChatContact, createOrGetSession, ChatSession, addChatContact, pushChatMessage, loadChatMessages } from "@/lib/chat-storage";
 import { resolveUserIdentity } from "@/lib/settings-storage";
 import { PENDING_REPLY_PREFIX } from "@/lib/friend-request-engine";
-import { loadChatAppCharacters as loadCharacters } from "@/lib/chat-app-characters";
+import { loadCharacters } from "@/lib/character-storage";
 import { Character } from "@/lib/character-types";
 import { loadMomentPosts } from "@/lib/moments-storage";
 import {
@@ -58,7 +58,7 @@ export function ChatContactsList({ onCloseApp, onSelectSession, onSelectMascot, 
     const [mascotAvatarUrl, setMascotAvatarUrl] = useState(mascotSettings.avatarImage || DEFAULT_MASCOT_AVATAR);
 
     const identity = useMemo(() => resolveUserIdentity(), []);
-    const chars = loadCharacters();
+    const chars = useMemo(() => loadCharacters(), []);
     const deferredContactFilter = useDeferredValue(contactFilter);
     const bodyRef = useRef<HTMLDivElement>(null);
     const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
@@ -102,7 +102,6 @@ export function ChatContactsList({ onCloseApp, onSelectSession, onSelectMascot, 
 
     const refresh = useCallback(() => {
         const rawContacts = loadChatContacts();
-        const chars = loadCharacters();
         const enriched = rawContacts.map(c => ({
             ...c,
             char: chars.find(ch => ch.id === c.characterId)
@@ -125,8 +124,7 @@ export function ChatContactsList({ onCloseApp, onSelectSession, onSelectMascot, 
         refresh();
         const handler = () => refresh();
         window.addEventListener("friend-requests-updated", handler);
-        window.addEventListener("chat-session-avatars-updated", handler);
-        return () => { window.removeEventListener("friend-requests-updated", handler); window.removeEventListener("chat-session-avatars-updated", handler); };
+        return () => window.removeEventListener("friend-requests-updated", handler);
     }, [refresh]);
 
     /** Group contacts by pinyin initial */
@@ -184,15 +182,15 @@ export function ChatContactsList({ onCloseApp, onSelectSession, onSelectMascot, 
         chars.find(c => c.id === req.characterId);
 
     return (
-        <div className="imessage-contacts-page relative flex-1 h-full">
+        <div className="relative flex-1 h-full">
             <PageShell
+                title="Contacts"
                 onBack={onCloseApp}
                 bodyRef={bodyRef}
                 rightAction={
                     <button
                         className="page-back-btn"
                         type="button"
-                        aria-label="添加好友"
                         onClick={() => {
                             addFromCardRef.current = false;
                             setIsAddFriendOpen(true);
@@ -208,15 +206,15 @@ export function ChatContactsList({ onCloseApp, onSelectSession, onSelectMascot, 
             >
             <div className="px-5">
                 {/* Search bar */}
-                <div className="pt-1 pb-3">
-                    <div className="flex items-center justify-between mb-4">
-                        <span className="ts-28 font-bold text-[var(--c-text-title)]">联系人</span>
+                <div className="pt-5 pb-1">
+                    <div className="flex items-center justify-between mb-4 mt-2">
+                        <span className="ts-28 font-bold text-[var(--c-text-title)]">Contacts</span>
                     </div>
                     <div className="chat-search-bar">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--c-icon)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                         <input
                             className="chat-search-input ts-15 w-full bg-transparent outline-none text-[var(--c-text-title)] placeholder:text-[var(--c-icon)]"
-                            placeholder="搜索联系人"
+                            placeholder="Search contacts..."
                             value={contactFilter}
                             onChange={(e) => setContactFilter(e.target.value)}
                         />
@@ -227,7 +225,7 @@ export function ChatContactsList({ onCloseApp, onSelectSession, onSelectMascot, 
                 <div className="mb-3 mt-3">
                     <div
                         className="minimal-list-item"
-                        onClick={() => setShowRequestList(true)}
+                        onClick={() => pendingRequests.length > 0 && setShowRequestList(true)}
                     >
                         <div className="w-[48px] h-[48px] rounded-full bg-[var(--c-action-blue,#246bfd)] flex items-center justify-center shrink-0">
                             <svg width={24} height={24} viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
@@ -238,7 +236,7 @@ export function ChatContactsList({ onCloseApp, onSelectSession, onSelectMascot, 
                             </svg>
                         </div>
                         <div className="flex-1 overflow-hidden h-[48px] flex flex-col justify-center">
-                            <div className="ts-16 font-medium text-[var(--c-text-title)]">新的朋友</div>
+                            <div className="ts-16 font-medium text-[var(--c-text-title)]">New Friends</div>
                         </div>
                         {pendingRequests.length > 0 && (
                             <div className="minimal-unread-count ml-auto shrink-0">{pendingRequests.length}</div>
@@ -429,7 +427,7 @@ export function ChatContactsList({ onCloseApp, onSelectSession, onSelectMascot, 
 
             {/* Add Friend Modal */}
             {isAddFriendOpen && (
-                <div style={{ position: 'absolute', inset: 0, zIndex: 9999, background: 'var(--c-page-body-bg)' }}>
+                <div style={{ position: 'absolute', inset: 0, zIndex: 9999, background: '#ffffff' }}>
                 <div style={{ position: 'absolute', inset: 0, background: 'var(--c-page-body-bg)' }}>
                 <PageShell title="添加朋友" onBack={() => { setIsAddFriendOpen(false); if (addFromCardRef.current) { addFromCardRef.current = false; onPendingAddContactBack?.(); } }}>
                     {!addResult && addResult !== null && (
@@ -484,7 +482,7 @@ export function ChatContactsList({ onCloseApp, onSelectSession, onSelectMascot, 
                                             onSelectMascot();
                                         }}
                                     >
-                                        <div className="add-friend-avatar" style={{ width: 36, height: 36, borderRadius: 8, overflow: "hidden", flexShrink: 0, background: "var(--c-card)" }}>
+                                        <div className="add-friend-avatar" style={{ width: 36, height: 36, borderRadius: 8, overflow: "hidden", flexShrink: 0, background: "#fff" }}>
                                             <img src={mascotAvatarUrl} className="w-full h-full object-contain p-[2px]" alt="" />
                                         </div>
                                         <div className="menu-label-group" style={{ minWidth: 0 }}>

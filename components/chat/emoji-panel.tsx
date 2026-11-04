@@ -170,12 +170,12 @@ export function StickerPanel({ onSend, characterId, characterIds }: StickerPanel
     return (
         <div className="h-[220px] flex flex-col">
             {stickerPacks.length > 0 && (
-                <div className="sticker-pack-tabs flex gap-0.5 px-2 py-1 overflow-x-auto shrink-0 hide-scrollbar">
+                <div className="flex gap-0.5 px-2 py-1 overflow-x-auto shrink-0 hide-scrollbar">
                     {stickerPacks.map(pack => (
                         <button
                             key={pack.id}
                             onClick={() => setActivePackId(pack.id)}
-                            className="emoji-category-pill sticker-pack-tab"
+                            className="emoji-category-pill"
                             {...(activePack?.id === pack.id ? { "data-active": "" } : {})}
                         >
                             {pack.name}
@@ -183,7 +183,7 @@ export function StickerPanel({ onSend, characterId, characterIds }: StickerPanel
                     ))}
                 </div>
             )}
-            <div className="sticker-pack-grid flex-1 overflow-auto p-2 grid grid-cols-5 gap-1 content-start hide-scrollbar">
+            <div className="flex-1 overflow-auto p-2 grid grid-cols-5 gap-1 content-start hide-scrollbar">
                 {!activePack && (
                     <div className="col-span-5 flex items-center justify-center text-[var(--c-text-muted)] ts-12 py-8">
                         暂无表情包，请在角色设置里上传或绑定。
@@ -196,9 +196,9 @@ export function StickerPanel({ onSend, characterId, characterIds }: StickerPanel
                             key={`${activePack.id}:${sticker.id}`}
                             onClick={() => onSend(sticker.name, url)}
                             title={sticker.name}
-                            className="sticker-pack-item border-none bg-transparent cursor-pointer p-1 rounded-lg flex flex-col items-center justify-start gap-0.5 min-h-[62px] min-w-0 overflow-hidden"
+                            className="border-none bg-transparent cursor-pointer p-1 rounded-lg flex flex-col items-center justify-start gap-0.5 min-h-[62px] min-w-0 overflow-hidden"
                         >
-                            <div className="sticker-pack-thumb w-9 h-9 flex items-center justify-center shrink-0">
+                            <div className="w-9 h-9 flex items-center justify-center shrink-0">
                                 {url ? (
                                     <img src={url} alt={sticker.name} className="w-9 h-9 object-contain" />
                                 ) : (

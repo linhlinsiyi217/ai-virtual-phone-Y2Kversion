@@ -39,10 +39,10 @@ export function GiftPickerModal({ gifts, isGroup, recipients = [], onSend, onClo
     const canSend = Boolean(selectedGift && (!isGroup || selectedRecipient));
 
     return (
-        <div className="modal-overlay imessage-rich-input-overlay imessage-gift-picker-overlay" onClick={onClose}>
+        <div className="modal-overlay" onClick={onClose}>
             <div
                 onClick={e => e.stopPropagation()}
-                className="w-[340px] max-w-[calc(100vw-32px)] max-h-[78vh] rounded-[24px] text-[var(--c-text)] overflow-hidden flex flex-col imessage-rich-input-dialog imessage-gift-picker"
+                className="w-[340px] max-w-[calc(100vw-32px)] max-h-[78vh] rounded-[24px] text-[var(--c-text)] overflow-hidden flex flex-col"
                 style={{
                     background: "linear-gradient(180deg, var(--c-card) 0%, color-mix(in srgb, var(--c-input) 42%, var(--c-card)) 100%)",
                     boxShadow: "0 24px 60px rgba(0,0,0,0.24)",
@@ -51,7 +51,7 @@ export function GiftPickerModal({ gifts, isGroup, recipients = [], onSend, onClo
                 <div className="px-4 pt-4 pb-3 flex items-center justify-between gap-3">
                     <div className="flex items-center gap-2 min-w-0">
                         <div
-                            className="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 imessage-gift-picker-icon"
+                            className="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0"
                             style={{ background: "color-mix(in srgb, var(--c-success) 14%, var(--c-input))" }}
                         >
                             <Gift size={19} strokeWidth={1.8} />
@@ -65,7 +65,7 @@ export function GiftPickerModal({ gifts, isGroup, recipients = [], onSend, onClo
                         type="button"
                         aria-label="关闭"
                         onClick={onClose}
-                        className="w-9 h-9 rounded-full bg-[var(--c-input)] flex items-center justify-center imessage-gift-picker-close"
+                        className="w-9 h-9 rounded-full bg-[var(--c-input)] flex items-center justify-center"
                     >
                         <X size={16} />
                     </button>
@@ -100,7 +100,7 @@ export function GiftPickerModal({ gifts, isGroup, recipients = [], onSend, onClo
                     )}
 
                     <div
-                        className="h-11 rounded-2xl bg-[var(--c-input)] px-3 flex items-center gap-2 imessage-gift-picker-search"
+                        className="h-11 rounded-2xl bg-[var(--c-input)] px-3 flex items-center gap-2"
                         style={{ boxShadow: "inset 0 1px 0 rgba(255,255,255,0.22)" }}
                     >
                         <Search size={15} className="text-[var(--c-icon)] shrink-0" />
@@ -114,7 +114,7 @@ export function GiftPickerModal({ gifts, isGroup, recipients = [], onSend, onClo
 
                     <div className="overflow-y-auto hide-scrollbar flex flex-col gap-2 pr-0.5" style={{ maxHeight: "330px" }}>
                         {filteredGifts.length === 0 ? (
-                            <div className="rounded-2xl bg-[var(--c-input)]/70 px-4 py-8 text-center imessage-gift-picker-empty">
+                            <div className="rounded-2xl bg-[var(--c-input)]/70 px-4 py-8 text-center">
                                 <PackageCheck size={28} className="mx-auto mb-2 text-[var(--c-icon)]" />
                                 <div className="ts-13 font-medium">暂无可送礼物</div>
                                 <div className="ts-12 text-[var(--c-icon)] mt-1 leading-5">
@@ -128,8 +128,7 @@ export function GiftPickerModal({ gifts, isGroup, recipients = [], onSend, onClo
                                     key={gift.id}
                                     type="button"
                                     onClick={() => setSelectedGiftId(gift.id)}
-                                    className="w-full rounded-2xl p-3 text-left flex gap-3 transition-transform active:scale-[0.99] imessage-gift-picker-item"
-                                    {...(selected ? { "data-selected": "" } : {})}
+                                    className="w-full rounded-2xl p-3 text-left flex gap-3 transition-transform active:scale-[0.99]"
                                     style={{
                                         background: selected ? "color-mix(in srgb, var(--c-success) 16%, var(--c-input))" : "color-mix(in srgb, var(--c-input) 88%, var(--c-card))",
                                         boxShadow: selected
@@ -138,7 +137,7 @@ export function GiftPickerModal({ gifts, isGroup, recipients = [], onSend, onClo
                                     }}
                                 >
                                     <div
-                                        className="w-14 h-14 rounded-2xl bg-[var(--c-card)] flex items-center justify-center ts-24 shrink-0 imessage-gift-picker-preview"
+                                        className="w-14 h-14 rounded-2xl bg-[var(--c-card)] flex items-center justify-center ts-24 shrink-0"
                                         style={{ boxShadow: "0 6px 16px rgba(0,0,0,0.05)" }}
                                     >
                                         {gift.previewIcon || <Gift size={22} />}
@@ -149,7 +148,7 @@ export function GiftPickerModal({ gifts, isGroup, recipients = [], onSend, onClo
                                             {gift.merchantLabel} · {gift.quantityLabel}
                                         </div>
                                         <div className="ts-12 mt-2 flex items-center justify-between gap-2">
-                                            <span className="font-semibold text-[var(--c-success)] imessage-gift-picker-price">{gift.priceLabel}</span>
+                                            <span className="font-semibold text-[var(--c-success)]">{gift.priceLabel}</span>
                                             <span className="text-[var(--c-icon)] truncate">{gift.deliveredTimeLabel || "已到货"}</span>
                                         </div>
                                     </div>
@@ -159,11 +158,11 @@ export function GiftPickerModal({ gifts, isGroup, recipients = [], onSend, onClo
                     </div>
                 </div>
 
-                <div className="px-4 pb-4 pt-2 flex gap-3 imessage-rich-input-actions">
+                <div className="px-4 pb-4 pt-2 flex gap-3">
                     <button
                         type="button"
                         onClick={onClose}
-                        className="h-11 rounded-2xl flex-1 ts-14 font-semibold text-[var(--c-text)] imessage-rich-input-cancel"
+                        className="h-11 rounded-2xl flex-1 ts-14 font-semibold text-[var(--c-text)]"
                         style={{ background: "color-mix(in srgb, var(--c-input) 82%, transparent)" }}
                     >
                         取消
@@ -175,7 +174,7 @@ export function GiftPickerModal({ gifts, isGroup, recipients = [], onSend, onClo
                             if (!selectedGift) return;
                             onSend(selectedGift, selectedRecipient);
                         }}
-                        className="h-11 rounded-2xl flex-1 ts-14 font-semibold text-white disabled:opacity-45 imessage-rich-input-primary"
+                        className="h-11 rounded-2xl flex-1 ts-14 font-semibold text-white disabled:opacity-45"
                         style={{ background: "var(--c-success)" }}
                     >
                         送出

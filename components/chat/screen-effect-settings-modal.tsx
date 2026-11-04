@@ -6,7 +6,6 @@
 import { useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { Toggle } from "@/components/ui/form";
-import { PageShell } from "@/components/ui/page-shell";
 import {
     BUILTIN_SCREEN_EFFECTS,
     createChatScreenEffectRule,
@@ -46,10 +45,11 @@ export function ScreenEffectSettingsModal({ onClose }: { onClose: () => void }) 
     };
 
     return (
-        <div className="chat-status-subpage chat-screen-effects-page">
-            <PageShell title="全屏特效" onBack={onClose}>
-            <div className="screen-fx-sheet">
+        <div className="modal-overlay modal-overlay-bottom" onClick={onClose}>
+            <div className="modal-sheet screen-fx-sheet" onClick={e => e.stopPropagation()}>
+                <span className="screen-fx-grabber" aria-hidden="true" />
                 <div className="screen-fx-titles">
+                    <h2 className="screen-fx-title">全屏特效</h2>
                     <p className="screen-fx-subtitle">消息包含触发词即自动播放，全部会话通用</p>
                 </div>
 
@@ -133,7 +133,6 @@ export function ScreenEffectSettingsModal({ onClose }: { onClose: () => void }) 
                     <button className="screen-fx-cta" onClick={onClose}>完成</button>
                 </div>
             </div>
-            </PageShell>
             <ChatScreenEffectOverlay active={preview} onDone={() => setPreview(null)} />
         </div>
     );

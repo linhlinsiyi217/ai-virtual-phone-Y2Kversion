@@ -3,103 +3,74 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { CallSttWarningDialog, hideCallSttWarningPermanently, isCallSttWarningHidden } from "./call-stt-warning-dialog";
 import { isAndroidBrowser } from "./voice-input-platform";
-import { ApplePayBrand } from "./apple-pay-brand";
-import { LocationMap } from "./location-map";
-import { loadWalletState } from "@/lib/wallet-storage";
-import { WALLET_CURRENCY_OPTIONS, currencySymbol } from "@/lib/exchange-rates";
 
 // ── Photo Input Modal ─────────────────────────────
 
 interface PhotoInputModalProps {
-    onSend: (items: Array<{ description: string; imageDataUrl: string }>) => void;
+    onSend: (description: string, imageDataUrl?: string) => void;
     onClose: () => void;
 }
 
 export function PhotoInputModal({ onSend, onClose }: PhotoInputModalProps) {
-    const [items, setItems] = useState<Array<{ id: string; description: string; imageDataUrl: string }>>([]);
-    const [activeId, setActiveId] = useState<string | null>(null);
+    const [desc, setDesc] = useState("");
+    const [imageDataUrl, setImageDataUrl] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const files = Array.from(e.target.files || []);
-        if (!files.length) return;
-        Promise.all(files.map(file => new Promise<{ id: string; description: string; imageDataUrl: string }>((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve({
-                id: `photo_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-                description: "",
-                imageDataUrl: String(reader.result || ""),
-            });
-            reader.onerror = () => reject(reader.error);
-            reader.readAsDataURL(file);
-        }))).then(next => {
-            setItems(prev => [...prev, ...next].slice(0, 20));
-            setActiveId(prev => prev || next[0]?.id || null);
-        }).catch(() => undefined);
-        e.target.value = "";
+        const file = e.target.files?.[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+            setImageDataUrl(reader.result as string);
+        };
+        reader.readAsDataURL(file);
     };
 
-    const active = items.find(item => item.id === activeId) || items[0];
-    const canSend = items.length > 0;
+    const canSend = !!imageDataUrl;
 
     return (
-        <div className="modal-overlay imessage-rich-input-overlay" onClick={onClose}>
+        <div className="modal-overlay" onClick={onClose}>
             <div
                 onClick={e => e.stopPropagation()}
-                className="modal-dialog imessage-rich-input-dialog"
+                className="modal-dialog"
             >
                 <div className="ts-16 font-semibold text-center text-[var(--c-text)]">发送照片</div>
-                <div className="chat-multi-photo-picker">
-                    {items.length ? (
-                        <div className="chat-multi-photo-grid">
-                            {items.map((item, index) => (
-                                <button key={item.id} type="button" className="chat-multi-photo-thumb" data-active={item.id === active?.id || undefined} onClick={() => setActiveId(item.id)}>
-                                    <img src={item.imageDataUrl} alt={`照片 ${index + 1}`} />
-                                    <span>{index + 1}</span>
-                                    <i onClick={event => {
-                                        event.stopPropagation();
-                                        setItems(prev => prev.filter(entry => entry.id !== item.id));
-                                        if (activeId === item.id) setActiveId(null);
-                                    }}>×</i>
-                                </button>
-                            ))}
-                            {items.length < 20 && <button type="button" className="chat-multi-photo-add" onClick={() => fileInputRef.current?.click()}>＋</button>}
-                        </div>
+                <div
+                    className="w-full rounded-xl flex items-center justify-center ui-placeholder-gradient overflow-hidden cursor-pointer relative"
+                    style={{ minHeight: imageDataUrl ? "auto" : "120px" }}
+                    onClick={() => fileInputRef.current?.click()}
+                >
+                    {imageDataUrl ? (
+                        <img
+                            src={imageDataUrl}
+                            alt="preview"
+                            className="w-full h-auto rounded-xl"
+                            style={{ maxHeight: "240px", objectFit: "contain" }}
+                        />
                     ) : (
-                        <button type="button" className="w-full min-h-[140px] rounded-xl flex flex-col items-center justify-center gap-2 ui-placeholder-gradient" onClick={() => fileInputRef.current?.click()}>
+                        <div className="flex flex-col items-center gap-2 py-6">
                             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--c-icon)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                                 <line x1="12" y1="5" x2="12" y2="19" />
                                 <line x1="5" y1="12" x2="19" y2="12" />
                             </svg>
-                            <span className="ts-12 text-[var(--c-icon)]">选择一张或多张图片</span>
-                        </button>
+                            <span className="ts-12 text-[var(--c-icon)]">点击上传图片</span>
+                        </div>
                     )}
                     <input
                         ref={fileInputRef}
                         type="file"
                         accept="image/*"
-                        multiple
                         className="hidden"
                         onChange={handleFileChange}
                     />
                 </div>
-                {active && (
-                    <textarea
-                        value={active.description}
-                        onChange={event => setItems(prev => prev.map(item => item.id === active.id ? { ...item, description: event.target.value } : item))}
-                        placeholder="给当前照片加一句描述（可选）"
-                        className="ui-input w-full"
-                        rows={2}
-                        style={{ resize: "none" }}
-                    />
-                )}
                 <div className="flex gap-3 w-full">
                     <button
                         onClick={onClose}
                         className="ui-btn ui-btn-ghost ui-btn-bordered-ghost flex-1"
                     >取消</button>
                     <button
-                        onClick={() => { if (canSend) onSend(items.map(({ description, imageDataUrl }) => ({ description: description.trim(), imageDataUrl }))); }}
+                        onClick={() => { if (canSend) onSend(desc.trim(), imageDataUrl!); }}
                         disabled={!canSend}
                         className="ui-btn ui-btn-success flex-1"
                     >发送</button>
@@ -114,7 +85,7 @@ export function PhotoInputModal({ onSend, onClose }: PhotoInputModalProps) {
 interface RedPacketModalProps {
     mode: "red_packet" | "transfer";
     isGroup?: boolean;
-    onSend: (amount: number, label: string, count?: number, currency?: string) => void | Promise<void>;
+    onSend: (amount: number, label: string, count?: number) => void;
     onClose: () => void;
 }
 
@@ -122,9 +93,6 @@ export function RedPacketModal({ mode, isGroup, onSend, onClose }: RedPacketModa
     const [amount, setAmount] = useState("");
     const [label, setLabel] = useState("");
     const [count, setCount] = useState("1");
-    const [currency, setCurrency] = useState(() => loadWalletState().currency || "CNY");
-    const [sending, setSending] = useState(false);
-    const sendingRef = useRef(false);
 
     const isRedPacket = mode === "red_packet";
     const title = isRedPacket ? "发红包" : "转账";
@@ -132,50 +100,45 @@ export function RedPacketModal({ mode, isGroup, onSend, onClose }: RedPacketModa
     // Brand-specific colors: WeChat red packet / transfer (CSS variables)
     const color = isRedPacket ? "var(--c-redpacket)" : "var(--c-transfer)";
 
-    const handleSend = async () => {
-        if (sendingRef.current) return;
+    const handleSend = () => {
         const num = parseFloat(amount);
         if (!num || num <= 0) return;
         const cnt = isRedPacket ? (isGroup ? Math.max(1, parseInt(count, 10) || 1) : 1) : undefined;
-        sendingRef.current = true; setSending(true);
-        try { await onSend(num, label.trim() || defaultLabel, cnt, currency); }
-        finally { sendingRef.current = false; setSending(false); }
+        onSend(num, label.trim() || defaultLabel, cnt);
     };
 
     return (
-        <div className={`modal-overlay imessage-rich-input-overlay${isRedPacket ? "" : " imessage-transfer-compose-overlay"}`} onClick={onClose}>
+        <div className="modal-overlay" onClick={onClose}>
             <div
                 onClick={e => e.stopPropagation()}
-                className={`w-[300px] bg-[var(--c-card)] rounded-2xl overflow-hidden imessage-rich-input-dialog imessage-money-compose-dialog${isRedPacket ? "" : " imessage-transfer-compose-dialog"}`}
+                className="w-[300px] bg-[var(--c-card)] rounded-2xl overflow-hidden"
             >
                 {/* Brand-colored header -- kept as inline style */}
                 <div
-                    className="p-5 flex flex-col items-center gap-2 imessage-money-compose-header"
+                    className="p-5 flex flex-col items-center gap-2"
                     style={{ background: color }}
                 >
-                    <div className="ts-28 imessage-money-compose-legacy">{isRedPacket ? "🧧" : "💰"}</div>
-                    <div className="text-white ts-16 font-semibold imessage-money-compose-legacy">{title}</div>
-                    {!isRedPacket && <ApplePayBrand className="imessage-transfer-compose-brand hidden" />}
+                    <div className="ts-28">{isRedPacket ? "🧧" : "💰"}</div>
+                    <div className="text-white ts-16 font-semibold">{title}</div>
                 </div>
-                <div className="p-5 flex flex-col gap-3.5 imessage-money-compose-body">
-                    <div className="imessage-money-compose-amount-block">
+                <div className="p-5 flex flex-col gap-3.5">
+                    <div>
                         <div className="ts-12 text-[var(--c-icon)] mb-1.5">金额</div>
-                        <div className="flex items-center gap-2 imessage-money-compose-amount-row">
+                        <div className="flex items-center gap-2">
                             <span
-                                className="ts-24 font-bold imessage-money-compose-currency"
+                                className="ts-24 font-bold"
                                 style={{ color }}
-                            >{currencySymbol(currency)}</span>
+                            >¥</span>
                             <input
                                 value={amount}
                                 onChange={e => setAmount(e.target.value.replace(/[^0-9.]/g, ""))}
                                 placeholder="0.00"
                                 type="text"
                                 inputMode="decimal"
-                                className="flex-1 py-2 border-none ts-28 font-bold outline-none text-center bg-transparent imessage-money-compose-amount-input"
+                                className="flex-1 py-2 border-none ts-28 font-bold outline-none text-center bg-transparent"
                                 style={{ borderBottom: `2px solid ${color}` }}
                                         />
                         </div>
-                        {!isRedPacket && <select value={currency} onChange={e => setCurrency(e.target.value)} disabled={sending} className="ui-input mt-2 w-full" aria-label="转账币种">{WALLET_CURRENCY_OPTIONS.map(item => <option key={item.code} value={item.code}>{item.label} {item.code}</option>)}</select>}
                     </div>
                     {isRedPacket && isGroup && (
                         <div>
@@ -190,7 +153,7 @@ export function RedPacketModal({ mode, isGroup, onSend, onClose }: RedPacketModa
                             />
                         </div>
                     )}
-                    <div className="imessage-money-compose-note-block">
+                    <div>
                         <div className="ts-12 text-[var(--c-icon)] mb-1.5">
                             {isRedPacket ? "留言" : "备注"}
                         </div>
@@ -198,18 +161,18 @@ export function RedPacketModal({ mode, isGroup, onSend, onClose }: RedPacketModa
                             value={label}
                             onChange={e => setLabel(e.target.value)}
                             placeholder={defaultLabel || "添加备注"}
-                            className="ui-input w-full imessage-money-compose-note-input"
+                            className="ui-input w-full"
                         />
                     </div>
-                    <div className="flex gap-3 mt-1 imessage-rich-input-actions">
+                    <div className="flex gap-3 mt-1">
                         <button
                             onClick={onClose}
-                            className="ui-btn ui-btn-ghost ui-btn-bordered-ghost flex-1 imessage-rich-input-cancel"
+                            className="ui-btn ui-btn-ghost ui-btn-bordered-ghost flex-1"
                         >取消</button>
                         <button
                             onClick={handleSend}
-                            disabled={sending || !parseFloat(amount)}
-                            className="flex-1 py-2.5 rounded-lg border-none text-white ts-14 font-semibold imessage-rich-input-primary"
+                            disabled={!parseFloat(amount)}
+                            className="flex-1 py-2.5 rounded-lg border-none text-white ts-14 font-semibold"
                             style={{
                                 background: parseFloat(amount) ? color : "var(--c-icon)",
                                 cursor: parseFloat(amount) ? "pointer" : "default",
@@ -233,13 +196,18 @@ export function LocationInputModal({ onSend, onClose }: LocationInputModalProps)
     const [loc, setLoc] = useState("");
 
     return (
-        <div className="modal-overlay imessage-rich-input-overlay" onClick={onClose}>
+        <div className="modal-overlay" onClick={onClose}>
             <div
                 onClick={e => e.stopPropagation()}
-                className="modal-dialog imessage-rich-input-dialog"
+                className="modal-dialog"
             >
                 <div className="ts-16 font-semibold text-center text-[var(--c-text)]">分享位置</div>
-                <LocationMap />
+                <div
+                    className="w-full h-[100px] rounded-xl flex items-center justify-center relative ui-map-gradient"
+                >
+                    <div className="ui-map-grid" />
+                    <div className="text-4xl relative z-1">📍</div>
+                </div>
                 <input
                     value={loc}
                     onChange={e => setLoc(e.target.value)}
@@ -266,40 +234,35 @@ export function LocationInputModal({ onSend, onClose }: LocationInputModalProps)
 // ── Text Photo Modal ─────────────────────────────
 
 interface TextPhotoModalProps {
-    onSend: (texts: string[]) => void;
+    onSend: (text: string) => void;
     onClose: () => void;
 }
 
 export function TextPhotoModal({ onSend, onClose }: TextPhotoModalProps) {
-    const [texts, setTexts] = useState([""]);
-    const validTexts = texts.map(text => text.trim()).filter(Boolean);
+    const [text, setText] = useState("");
 
     return (
-        <div className="modal-overlay imessage-rich-input-overlay" onClick={onClose}>
-            <div onClick={e => e.stopPropagation()} className="modal-dialog imessage-rich-input-dialog">
+        <div className="modal-overlay" onClick={onClose}>
+            <div onClick={e => e.stopPropagation()} className="modal-dialog">
                 <div className="ts-16 font-semibold text-center text-[var(--c-text)]">文字图片</div>
-                <div className="chat-text-photo-list">
-                    {texts.map((text, index) => (
-                        <div key={index} className="chat-text-photo-editor">
-                            <span>{index + 1}</span>
-                            <textarea
-                                value={text}
-                                onChange={event => setTexts(prev => prev.map((entry, i) => i === index ? event.target.value : entry))}
-                                placeholder="描述这一张文字图片..."
-                                className="ui-input w-full"
-                                rows={3}
-                                style={{ resize: "none" }}
-                            />
-                            {texts.length > 1 && <button type="button" onClick={() => setTexts(prev => prev.filter((_, i) => i !== index))}>×</button>}
-                        </div>
-                    ))}
-                    {texts.length < 20 && <button type="button" className="chat-text-photo-add" onClick={() => setTexts(prev => [...prev, ""])}>＋ 再加一张文字图</button>}
+                <div className="w-full h-[100px] rounded-xl flex items-center justify-center ui-placeholder-gradient">
+                    <span className="ts-13 text-[var(--c-text)] opacity-60 px-4 text-center leading-relaxed">
+                        {text.trim() || "输入文字，生成图片"}
+                    </span>
                 </div>
+                <textarea
+                    value={text}
+                    onChange={e => setText(e.target.value)}
+                    placeholder="描述图片内容..."
+                    className="ui-input w-full"
+                    rows={3}
+                    style={{ resize: "none" }}
+                />
                 <div className="flex gap-3 w-full">
                     <button onClick={onClose} className="ui-btn ui-btn-ghost ui-btn-bordered-ghost flex-1">取消</button>
                     <button
-                        onClick={() => { if (validTexts.length) onSend(validTexts); }}
-                        disabled={!validTexts.length}
+                        onClick={() => { if (text.trim()) onSend(text.trim()); }}
+                        disabled={!text.trim()}
                         className="ui-btn ui-btn-success flex-1"
                     >发送</button>
                 </div>
@@ -325,8 +288,8 @@ export function SystemInstructionModal({ onSend, onClose }: SystemInstructionMod
     };
 
     return (
-        <div className="modal-overlay imessage-rich-input-overlay" onClick={onClose}>
-            <div onClick={e => e.stopPropagation()} className="modal-dialog imessage-rich-input-dialog">
+        <div className="modal-overlay" onClick={onClose}>
+            <div onClick={e => e.stopPropagation()} className="modal-dialog">
                 <div className="ts-16 font-semibold text-center text-[var(--c-text)]">系统指令注入</div>
                 <label className="w-full flex flex-col gap-2">
                     <span className="menu-label">指令内容</span>
@@ -496,8 +459,8 @@ export function VoiceRecordModal({ characterId, onSend, onClose }: VoiceRecordMo
     const canSend = inputMode === "text" ? !!manualText.trim() : state === "done" && !!finalText.trim();
 
     return (
-        <div className="modal-overlay imessage-rich-input-overlay" onClick={onClose}>
-            <div onClick={e => e.stopPropagation()} className="modal-dialog relative imessage-rich-input-dialog">
+        <div className="modal-overlay" onClick={onClose}>
+            <div onClick={e => e.stopPropagation()} className="modal-dialog relative">
                 {!androidTextInputOnly && (
                     <button
                         type="button"
@@ -526,19 +489,19 @@ export function VoiceRecordModal({ characterId, onSend, onClose }: VoiceRecordMo
                             rows={3}
                         />
                     ) : state === "idle" && (
-                        <button onClick={startRecording} className="w-[64px] h-[64px] rounded-full bg-[var(--c-success)] flex items-center justify-center imessage-voice-record-start">
+                        <button onClick={startRecording} className="w-[64px] h-[64px] rounded-full bg-[var(--c-success)] flex items-center justify-center">
                             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                 <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" /><path d="M19 10v2a7 7 0 0 1-14 0v-2" />
                             </svg>
                         </button>
                     )}
                     {state === "recording" && (
-                        <button onClick={stopRecording} className="w-[64px] h-[64px] rounded-full bg-[var(--c-danger)] flex items-center justify-center imessage-voice-record-stop" style={{ animation: "voicecall-pulse 1.5s ease-in-out infinite" }}>
+                        <button onClick={stopRecording} className="w-[64px] h-[64px] rounded-full bg-[var(--c-danger)] flex items-center justify-center" style={{ animation: "voicecall-pulse 1.5s ease-in-out infinite" }}>
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="white"><rect x="6" y="6" width="12" height="12" rx="2" /></svg>
                         </button>
                     )}
                     {state === "processing" && (
-                        <div className="w-[64px] h-[64px] rounded-full bg-[var(--c-input)] flex items-center justify-center imessage-voice-record-processing">
+                        <div className="w-[64px] h-[64px] rounded-full bg-[var(--c-input)] flex items-center justify-center">
                             <svg width="24" height="24" viewBox="0 0 24 24" className="animate-spin" fill="none" stroke="var(--c-icon)" strokeWidth="2"><path d="M12 2a10 10 0 0 1 10 10" strokeLinecap="round" /></svg>
                         </div>
                     )}

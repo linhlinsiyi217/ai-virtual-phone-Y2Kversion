@@ -1,66 +1,50 @@
 "use client";
-import { voiceDisplayText, voicePlaybackText } from "@/lib/voice-expression";
-import { ForwardedChatCard } from "./forwarded-chat";
-import { LyricShareCard } from "@/components/music/lyric-share-card";
-import { ListeningInviteCard } from "./listening-invite-card";
-import { getCurrentIdentityId } from "@/lib/identity-runtime";
-import { resolveUserIdentity } from "@/lib/settings-storage";
-import { VoiceReferenceGraphic } from "./voice-reference-graphic";
-import { PhotoMarkupEditor } from "./photo-markup-editor";
 
-import { useState, useEffect, useCallback, useRef, useMemo, memo, type ReactNode } from "react";
-import rough from "roughjs/bin/rough";
+import { useState, useEffect, useCallback, useRef, useMemo, memo } from "react";
 import { findCustomStickerByName, resolveCustomStickerUrl } from "@/lib/custom-sticker-storage";
 import { isMediaStoreRef, loadMediaObjectUrl } from "@/lib/media-cache-storage";
 import { getChatImageFromIndexedDB } from "@/lib/chat-asset-storage";
-import { ChatMessage, createOrGetSession, loadChatMessages, updateMessageMediaStatus, updateMessageMediaData, type ChatPhotoAnnotation, type ChatPhotoGroupItem } from "@/lib/chat-storage";
+import { ChatMessage, createOrGetSession, updateMessageMediaStatus, updateMessageMediaData } from "@/lib/chat-storage";
 import { resolveContactCard } from "@/lib/contact-card";
-import { loadInteractableCharacters as loadCharacters } from "@/lib/character-storage";
+import { loadCharacters } from "@/lib/character-storage";
 import { CHAT_OPEN_SESSION_EVENT, dispatchOpenAddContact } from "@/lib/chat-notification-events";
 import { ContactCardGenerateFlow } from "@/components/chat/contact-card-generate-flow";
 import { MediaPreviewOverlay } from "@/components/chat/media-preview-overlay";
 import { findStickerByName } from "@/lib/sticker-data";
-import { splitBilingualText, containsChinese } from "@/lib/bilingual-text";
-import { normalizeChatTextLayout } from "@/lib/chat-text-layout";
+import { splitBilingualText } from "@/lib/bilingual-text";
 import { isInvisibleOrWhitespaceOnly } from "@/lib/rich-message-parser";
 import ReactMarkdown from "react-markdown";
 import rehypeRaw from "rehype-raw";
 import remarkGfm from "remark-gfm";
+// CommonMark 的 flanking 规则会让 **「加粗」** 这类紧贴全角标点的写法解析失败
+// （** 后跟标点时要求前面是空格/标点，中文里前面通常是汉字），中文消息大量中招。
+import remarkCjkFriendly from "remark-cjk-friendly";
 import remarkBreaks from "remark-breaks";
 import { createPortal } from "react-dom";
-import { Blocks, Maximize2, ReceiptText, ChevronLeft } from "lucide-react";
+import { Blocks, Maximize2, ReceiptText } from "lucide-react";
 import { retryChatGeneratedImage } from "@/lib/generated-image-retry";
+import { hasCharacterReferenceImage } from "@/lib/image-generation-service";
 import { GeneratedImageErrorDialog } from "./generated-image-error-dialog";
 import { ScanPayCard } from "@/components/chat/scan-pay-card";
-import { payWithWalletBalance, loadWalletState, WALLET_UPDATED_EVENT } from "@/lib/wallet-storage";
+import { payWithWalletBalance } from "@/lib/wallet-storage";
 import { formatShoppingPaymentRequestHistory } from "@/lib/shopping-payment-request";
 import { toCustomAppIconId } from "@/lib/custom-app-types";
 import { ChatPluginSlot } from "@/components/chat/chat-plugin-slot";
 import { CHAT_PLUGIN_SLOTS_CHANGED_EVENT, getChatPluginRuntime } from "@/lib/chat-plugin-runtime";
-import { IMessageTapbackBadge } from "./imessage-tapback-badge";
-import { ApplePayBrand } from "./apple-pay-brand";
-import { currencySymbol, normalizeCurrency, fetchExchangeRate, cnyAmount } from "@/lib/exchange-rates";
-import { LocationCard } from "./location-map";
-import { getQuotePreview, normalizeQuotePreviewText } from "@/lib/chat-quote-preview";
 
 interface MessageBubbleProps {
-    quoteSource?: ChatMessage;
-    quoteSourceStyle?: React.CSSProperties;
-    replyAccessory?: ReactNode;
     msg: ChatMessage;
     onUpdate?: (updated: ChatMessage) => void;
-    onPhotoAnnotationsSave?: (target: ChatMessage, annotations: ChatPhotoAnnotation[], previous: ChatPhotoAnnotation[]) => void;
     charName?: string;
     userName?: string;
     onSystemMessage?: (text: string) => void;
     groupSize?: number;
     onShowDetail?: (msg: ChatMessage) => void;
     characterId?: string;
-    onMusicPlay?: (title: string, artist?: string, track?: import("@/lib/music-storage").MusicTrack) => void;
+    onMusicPlay?: (title: string, artist?: string) => void;
     onActionSelect?: (text: string) => void;
     displayContent?: string;
     defaultTranslationExpanded?: boolean;
-    reactionStyleForActor?: (actorId: string) => React.CSSProperties | undefined;
 }
 
 /** 聊天插件自定义消息气泡：把裸 DOM 容器交给注册了该 kind 的插件渲染 */
@@ -104,16 +88,12 @@ function PluginKindBubble({ msg, kind }: { msg: ChatMessage; kind: string }) {
  * Renders a message bubble based on its mediaType.
  * Falls back to ReactMarkdown for plain text messages.
  */
-export const MessageBubble = memo(function MessageBubble({ msg, onUpdate, onPhotoAnnotationsSave, charName, userName, onSystemMessage, groupSize, onShowDetail, characterId, onMusicPlay, onActionSelect, displayContent, replyAccessory, quoteSource, quoteSourceStyle, defaultTranslationExpanded = false, reactionStyleForActor }: MessageBubbleProps) {
+export const MessageBubble = memo(function MessageBubble({ msg, onUpdate, charName, userName, onSystemMessage, groupSize, onShowDetail, characterId, onMusicPlay, onActionSelect, displayContent, defaultTranslationExpanded = false }: MessageBubbleProps) {
     switch (msg.mediaType) {
-        case "listening_invite":
-            return <ListeningInviteCard msg={msg} />;
         case "red_packet":
             return <RedPacketBubble msg={msg} charName={charName} userName={userName} groupSize={groupSize} onShowDetail={onShowDetail} />;
         case "transfer":
             return <TransferBubble msg={msg} charName={charName} userName={userName} onShowDetail={onShowDetail} />;
-        case "forwarded_chat":
-            return msg.mediaData?.forwardedChat ? <ForwardedChatCard record={msg.mediaData.forwardedChat} onMusicPlay={onMusicPlay} /> : <span>聊天记录不可用</span>;
         case "gift":
             return <GiftBubble msg={msg} />;
         case "contact_card":
@@ -123,7 +103,7 @@ export const MessageBubble = memo(function MessageBubble({ msg, onUpdate, onPhot
         case "app_card":
             return <AppCardBubble msg={msg} characterId={characterId} characterName={msg.senderName || charName} />;
         case "image":
-            return <ImageBubble msg={msg} onUpdate={onUpdate} onPhotoAnnotationsSave={onPhotoAnnotationsSave} characterId={characterId} reactionStyleForActor={reactionStyleForActor} />;
+            return <ImageBubble msg={msg} onUpdate={onUpdate} characterId={characterId} />;
         case "location":
             return <LocationBubble msg={msg} />;
         case "poke":
@@ -133,19 +113,11 @@ export const MessageBubble = memo(function MessageBubble({ msg, onUpdate, onPhot
         case "dice":
             return <DiceBubble msg={msg} />;
         case "quote":
-            return <QuoteBubble msg={msg} displayContent={displayContent} replyAccessory={replyAccessory} quoteSource={quoteSource} quoteSourceStyle={quoteSourceStyle} defaultTranslationExpanded={defaultTranslationExpanded} reactionStyleForActor={reactionStyleForActor} />;
+            return <QuoteBubble msg={msg} displayContent={displayContent} defaultTranslationExpanded={defaultTranslationExpanded} />;
         case "music_share":
-            return <div className="chat-music-share-with-caption">
-                <MusicShareBubble msg={msg} onPlay={onMusicPlay} />
-                {msg.content.trim() && <div className={`chat-bubble rounded-md chat-music-share-caption chat-bubble-role-${msg.role}`} data-media-type="text" data-ui={msg.role === "user" ? "bubble-user" : "bubble-bot"}>
-                    <span className="imessage-bubble-surface" aria-hidden="true" />
-                    <TextBubble content={displayContent ?? msg.content} onActionSelect={onActionSelect} defaultTranslationExpanded={defaultTranslationExpanded} chatText={msg.role === "assistant"} />
-                </div>}
-            </div>;
+            return <MusicShareBubble msg={msg} onPlay={onMusicPlay} />;
         case "media_file":
-            return msg.mediaData?.photoGroupId
-                ? <ImageBubble msg={msg} onUpdate={onUpdate} onPhotoAnnotationsSave={onPhotoAnnotationsSave} characterId={characterId} reactionStyleForActor={reactionStyleForActor} />
-                : <MediaFileBubble msg={msg} onUpdate={onUpdate} characterId={characterId} />;
+            return <MediaFileBubble msg={msg} onUpdate={onUpdate} characterId={characterId} />;
         case "xiaohongshu_note_share":
             return <XiaohongshuShareBubble msg={msg} />;
         case "audio":
@@ -155,7 +127,7 @@ export const MessageBubble = memo(function MessageBubble({ msg, onUpdate, onPhot
             if (msg.mediaType?.startsWith("plugin:")) {
                 return <PluginKindBubble msg={msg} kind={msg.mediaType.slice("plugin:".length)} />;
             }
-            const textBubble = <TextBubble content={displayContent ?? msg.content} onActionSelect={onActionSelect} defaultTranslationExpanded={defaultTranslationExpanded} chatText={msg.role === "assistant"} />;
+            const textBubble = <TextBubble content={displayContent ?? msg.content} onActionSelect={onActionSelect} defaultTranslationExpanded={defaultTranslationExpanded} />;
             return (
                 <>
                     {textBubble}
@@ -174,7 +146,6 @@ export const MessageBubble = memo(function MessageBubble({ msg, onUpdate, onPhot
         if (prev.msg.isTyping !== next.msg.isTyping) return false;
         if (prev.msg.mediaData?.status !== next.msg.mediaData?.status) return false;
         if (prev.msg.mediaData?.label !== next.msg.mediaData?.label) return false;
-        if (prev.msg.mediaData?.musicTrack !== next.msg.mediaData?.musicTrack || prev.msg.mediaData?.musicResolution !== next.msg.mediaData?.musicResolution || prev.msg.mediaData?.musicArtist !== next.msg.mediaData?.musicArtist || prev.msg.mediaData?.musicTitle !== next.msg.mediaData?.musicTitle) return false;
         if (prev.msg.mediaData?.claimedBy?.length !== next.msg.mediaData?.claimedBy?.length) return false;
         if (prev.msg.mediaData?.appName !== next.msg.mediaData?.appName) return false;
         if (prev.msg.mediaData?.appCardTitle !== next.msg.mediaData?.appCardTitle) return false;
@@ -183,13 +154,6 @@ export const MessageBubble = memo(function MessageBubble({ msg, onUpdate, onPhot
         if (prev.msg.mediaData?.imageGenerationPrompt !== next.msg.mediaData?.imageGenerationPrompt) return false;
         if (prev.msg.mediaData?.imageGenerationStatus !== next.msg.mediaData?.imageGenerationStatus) return false;
         if (prev.msg.mediaData?.imageGenerationError !== next.msg.mediaData?.imageGenerationError) return false;
-        if (prev.msg.mediaData?.photoGroupItems?.length !== next.msg.mediaData?.photoGroupItems?.length) return false;
-        if (prev.msg.mediaData?.photoGroupActiveIndex !== next.msg.mediaData?.photoGroupActiveIndex) return false;
-        if (prev.msg.mediaData?.photoGroupItems?.some((item, index) => {
-            const nextItem = next.msg.mediaData?.photoGroupItems?.[index];
-            return !nextItem || item.mediaUrl !== nextItem.mediaUrl || item.label !== nextItem.label || JSON.stringify(item.annotations) !== JSON.stringify(nextItem.annotations) || item.tapback !== nextItem.tapback || item.tapbackBy !== nextItem.tapbackBy || JSON.stringify(item.tapbacks) !== JSON.stringify(nextItem.tapbacks);
-        })) return false;
-        if (prev.msg.mediaData?.photoAnnotations?.length !== next.msg.mediaData?.photoAnnotations?.length) return false;
         if (prev.msg.mediaUrl !== next.msg.mediaUrl) return false;
     }
     if (prev.charName !== next.charName) return false;
@@ -198,7 +162,6 @@ export const MessageBubble = memo(function MessageBubble({ msg, onUpdate, onPhot
     if (prev.characterId !== next.characterId) return false;
     if (prev.displayContent !== next.displayContent) return false;
     if (prev.defaultTranslationExpanded !== next.defaultTranslationExpanded) return false;
-    if (prev.reactionStyleForActor !== next.reactionStyleForActor) return false;
     return true;
 });
 
@@ -574,7 +537,7 @@ function MarkdownTextContent({
             <div className="chat-markdown hide-scrollbar break-words" ref={containerRef}>
                 {styles && <style dangerouslySetInnerHTML={{ __html: styles }} />}
                 {mdCleaned && (
-                    <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} rehypePlugins={[rehypeRaw]} components={MARKDOWN_COMPONENTS}>
+                    <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks, remarkCjkFriendly]} rehypePlugins={[rehypeRaw]} components={MARKDOWN_COMPONENTS}>
                         {mdCleaned}
                     </ReactMarkdown>
                 )}
@@ -597,7 +560,7 @@ function MarkdownTextContent({
                     <div key={`md-${i}`}>
                         {styles && <style dangerouslySetInnerHTML={{ __html: styles }} />}
                         {mdContent && (
-                            <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} rehypePlugins={[rehypeRaw]} components={MARKDOWN_COMPONENTS}>
+                            <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks, remarkCjkFriendly]} rehypePlugins={[rehypeRaw]} components={MARKDOWN_COMPONENTS}>
                                 {mdContent}
                             </ReactMarkdown>
                         )}
@@ -627,7 +590,6 @@ export const BilingualTextBlock = memo(function BilingualTextBlock({
     className,
     defaultExpanded = false,
     htmlFrameVariant,
-    chatText = false,
 }: {
     text: string;
     onActionSelect?: (text: string) => void;
@@ -635,28 +597,13 @@ export const BilingualTextBlock = memo(function BilingualTextBlock({
     className?: string;
     defaultExpanded?: boolean;
     htmlFrameVariant?: ChatHtmlFrameVariant;
-    chatText?: boolean;
 }) {
-    const bilingual = splitBilingualText(text, { allowUnchangedTranslation: true });
-    const [showTranslated, setShowTranslated] = useState(false);
-    const [originalWidth, setOriginalWidth] = useState<number | null>(null);
-    const originalRef = useRef<HTMLDivElement>(null);
-    const translationPressRef = useRef<{ x: number; y: number; startedAt: number; moved: boolean } | null>(null);
-    const suppressTranslationClickRef = useRef(false);
+    const bilingual = splitBilingualText(text);
+    const [expanded, setExpanded] = useState(defaultExpanded);
     useEffect(() => {
-        setShowTranslated(false);
-    }, [text]);
-    useEffect(() => {
-        if (!defaultExpanded || !originalRef.current) return;
-        const element = originalRef.current;
-        const measure = () => setOriginalWidth(Math.ceil(element.getBoundingClientRect().width));
-        measure();
-        const observer = new ResizeObserver(measure);
-        observer.observe(element);
-        return () => observer.disconnect();
+        setExpanded(defaultExpanded);
     }, [text, defaultExpanded]);
     const renderContent = (content: string, extraClass?: string) => {
-        if (chatText) content = normalizeChatTextLayout(content);
         if (mode === "plain") return <PlainTextContent content={content} className={extraClass} />;
         return (
             <div className={extraClass}>
@@ -669,94 +616,58 @@ export const BilingualTextBlock = memo(function BilingualTextBlock({
         return renderContent(text, className);
     }
 
-    // An explicit unchanged pair (e.g. Lars|Lars) preserves the original once.
-    if (!containsChinese(bilingual.translated)) {
-        return <div className="chat-bilingual-block" data-chat-text-layout="">
-            <div className="chat-bilingual-section">{renderContent(bilingual.original, "chat-bilingual-content")}</div>
-        </div>;
-    }
-
-    const toggleTranslation = (event: React.MouseEvent<HTMLDivElement>) => {
-        if (defaultExpanded) return;
-        if (suppressTranslationClickRef.current) {
-            suppressTranslationClickRef.current = false;
-            return;
-        }
-        const interactive = (event.target as HTMLElement).closest("a,button,input,textarea,select,[role='button']");
-        if (interactive && interactive !== event.currentTarget && event.currentTarget.contains(interactive)) return;
-        event.stopPropagation();
-        setShowTranslated(value => !value);
-    };
-
     return (
-        <div
-            className={`chat-bilingual-block ${defaultExpanded ? "chat-bilingual-block-auto" : "chat-bilingual-block-switch"} ${className ?? ""}`.trim()}
-            data-chat-text-layout={chatText || undefined}
-            onPointerDownCapture={event => {
-                suppressTranslationClickRef.current = false;
-                translationPressRef.current = { x: event.clientX, y: event.clientY, startedAt: event.timeStamp, moved: false };
-            }}
-            onPointerMoveCapture={event => {
-                const press = translationPressRef.current;
-                if (press && Math.hypot(event.clientX - press.x, event.clientY - press.y) >= 8) press.moved = true;
-            }}
-            onPointerUpCapture={event => {
-                const press = translationPressRef.current;
-                suppressTranslationClickRef.current = Boolean(press && (press.moved || event.timeStamp - press.startedAt >= 500));
-                translationPressRef.current = null;
-                // WebKit can suppress click after the chat's pointerdown prevents default.
-                if (event.pointerType === "touch" && !defaultExpanded && !suppressTranslationClickRef.current) {
-                    const interactive = (event.target as HTMLElement).closest("a,button,input,textarea,select,[role='button']");
-                    if (!interactive || interactive === event.currentTarget || !event.currentTarget.contains(interactive)) {
-                        setShowTranslated(value => !value);
-                        suppressTranslationClickRef.current = true;
-                    }
-                }
-            }}
-            onPointerCancelCapture={() => {
-                translationPressRef.current = null;
-                suppressTranslationClickRef.current = true;
-            }}
-            onClick={toggleTranslation}
-            role={defaultExpanded ? undefined : "button"}
-            tabIndex={defaultExpanded ? undefined : 0}
-            aria-label={defaultExpanded ? undefined : (showTranslated ? "显示原文" : "显示译文")}
-            onKeyDown={event => {
-                if (defaultExpanded || (event.key !== "Enter" && event.key !== " ")) return;
-                event.preventDefault();
-                setShowTranslated(value => !value);
-            }}
-        >
-            {defaultExpanded ? <>
-                <div ref={originalRef} className="chat-bilingual-section chat-bilingual-section-original">
-                    {renderContent(bilingual.original, "chat-bilingual-content")}
-                </div>
-                <div className="chat-bilingual-divider" style={originalWidth ? { width: `${originalWidth}px` } : undefined} />
-                <div className="chat-bilingual-section chat-bilingual-section-translation">
-                    {renderContent(bilingual.translated, "chat-bilingual-content")}
-                </div>
-            </> : (
-                <div className={`chat-bilingual-section ${showTranslated ? "chat-bilingual-section-translation" : "chat-bilingual-section-original"}`}>
-                    {renderContent(showTranslated ? bilingual.translated : bilingual.original, "chat-bilingual-content")}
-                </div>
+        <div className={`chat-bilingual-block ${className ?? ""}`.trim()}>
+            <div className="chat-bilingual-section">
+                {renderContent(bilingual.original, "chat-bilingual-content")}
+            </div>
+            <button
+                type="button"
+                className="chat-bilingual-toggle"
+                onClick={(e) => {
+                    e.stopPropagation();
+                    setExpanded(v => !v);
+                }}
+                aria-expanded={expanded}
+            >
+                {expanded ? "收起中文" : "中文"}
+            </button>
+            {expanded && (
+                <>
+                    <div className="chat-bilingual-divider" />
+                    <div className="chat-bilingual-section chat-bilingual-section-translation">
+                        {renderContent(bilingual.translated, "chat-bilingual-content")}
+                    </div>
+                </>
             )}
         </div>
     );
 });
 
-function TextBubble({ content, onActionSelect, defaultTranslationExpanded = false, chatText = false }: { content: string; onActionSelect?: (text: string) => void; defaultTranslationExpanded?: boolean; chatText?: boolean }) {
-    return <BilingualTextBlock text={content} onActionSelect={onActionSelect} mode="markdown" defaultExpanded={defaultTranslationExpanded} chatText={chatText} />;
+function TextBubble({ content, onActionSelect, defaultTranslationExpanded = false }: { content: string; onActionSelect?: (text: string) => void; defaultTranslationExpanded?: boolean }) {
+    return <BilingualTextBlock text={content} onActionSelect={onActionSelect} mode="markdown" defaultExpanded={defaultTranslationExpanded} />;
 }
 
-
-/** Original message components in a presentation-only snapshot. */
-export function SnapshotMessageBubble({msg,charName,userName,stickerCharacterId,onImage}:{msg:ChatMessage;charName?:string;userName?:string;stickerCharacterId?:string;onImage?:(url:string)=>void}) {
-    if(msg.mediaType==="audio")return <VoiceMessageBubble msg={msg} playbackOnly />;
-    if(msg.mediaType==="listening_invite")return <ListeningInviteCard msg={msg} readOnly />;
-    if(msg.mediaType==="sticker")return <StickerBubble msg={msg} characterId={stickerCharacterId} />;
-    if(msg.mediaType?.startsWith("plugin:"))return <BilingualTextBlock text={msg.content} mode="plain" />;
-    const content=<div inert><MessageBubble msg={msg} charName={charName} userName={userName} /></div>;
-    if(msg.mediaUrl && (msg.mediaType==="image" || msg.mediaType==="media_file"))return <div role="button" tabIndex={0} aria-label="查看图片" onClick={()=>onImage?.(msg.mediaUrl!)} onKeyDown={event=>{if(event.key==="Enter"||event.key===" "){event.preventDefault();onImage?.(msg.mediaUrl!)}}}>{content}</div>;
+/** Presentation-only bubble used by forwarded-chat snapshots. */
+export function SnapshotMessageBubble({ msg, charName, userName, stickerCharacterId, onImage }: {
+    msg: ChatMessage;
+    charName?: string;
+    userName?: string;
+    stickerCharacterId?: string;
+    onImage?: (url: string) => void;
+}) {
+    if (msg.mediaType === "audio") return <VoiceMessageBubble msg={msg} />;
+    if (msg.mediaType === "sticker") return <StickerBubble msg={msg} characterId={stickerCharacterId} />;
+    if (msg.mediaType?.startsWith("plugin:")) return <BilingualTextBlock text={msg.content} mode="plain" />;
+    const content = <div inert><MessageBubble msg={msg} charName={charName} userName={userName} /></div>;
+    if (msg.mediaUrl && (msg.mediaType === "image" || msg.mediaType === "media_file")) {
+        return <div role="button" tabIndex={0} aria-label="查看图片" onClick={() => onImage?.(msg.mediaUrl!)} onKeyDown={event => {
+            if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                onImage?.(msg.mediaUrl!);
+            }
+        }}>{content}</div>;
+    }
     return content;
 }
 
@@ -773,9 +684,7 @@ function RedPacketBubble({ msg, charName, userName, groupSize, onShowDetail }: {
     const totalRecipients = d?.count || 1;
     const allClaimed = d?.status === "opened" || claimedBy.length >= totalRecipients;
     const isDone = allClaimed || isDeclined;
-    const userId = getCurrentIdentityId() ?? "";
-    const names = [userName ?? "", ...(resolveUserIdentity()?.previousNames ?? [])];
-    const userShare = d?.claimedAmountsByUserId?.[userId] ?? names.map(name => claimedAmounts[name]).find(amount => amount !== undefined);
+    const userShare = userName ? claimedAmounts[userName] : undefined;
 
     const bgClass = isDeclined
         ? "bg-declined-gradient"
@@ -793,7 +702,7 @@ function RedPacketBubble({ msg, charName, userName, groupSize, onShowDetail }: {
                         {d?.label || "恭喜发财，大吉大利"}
                     </div>
                     {userShare != null && (
-                        <div className="ts-20 font-bold mt-1 ui-text-white-85">{currencySymbol(normalizeCurrency(d?.currency))}{userShare.toFixed(2)}</div>
+                        <div className="ts-20 font-bold mt-1 ui-text-white-85">¥{userShare.toFixed(2)}</div>
                     )}
                     {isDeclined && <div className="ts-12 mt-1 ui-text-white-70">已退回</div>}
                 </div>
@@ -810,15 +719,6 @@ function RedPacketBubble({ msg, charName, userName, groupSize, onShowDetail }: {
 
 // ── Transfer ─────────────────────────────
 
-function formatApplePayAmount(value: unknown): string {
-    const amount = Number(value ?? 0);
-    if (!Number.isFinite(amount)) return "0";
-    return amount.toLocaleString("zh-CN", {
-        minimumFractionDigits: Number.isInteger(amount) ? 0 : 2,
-        maximumFractionDigits: 2,
-    });
-}
-
 function TransferBubble({ msg, charName, userName, onShowDetail }: {
     msg: ChatMessage; charName?: string; userName?: string;
     onShowDetail?: (msg: ChatMessage) => void;
@@ -830,45 +730,29 @@ function TransferBubble({ msg, charName, userName, onShowDetail }: {
     const bgClass = isDeclined
         ? "bg-declined-gradient"
         : isReceived ? "bg-opened-gradient" : "bg-transfer-gradient";
-    const amountText = formatApplePayAmount(d?.amount);
-    const currency = normalizeCurrency(d?.currency);
-    const symbol = currencySymbol(currency);
-    const statusText = isReceived ? "已收款" : isDeclined ? "已拒绝" : "";
 
     return (
         <div
             className="chat-transfer-card w-[240px] rounded-xl overflow-hidden cursor-pointer"
             onClick={() => onShowDetail?.(msg)}
         >
-            <div className="chat-transfer-legacy">
-                <div className={`chat-transfer-body p-4 flex items-center gap-3 ${bgClass}`}>
-                    <div className="ts-28 shrink-0">💰</div>
-                    <div className="flex-1">
-                        <div className="text-white ts-24 font-bold">{symbol}{d?.amount?.toFixed(2)} {currency}</div>
-                        <div className="ts-13 mt-0.5 ui-text-white-85">{d?.label || "转账"}</div>
-                    </div>
-                </div>
-                {d?.recipientName && (
-                    <div className={`px-4 py-1 ts-12 ui-text-white-70 ${bgClass}`}>转给 {d.recipientName}</div>
-                )}
-                <div
-                    className="ui-media-footer px-4 py-2 ts-12 flex justify-between items-center"
-                    {...(isDeclined ? { "data-status": "declined" } : {})}
-                >
-                    <span>微信转账</span>
-                    {isReceived && <span>已收款</span>}
-                    {isDeclined && <span>已退回</span>}
+            <div className={`chat-transfer-body p-4 flex items-center gap-3 ${bgClass}`}>
+                <div className="ts-28 shrink-0">💰</div>
+                <div className="flex-1">
+                    <div className="text-white ts-24 font-bold">¥{d?.amount?.toFixed(2)}</div>
+                    <div className="ts-13 mt-0.5 ui-text-white-85">{d?.label || "转账"}</div>
                 </div>
             </div>
-            <div className="imessage-transfer-card hidden" aria-label={`Apple Pay 转账 ${currency} ${amountText}`}>
-                <div className="imessage-transfer-main">
-                    <ApplePayBrand />
-                    <div className="imessage-transfer-amount">{symbol}{amountText}</div>
-                </div>
-                <div className="imessage-transfer-footer">
-                    <span className="imessage-transfer-note">{d?.label || "转账"}</span>
-                    {statusText && <span className="imessage-transfer-status">{statusText}</span>}
-                </div>
+            {d?.recipientName && (
+                <div className={`px-4 py-1 ts-12 ui-text-white-70 ${bgClass}`}>转给 {d.recipientName}</div>
+            )}
+            <div
+                className="ui-media-footer px-4 py-2 ts-12 flex justify-between items-center"
+                {...(isDeclined ? { "data-status": "declined" } : {})}
+            >
+                <span>微信转账</span>
+                {isReceived && <span>已收款</span>}
+                {isDeclined && <span>已退回</span>}
             </div>
         </div>
     );
@@ -902,7 +786,7 @@ function PaymentRequestBubble({ msg, charName, userName, onShowDetail }: {
                 </div>
                 <div className="flex-1 min-w-0">
                     <div className="text-white ts-12 ui-text-white-85">{requester}发起代付请求</div>
-                    <div className="text-white ts-24 font-bold mt-1">{currencySymbol(normalizeCurrency(d?.currency))}{amount} {normalizeCurrency(d?.currency)}</div>
+                    <div className="text-white ts-24 font-bold mt-1">¥{amount}</div>
                     <div className="ts-12 mt-1 ui-text-white-85 line-clamp-2">{itemsText || "商品订单"}</div>
                 </div>
             </div>
@@ -1318,6 +1202,9 @@ function GeneratedImagePromptDialog({
     onConfirm,
     busy,
     error,
+    useReferenceImage,
+    onUseReferenceImageChange,
+    hasReferenceImage,
 }: {
     value: string;
     onChange: (value: string) => void;
@@ -1325,6 +1212,9 @@ function GeneratedImagePromptDialog({
     onConfirm: () => void;
     busy: boolean;
     error?: string;
+    useReferenceImage: boolean;
+    onUseReferenceImageChange: (useRef: boolean) => void;
+    hasReferenceImage: boolean;
 }) {
     return (
         <div
@@ -1352,6 +1242,19 @@ function GeneratedImagePromptDialog({
                         placeholder="输入图片提示词"
                         disabled={busy}
                     />
+                    {hasReferenceImage ? (
+                        <label className="chat-generated-image-prompt-check">
+                            <input
+                                type="checkbox"
+                                checked={useReferenceImage}
+                                disabled={busy}
+                            onChange={e => onUseReferenceImageChange(e.target.checked)}
+                            />
+                            <span>使用角色参考图（角色出镜）</span>
+                        </label>
+                    ) : (
+                        <div className="chat-generated-image-prompt-empty-hint">该角色未配置参考图</div>
+                    )}
                     {error && <div className="chat-generated-image-retry-error">{error}</div>}
                 </div>
                 <div className="modal-footer" data-ui="modal-footer">
@@ -1369,288 +1272,13 @@ function GeneratedImagePromptDialog({
     );
 }
 
-function RoughPhotoShape({ annotation }: { annotation: ChatPhotoAnnotation }) {
-    const paths = useMemo(() => {
-        if (!annotation.shape && !annotation.doodlePath) return [];
-        const generator = rough.generator();
-        const cx = (annotation.x ?? .5) * 1000;
-        const cy = (annotation.y ?? .5) * 1000;
-        const size = (annotation.size || .25) * 1000;
-        const options = {
-            stroke: annotation.color,
-            strokeWidth: (annotation.width || .01) * 1000,
-            roughness: annotation.roughness || 1.8,
-            bowing: annotation.bowing || 1.25,
-            seed: annotation.seed || 1,
-            fill: annotation.fill || "none",
-            fillStyle: "solid",
-        };
-        if (annotation.doodlePath) return generator.toPaths(generator.path(annotation.doodlePath, { ...options, strokeWidth: options.strokeWidth / 10, roughness: options.roughness / 10 }));
-        let drawable;
-        if (annotation.shape === "circle") drawable = generator.ellipse(cx, cy, size, size * .78, options);
-        else if (annotation.shape === "box") drawable = generator.rectangle(cx - size / 2, cy - size * .38, size, size * .76, options);
-        else if (annotation.shape === "underline") drawable = generator.line(cx - size / 2, cy, cx + size / 2, cy, options);
-        else if (annotation.shape === "arrow") drawable = generator.path(`M ${cx - size / 2} ${cy + size * .25} L ${cx + size / 2} ${cy - size * .25} M ${cx + size / 2} ${cy - size * .25} L ${cx + size * .18} ${cy - size * .28} M ${cx + size / 2} ${cy - size * .25} L ${cx + size * .34} ${cy + size * .05}`, options);
-        else if (annotation.shape === "heart") drawable = generator.path(`M ${cx} ${cy + size * .42} C ${cx - size * .58} ${cy + size * .06}, ${cx - size * .48} ${cy - size * .44}, ${cx} ${cy - size * .12} C ${cx + size * .48} ${cy - size * .44}, ${cx + size * .58} ${cy + size * .06}, ${cx} ${cy + size * .42}`, options);
-        else drawable = generator.polygon(Array.from({ length: 10 }, (_, index) => {
-            const radius = index % 2 ? size * .22 : size * .5;
-            const angle = -Math.PI / 2 + index * Math.PI / 5;
-            return [cx + Math.cos(angle) * radius, cy + Math.sin(angle) * radius] as [number, number];
-        }), options);
-        return generator.toPaths(drawable);
-    }, [annotation]);
-    const cx = (annotation.x ?? .5) * 1000;
-    const cy = (annotation.y ?? .5) * 1000;
-    return <g opacity={annotation.opacity ?? 1} transform={`rotate(${annotation.rotation || 0} ${cx} ${cy})${annotation.doodlePath ? " scale(10)" : ""}`}>
-        {paths.map((path, index) => <path key={index} d={path.d} fill={path.fill || "none"} stroke={path.stroke} strokeWidth={path.strokeWidth} />)}
-    </g>;
-}
-
-function PhotoAnnotationLayer({ annotations, selectedId }: { annotations?: ChatPhotoAnnotation[]; selectedId?: string | null }) {
-    const layerRef = useRef<SVGSVGElement>(null);
-    const [emojiAspect, setEmojiAspect] = useState(1);
-    const hasMarks = Boolean(annotations?.length);
-    useEffect(() => {
-        const layer = layerRef.current;
-        if (!layer) return;
-        // Coordinates follow the photo; glyphs must retain equal physical X/Y scale.
-        const observer = new ResizeObserver(([entry]) => {
-            const { width, height } = entry.contentRect;
-            if (width > 0 && height > 0) setEmojiAspect(width / height);
-        });
-        observer.observe(layer);
-        return () => observer.disconnect();
-    }, [hasMarks]);
-    if (!annotations?.length) return null;
-    return (
-        <svg ref={layerRef} className="chat-photo-annotation-layer" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="true">
-            {annotations.map(annotation => annotation.kind === "rough_shape" ? (
-                <RoughPhotoShape key={annotation.id} annotation={annotation} />
-            ) : annotation.kind === "emoji" && annotation.emoji ? (
-                <g key={annotation.id} transform={`translate(${(annotation.x ?? .5) * 1000} ${(annotation.y ?? .5) * 1000}) scale(1 ${emojiAspect}) rotate(${annotation.rotation || 0})`}>
-                    {selectedId === annotation.id && <circle
-                        cx={0}
-                        cy={0}
-                        r={76 * (annotation.scale || 1)}
-                        fill="none"
-                        stroke="rgba(255,255,255,.92)"
-                        strokeWidth="5"
-                        strokeDasharray="14 10"
-                    />}
-                    <text
-                        x={0}
-                        y={0}
-                        textAnchor="middle"
-                        dominantBaseline="central"
-                        fontSize={120 * (annotation.scale || 1)}
-                        fontFamily="Apple Color Emoji, Segoe UI Emoji, sans-serif"
-                    >{annotation.emoji}</text>
-                </g>
-            ) : annotation.kind === "stroke" && annotation.points?.length ? (
-                <g key={annotation.id}>
-                    <polyline
-                        points={Array.from({ length: Math.floor(annotation.points.length / 2) }, (_, index) => `${annotation.points![index * 2] * 1000},${annotation.points![index * 2 + 1] * 1000}`).join(" ")}
-                        fill="none"
-                        stroke={annotation.color}
-                        strokeWidth={(annotation.width || 0.012) * 1000}
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                    />
-                    {annotation.renderStyle === "handdrawn" && <polyline
-                        points={Array.from({ length: Math.floor(annotation.points.length / 2) }, (_, index) => `${annotation.points![index * 2] * 1000},${annotation.points![index * 2 + 1] * 1000}`).join(" ")}
-                        fill="none"
-                        stroke={annotation.color}
-                        strokeWidth={(annotation.width || 0.012) * 580}
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        opacity=".28"
-                        transform="translate(2.2 1.4)"
-                    />}
-                </g>
-            ) : annotation.kind === "text" && annotation.text ? (
-                <text key={annotation.id} x={(annotation.x ?? 0.5) * 1000} y={(annotation.y ?? 0.5) * 1000} fill={annotation.color} fontSize="64" fontWeight="700" fontFamily="Segoe Print, Bradley Hand, Comic Sans MS, cursive" fontStyle="italic" paintOrder="stroke" stroke="rgba(0,0,0,.38)" strokeWidth="8" transform={`rotate(-3 ${(annotation.x ?? 0.5) * 1000} ${(annotation.y ?? 0.5) * 1000})`}>{annotation.text}</text>
-            ) : null)}
-        </svg>
-    );
-}
-
-function PhotoAnnotationEditor(props: Omit<React.ComponentProps<typeof PhotoMarkupEditor>, "renderLayer">) {
-    return <PhotoMarkupEditor {...props} renderLayer={(annotations, selectedId) => <PhotoAnnotationLayer annotations={annotations} selectedId={selectedId} />} />;
-}
-
-function PhotoGroupBubble({ msg, items, onUpdate, onPhotoAnnotationsSave, reactionStyleForActor }: { msg: ChatMessage; items: ChatPhotoGroupItem[]; onUpdate?: (updated: ChatMessage) => void; onPhotoAnnotationsSave?: MessageBubbleProps["onPhotoAnnotationsSave"]; reactionStyleForActor?: MessageBubbleProps["reactionStyleForActor"] }) {
-    const [resolved, setResolved] = useState<ChatPhotoGroupItem[]>(items);
-    const [index, setIndex] = useState(() => Math.max(0, Math.min(items.length - 1, msg.mediaData?.photoGroupActiveIndex ?? 0)));
-    const [dragX, setDragX] = useState(0);
-    const [detailOpen, setDetailOpen] = useState(false);
-    const [detailIndex, setDetailIndex] = useState(0);
-    const [marking, setMarking] = useState(false);
-    const dragGesture = useRef<{ x: number; y: number; lastY: number; mode: "pending" | "photo" | "page" } | null>(null);
-    const suppressStackClick = useRef(false);
-    const mediaSourcesKey = items.map(item => `${item.messageId}:${item.mediaUrl || ""}`).join("|");
-
-    useEffect(() => {
-        let cancelled = false;
-        const revokes: string[] = [];
-        Promise.all(items.map(async item => {
-            if (!item.mediaUrl || !isMediaStoreRef(item.mediaUrl)) return item;
-            const url = await loadMediaObjectUrl(item.mediaUrl);
-            if (url) revokes.push(url);
-            return { ...item, mediaUrl: url || undefined };
-        })).then(next => { if (!cancelled) setResolved(next); });
-        return () => { cancelled = true; revokes.forEach(url => URL.revokeObjectURL(url)); };
-        // Annotation-only updates must not revoke and recreate the blob URLs.
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [mediaSourcesKey]);
-
-    useEffect(() => {
-        setResolved(previous => items.map(item => {
-            const existing = previous.find(candidate => candidate.messageId === item.messageId);
-            const mediaUrl = isMediaStoreRef(item.mediaUrl || "")
-                ? (existing?.mediaUrl && !isMediaStoreRef(existing.mediaUrl) ? existing.mediaUrl : undefined)
-                : item.mediaUrl;
-            return { ...item, mediaUrl };
-        }));
-    }, [items]);
-
-    useEffect(() => {
-        const next = Math.max(0, Math.min(resolved.length - 1, msg.mediaData?.photoGroupActiveIndex ?? 0));
-        setIndex(next);
-    }, [msg.mediaData?.photoGroupActiveIndex, resolved.length]);
-
-    const move = (direction: number) => {
-        if (!resolved.length) return;
-        const nextIndex = (index + direction + resolved.length) % resolved.length;
-        const lead = resolved[nextIndex];
-        const stored = loadChatMessages(msg.sessionId).find(message => message.id === msg.id);
-        if (stored && lead) {
-            const mediaData = {
-                ...stored.mediaData,
-                photoGroupActiveIndex: nextIndex,
-                photoGroupLeadMessageId: lead.messageId,
-                photoGroupLeadLabel: lead.label,
-            };
-            updateMessageMediaData(stored.id, mediaData);
-            onUpdate?.({ ...stored, mediaData });
-        }
-        setIndex(nextIndex);
-    };
-    const scrollPageBy = (origin: HTMLElement, deltaY: number) => {
-        let node: HTMLElement | null = origin.parentElement;
-        while (node) {
-            const style = window.getComputedStyle(node);
-            if (/(auto|scroll)/.test(style.overflowY) && node.scrollHeight > node.clientHeight) {
-                node.scrollTop -= deltaY;
-                return;
-            }
-            node = node.parentElement;
-        }
-        window.scrollBy(0, -deltaY);
-    };
-    const active = resolved[detailIndex];
-    const saveAnnotations = (annotations: ChatPhotoAnnotation[]) => {
-        if (!active) return;
-        const stored = loadChatMessages(msg.sessionId).find(message => message.id === active.messageId);
-        if (!stored) return;
-        const previous = stored.mediaData?.photoAnnotations || [];
-        if (onPhotoAnnotationsSave) onPhotoAnnotationsSave(stored, annotations, previous);
-        else {
-            const mediaData = { ...stored.mediaData, photoAnnotations: annotations };
-            updateMessageMediaData(stored.id, mediaData);
-            onUpdate?.({ ...stored, mediaData });
-        }
-        setResolved(prev => prev.map(item => item.messageId === active.messageId ? { ...item, annotations } : item));
-        setMarking(false);
-    };
-
-    return (
-        <>
-            <div className="chat-photo-stack-wrap">
-                <button type="button" className="chat-photo-stack-count" aria-label={`查看全部 ${resolved.length} 张照片`} onPointerDown={event => event.stopPropagation()} onClick={event => { event.stopPropagation(); setDetailIndex(index); setDetailOpen(true); }}><span className="chat-photo-stack-grid-icon" aria-hidden="true"><i/><i/><i/><i/></span>{index + 1} / {resolved.length} 张照片</button>
-                <div
-                    className="chat-photo-stack"
-                    onPointerDown={event => {
-                        dragGesture.current = { x: event.clientX, y: event.clientY, lastY: event.clientY, mode: "pending" };
-                        suppressStackClick.current = false;
-                        event.currentTarget.setPointerCapture(event.pointerId);
-                    }}
-                    onPointerMove={event => {
-                        const gesture = dragGesture.current;
-                        if (!gesture) return;
-                        const dx = event.clientX - gesture.x;
-                        const dy = event.clientY - gesture.y;
-                        if (gesture.mode === "pending" && Math.hypot(dx, dy) >= 10) {
-                            // The photo owns a leftward gesture unless the movement is clearly vertical.
-                            gesture.mode = dx < -4 || Math.abs(dx) >= Math.abs(dy) * .72 ? "photo" : "page";
-                        }
-                        if (gesture.mode === "photo") {
-                            event.preventDefault();
-                            setDragX(Math.min(0, dx));
-                        } else if (gesture.mode === "page") {
-                            event.preventDefault();
-                            scrollPageBy(event.currentTarget, event.clientY - gesture.lastY);
-                        }
-                        gesture.lastY = event.clientY;
-                    }}
-                    onPointerUp={() => {
-                        const mode = dragGesture.current?.mode;
-                        if (mode === "photo" && dragX < -42) { suppressStackClick.current = true; move(1); }
-                        else if (mode === "page") suppressStackClick.current = true;
-                        dragGesture.current = null;
-                        setDragX(0);
-                    }}
-                    onPointerCancel={() => { dragGesture.current = null; setDragX(0); }}
-                    onClick={event => { event.stopPropagation(); suppressStackClick.current = false; }}
-                >
-                    {Array.from({ length: Math.min(resolved.length, 9) }, (_, depthIndex) => Math.min(resolved.length, 9) - 1 - depthIndex).map(depth => {
-                        const itemIndex = (index + depth) % resolved.length;
-                        const item = resolved[itemIndex];
-                        const isFront = depth === 0;
-                        const scale = 1 - Math.min(depth, 8) * 0.018 + (isFront ? -Math.min(Math.abs(dragX) / 2800, .08) : Math.min(Math.abs(dragX) / 3600, .045));
-                        const spreadX = depth === 0 ? 0 : 7 + depth * 2.5;
-                        const translateX = isFront ? dragX : spreadX + Math.max(-8, dragX * .06);
-                        const restingRotation = depth === 0 ? 0 : Math.min(7, 1.2 + depth * .62);
-                        return <div key={`${item.messageId}-${depth}`} className="chat-photo-stack-card" data-depth={depth} style={{ zIndex: 20 - depth, filter: `saturate(${Math.max(.72, 1 - depth * .035)})`, transform: `translate3d(${translateX}px, ${depth * -3.2}px, 0) rotate(${isFront ? dragX / 28 : restingRotation}deg) scale(${scale})` }}>
-                            {item.mediaUrl ? <img src={item.mediaUrl} alt={item.label || `照片 ${itemIndex + 1}`} draggable={false} /> : <div className="chat-photo-stack-text">{item.label || "文字图片"}</div>}
-                            <PhotoAnnotationLayer annotations={item.annotations} />
-                        </div>;
-                    })}
-                    {resolved[index] && <div className="photo-front-reaction" data-message-role={msg.role} style={{ transform: `translateX(${dragX}px)` }}><IMessageTapbackBadge tapback={resolved[index].tapback} tapbackBy={resolved[index].tapbackBy} reactions={resolved[index].tapbacks} reactionStyleForActor={reactionStyleForActor} /></div>}
-                </div>
-            </div>
-            {detailOpen && createPortal(
-                <div className="chat-photo-group-overlay" onPointerDown={event => event.stopPropagation()} onClick={event => event.stopPropagation()}>
-                    <div className="chat-photo-group-header"><button className="photo-glass-button" aria-label="返回聊天" onClick={() => setDetailOpen(false)}><ChevronLeft /></button><strong>{resolved.length} 张照片</strong><span /></div>
-                    <div className="chat-photo-group-grid" onClick={event => event.stopPropagation()}>
-                        {resolved.map((item, itemIndex) => <button key={item.messageId} type="button" onClick={() => { setDetailIndex(itemIndex); setMarking(true); }} data-active={detailIndex === itemIndex || undefined}>
-                            {item.mediaUrl ? <img src={item.mediaUrl} alt={item.label || ""} /> : <span>{item.label || "文字图片"}</span>}
-                            <PhotoAnnotationLayer annotations={item.annotations} />
-                        </button>)}
-                    </div>
-                </div>,
-                document.body,
-            )}
-            {marking && active && <PhotoAnnotationEditor imageUrl={active.mediaUrl} fallbackText={active.label} initial={active.annotations} onSave={saveAnnotations} onClose={() => setMarking(false)} />}
-        </>
-    );
-}
-
-function ImageBubble(props: { msg: ChatMessage; onUpdate?: (updated: ChatMessage) => void; onPhotoAnnotationsSave?: MessageBubbleProps["onPhotoAnnotationsSave"]; characterId?: string; reactionStyleForActor?: MessageBubbleProps["reactionStyleForActor"] }) {
-    const items = props.msg.mediaData?.photoGroupItems;
-    return items && items.length > 1
-        ? <PhotoGroupBubble msg={props.msg} items={items} onUpdate={props.onUpdate} onPhotoAnnotationsSave={props.onPhotoAnnotationsSave} reactionStyleForActor={props.reactionStyleForActor} />
-        : <SingleImageBubble {...props} />;
-}
-
-function SingleImageBubble({
+function ImageBubble({
     msg,
     onUpdate,
-    onPhotoAnnotationsSave,
     characterId,
 }: {
     msg: ChatMessage;
     onUpdate?: (updated: ChatMessage) => void;
-    onPhotoAnnotationsSave?: MessageBubbleProps["onPhotoAnnotationsSave"];
     characterId?: string;
 }) {
     const d = msg.mediaData;
@@ -1658,7 +1286,7 @@ function SingleImageBubble({
     const rawUrl = msg.mediaUrl || "";
     // 媒体维护压缩后 mediaUrl 是 media-store:// 引用，直接当 <img src> 会裂图，
     // 与 MediaFileBubble 相同：先解析为 object URL 再渲染。
-    const [resolvedUrl, setResolvedUrl] = useState<string>(isMediaStoreRef(rawUrl) || rawUrl.startsWith("asset://") ? "" : rawUrl);
+    const [resolvedUrl, setResolvedUrl] = useState<string>(isMediaStoreRef(rawUrl) ? "" : rawUrl);
     const [refExpired, setRefExpired] = useState(false);
     const [showPromptEditor, setShowPromptEditor] = useState(false);
     const [promptDraft, setPromptDraft] = useState("");
@@ -1666,21 +1294,14 @@ function SingleImageBubble({
     // retryError 只用于提示词弹窗内的即时校验；生成失败改用一次性弹窗，不再挂红字
     const [retryError, setRetryError] = useState("");
     const [failureNotice, setFailureNotice] = useState("");
-    const isPending = d?.imageGenerationStatus === "pending";
-    const canRegenerate = !isPending && Boolean(d?.label?.trim());
+    const isPending = regenerating || (!resolvedUrl && d?.imageGenerationStatus === "pending");
+    const canRegenerate = Boolean(d?.label?.trim());
     const [showPreview, setShowPreview] = useState(false);
-    const [marking, setMarking] = useState(false);
+
+    const [hasRef, setHasRef] = useState(() => hasCharacterReferenceImage(characterId));
+    const [useReferenceDraft, setUseReferenceDraft] = useState(d?.useReferenceImage === true);
 
     useEffect(() => {
-        if (rawUrl.startsWith("asset://")) {
-            let active = true;
-            setResolvedUrl("");
-            setRefExpired(false);
-            getChatImageFromIndexedDB(rawUrl.slice(8)).then(url => {
-                if (active) { setResolvedUrl(url || ""); setRefExpired(!url); }
-            }).catch(() => { if (active) setRefExpired(true); });
-            return () => { active = false; };
-        }
         if (!isMediaStoreRef(rawUrl)) {
             setResolvedUrl(rawUrl);
             setRefExpired(false);
@@ -1695,10 +1316,13 @@ function SingleImageBubble({
     }, [rawUrl]);
 
     const openPromptEditor = useCallback(() => {
+        const latestHasRef = hasCharacterReferenceImage(characterId);
+        setHasRef(latestHasRef);
         setPromptDraft(d?.label?.trim() || "");
+        setUseReferenceDraft(latestHasRef && d?.useReferenceImage === true);
         setRetryError("");
         setShowPromptEditor(true);
-    }, [d?.label]);
+    }, [characterId, d?.label, d?.useReferenceImage]);
 
     const handleRetry = useCallback(() => {
         const nextDescription = promptDraft.trim();
@@ -1706,11 +1330,21 @@ function SingleImageBubble({
             setRetryError("提示词不能为空");
             return;
         }
+        const latestHasRef = hasCharacterReferenceImage(characterId);
         setShowPromptEditor(false);
         setRegenerating(true);
         setRetryError("");
-        retryChatGeneratedImage(msg, characterId, nextDescription)
-            .then(updated => {
+        retryChatGeneratedImage(msg, characterId, nextDescription, latestHasRef ? useReferenceDraft : undefined)
+            .then(async (updated) => {
+                if (updated?.mediaUrl) {
+                    try {
+                        const img = new Image();
+                        img.src = updated.mediaUrl;
+                        if ("decode" in img) await img.decode().catch(() => {});
+                    } catch {
+                        // ignore predecode error
+                    }
+                }
                 onUpdate?.(updated);
             })
             .catch(error => {
@@ -1719,7 +1353,7 @@ function SingleImageBubble({
             .finally(() => {
                 setRegenerating(false);
             });
-    }, [characterId, msg, onUpdate, promptDraft]);
+    }, [characterId, msg, onUpdate, promptDraft, useReferenceDraft]);
 
     // 预览层与提示词对话框：图片正常/失败占位两种形态共用（操作按钮统一收在点开后的预览层里）
     const previewAndDialog = (
@@ -1729,8 +1363,6 @@ function SingleImageBubble({
                     imageUrl={resolvedUrl || undefined}
                     description={!resolvedUrl ? label : undefined}
                     saveFilename={resolvedUrl ? ensureExtension(label, "image") : undefined}
-                    annotations={d?.photoAnnotations}
-                    onAnnotate={() => { setShowPreview(false); setMarking(true); }}
                     onRegenerate={canRegenerate ? () => { setShowPreview(false); openPromptEditor(); } : undefined}
                     regenerating={regenerating}
                     onClose={() => setShowPreview(false)}
@@ -1740,6 +1372,9 @@ function SingleImageBubble({
                 <GeneratedImagePromptDialog
                     value={promptDraft}
                     onChange={setPromptDraft}
+                    useReferenceImage={useReferenceDraft}
+                    onUseReferenceImageChange={setUseReferenceDraft}
+                    hasReferenceImage={hasRef}
                     onConfirm={handleRetry}
                     onCancel={() => setShowPromptEditor(false)}
                     busy={regenerating}
@@ -1749,24 +1384,6 @@ function SingleImageBubble({
             )}
             {failureNotice && (
                 <GeneratedImageErrorDialog message={failureNotice} onClose={() => setFailureNotice("")} />
-            )}
-            {marking && (
-                <PhotoAnnotationEditor
-                    imageUrl={resolvedUrl || undefined}
-                    fallbackText={label}
-                    initial={d?.photoAnnotations}
-                    onClose={() => setMarking(false)}
-                    onSave={annotations => {
-                        const previous = msg.mediaData?.photoAnnotations || [];
-                        if (onPhotoAnnotationsSave) onPhotoAnnotationsSave(msg, annotations, previous);
-                        else {
-                            const mediaData = { ...msg.mediaData, photoAnnotations: annotations };
-                            updateMessageMediaData(msg.id, mediaData);
-                            onUpdate?.({ ...msg, mediaData });
-                        }
-                        setMarking(false);
-                    }}
-                />
             )}
         </>
     );
@@ -1784,14 +1401,13 @@ function SingleImageBubble({
                         alt={label}
                         className="chat-photo-card-image block max-w-[240px] max-h-[320px] w-auto h-auto"
                     />
-                    <PhotoAnnotationLayer annotations={d?.photoAnnotations} />
                 </div>
                 {previewAndDialog}
             </>
         );
     }
     // media-store 引用解析中：占个位，避免闪一下重试卡
-    if ((isMediaStoreRef(rawUrl) || rawUrl.startsWith("asset://")) && !refExpired) {
+    if (isMediaStoreRef(rawUrl) && !refExpired) {
         return <div className="chat-photo-card w-[180px] aspect-square rounded-none" />;
     }
     if (isPending) {
@@ -1810,7 +1426,7 @@ function SingleImageBubble({
     return (
         <div className="chat-generated-image-retry-stack">
             <div
-                className="chat-photo-card chat-photo-card--text w-[180px] aspect-square rounded-none"
+                className="chat-photo-card w-[180px] aspect-square rounded-none"
                 style={{ cursor: "pointer" }}
                 onClick={e => { e.stopPropagation(); setShowPreview(true); }}
             >
@@ -1826,7 +1442,31 @@ function SingleImageBubble({
 // ── Location ─────────────────────────────
 
 function LocationBubble({ msg }: { msg: ChatMessage }) {
-    return <LocationCard label={msg.mediaData?.label || "位置"} />;
+    const d = msg.mediaData;
+    return (
+        <div
+            className="chat-location-card w-[220px] rounded-xl overflow-hidden"
+        >
+            <div
+                className="chat-location-map w-full h-[100px] flex items-center justify-center relative ui-map-gradient"
+            >
+                {/* Grid pattern for map feel */}
+                <div
+                    className="absolute inset-0 opacity-15 ui-map-grid"
+                />
+                <div className="ts-36 relative z-[1]">📍</div>
+            </div>
+            <div className="chat-location-label px-3 py-2.5 bg-[var(--c-input)] flex items-center gap-2">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--c-success)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+                    <circle cx="12" cy="10" r="3" />
+                </svg>
+                <span className="ts-13 text-[var(--c-text)] font-medium">
+                    {d?.label || "位置"}
+                </span>
+            </div>
+        </div>
+    );
 }
 
 // ── Poke ─────────────────────────────
@@ -1913,59 +1553,6 @@ export async function prewarmStickerCache(characterId: string): Promise<void> {
     }
 }
 
-function AlignedStickerImage({ src, label }: { src: string; label: string }) {
-    const imageRef = useRef<HTMLImageElement>(null);
-    useEffect(() => {
-        const image = imageRef.current;
-        const row = image?.closest<HTMLElement>("[data-imessage-group] .chat-msg-wrapper");
-        if (!image || !row) return;
-        let visibleBottom = 1;
-        const measure = () => {
-            if (!image.naturalWidth || !image.naturalHeight) return;
-            const rect = image.getBoundingClientRect();
-            const scale = Math.min(rect.width / image.naturalWidth, rect.height / image.naturalHeight);
-            const paintedHeight = image.naturalHeight * scale;
-            const bottom = rect.top + (rect.height - paintedHeight) / 2 + paintedHeight * visibleBottom;
-            row.style.setProperty("--group-avatar-bottom", `${row.getBoundingClientRect().bottom - bottom}px`);
-        };
-        const loaded = () => {
-            // Ignore transparent padding, not just the square object-contain box.
-            try {
-                const canvas = document.createElement("canvas");
-                const scale = Math.min(1, 1024 / Math.max(image.naturalWidth, image.naturalHeight));
-                canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
-                canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
-                const context = canvas.getContext("2d", { willReadFrequently: true });
-                if (context) {
-                    context.drawImage(image, 0, 0, canvas.width, canvas.height);
-                    const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
-                    outer: for (let y = canvas.height - 1; y >= 0; y--) {
-                        for (let x = 0; x < canvas.width; x++) {
-                            if (pixels[(y * canvas.width + x) * 4 + 3] > 0) {
-                                visibleBottom = (y + 1) / canvas.height;
-                                break outer;
-                            }
-                        }
-                    }
-                }
-            } catch { /* Cross-origin images still align to their painted image bounds. */ }
-            measure();
-        };
-        image.addEventListener("load", loaded);
-        row.addEventListener("animationend", measure);
-        const observer = new ResizeObserver(measure);
-        observer.observe(row); observer.observe(image);
-        if (image.complete && image.naturalWidth) loaded();
-        return () => {
-            image.removeEventListener("load", loaded);
-            row.removeEventListener("animationend", measure);
-            observer.disconnect();
-            row.style.removeProperty("--group-avatar-bottom");
-        };
-    }, [src]);
-    return <img ref={imageRef} src={src} alt={label || "表情包"} className="w-[120px] h-[120px] object-contain" style={{ WebkitTouchCallout: 'none', userSelect: 'none', pointerEvents: 'none' }} />;
-}
-
 function StickerBubble({ msg, characterId }: { msg: ChatMessage; characterId?: string }) {
     const d = msg.mediaData;
     const label = d?.label || "";
@@ -2003,7 +1590,12 @@ function StickerBubble({ msg, characterId }: { msg: ChatMessage; characterId?: s
     if (imgUrl) {
         return (
             <div className="chat-sticker chat-sticker-image sticker-bounce p-1">
-                <AlignedStickerImage src={imgUrl} label={label} />
+                <img
+                    src={imgUrl}
+                    alt={label || "表情包"}
+                    className="w-[120px] h-[120px] object-contain"
+                    style={{ WebkitTouchCallout: 'none', userSelect: 'none', pointerEvents: 'none' }}
+                />
             </div>
         );
     }
@@ -2026,31 +1618,16 @@ function StickerBubble({ msg, characterId }: { msg: ChatMessage; characterId?: s
 
 // ── Quote ─────────────────────────────
 
-function QuoteBubble({ msg, displayContent, replyAccessory, quoteSource, quoteSourceStyle, defaultTranslationExpanded = false, reactionStyleForActor }: Pick<MessageBubbleProps, "msg" | "displayContent" | "replyAccessory" | "quoteSource" | "quoteSourceStyle" | "defaultTranslationExpanded" | "reactionStyleForActor">) {
+function QuoteBubble({ msg, displayContent, defaultTranslationExpanded = false }: { msg: ChatMessage; displayContent?: string; defaultTranslationExpanded?: boolean }) {
     const d = msg.mediaData;
     return (
-        <div className={`chat-quote-message chat-quote-message-${msg.role} max-w-full`}>
-            <span className="chat-quote-connector" aria-hidden="true" />
-            {(
-                <div style={quoteSourceStyle} className="chat-quote-preview bg-black/[0.06] border-l-[3px] border-l-black/15 px-2.5 py-1.5 ts-12 text-[var(--c-icon)] mb-1.5 rounded-r-[6px] truncate max-w-full">
-                    {normalizeQuotePreviewText(d?.quotePreview || "") || (quoteSource ? getQuotePreview(quoteSource) : "原消息暂不可用")}
+        <div className="chat-quote-message max-w-full">
+            {d?.quotePreview && (
+                <div className="chat-quote-preview bg-black/[0.06] border-l-[3px] border-l-black/15 px-2.5 py-1.5 ts-12 text-[var(--c-icon)] mb-1.5 rounded-r-[6px] truncate max-w-full">
+                    {d.quotePreview}
                 </div>
             )}
-            {msg.content && (
-                <div className="chat-quote-reply">
-                    <span className="imessage-bubble-surface" aria-hidden="true" />
-                    {replyAccessory && <span className="chat-quote-reply-accessory" onPointerDown={event => event.stopPropagation()} onContextMenu={event => { event.preventDefault(); event.stopPropagation(); }}>{replyAccessory}</span>}
-                    <TextBubble content={displayContent ?? msg.content} defaultTranslationExpanded={defaultTranslationExpanded} />
-                    {(d?.tapback || d?.tapbacks?.length) && (
-                        <IMessageTapbackBadge
-                            tapback={d.tapback}
-                            tapbackBy={d.tapbackBy || "user"}
-                            reactions={d.tapbacks}
-                            reactionStyleForActor={reactionStyleForActor}
-                        />
-                    )}
-                </div>
-            )}
+            {msg.content && <TextBubble content={displayContent ?? msg.content} defaultTranslationExpanded={defaultTranslationExpanded} />}
         </div>
     );
 }
@@ -2061,65 +1638,35 @@ function QuoteBubble({ msg, displayContent, replyAccessory, quoteSource, quoteSo
 interface MediaDetailModalProps {
     msg: ChatMessage;
     userName: string;
-    charName?: string;
     groupSize?: number;
     onAccept: (updatedMsg: ChatMessage, sysText: string, actionType: string) => void;
     onClose: () => void;
 }
 
-export function MediaDetailModal({ msg, userName, charName, groupSize, onAccept, onClose }: MediaDetailModalProps) {
+export function MediaDetailModal({ msg, userName, groupSize, onAccept, onClose }: MediaDetailModalProps) {
     const d = msg.mediaData;
     const isRedPacket = msg.mediaType === "red_packet";
     const isTransfer = msg.mediaType === "transfer";
     const isPaymentRequest = msg.mediaType === "payment_request";
     const [paymentError, setPaymentError] = useState("");
+    if (!isRedPacket && !isTransfer && !isPaymentRequest) return null;
 
     const isFromUser = msg.role === "user";
-    // Private incoming messages may not carry senderName in older stored records;
-    // the rendered character/alias is already supplied by the room as charName.
-    const senderDisplay = isFromUser ? userName : (d?.senderName || msg.senderName || charName || "对方");
-    const currency = normalizeCurrency(d?.currency);
-    const [walletCurrency, setWalletCurrency] = useState(() => loadWalletState().currency || "CNY");
-    useEffect(() => { const update = () => setWalletCurrency(loadWalletState().currency || "CNY"); window.addEventListener(WALLET_UPDATED_EVENT, update); return () => window.removeEventListener(WALLET_UPDATED_EVENT, update); }, []);
-    const settled = d?.status === "received" || d?.status === "paid";
-    const targetCurrency = settled ? d?.receivedCurrency || "CNY" : walletCurrency;
-    const foreignAmount = currency !== targetCurrency ? `${currencySymbol(currency)}${formatApplePayAmount(d?.amount)}` : "";
-    const [liveCny, setLiveCny] = useState<number | null>(typeof d?.cnyAmount === "number" ? d.cnyAmount : null);
-    const [liveRate, setLiveRate] = useState<number | null>(null);
-    const [quoteKey, setQuoteKey] = useState("");
-    const currentQuoteKey = `${msg.id}:${currency}:${targetCurrency}:${d?.amount}`;
-    useEffect(() => {
-        setLiveCny(null);
-        setLiveRate(null);
-        setPaymentError("");
-        if ((!isTransfer && !isRedPacket && !isPaymentRequest) || currency === targetCurrency || settled) return;
-        let active = true;
-        void fetchExchangeRate(currency, targetCurrency).then(rate => {
-            if (!active) return;
-            if (rate) { setQuoteKey(currentQuoteKey); setLiveRate(rate); setLiveCny(cnyAmount(Number(d?.amount || 0), rate)); }
-            else setPaymentError("汇率查询失败，请关闭后重试；尚未收款。");
-        });
-        return () => { active = false; };
-    }, [msg.id, isTransfer, isRedPacket, isPaymentRequest, currency, targetCurrency, d?.status, d?.amount, currentQuoteKey]);
-    const resolvedCny = settled ? d?.receivedAmount ?? d?.cnyAmount ?? Number(d?.amount || 0) : currency === targetCurrency ? Number(d?.amount || 0) : quoteKey === currentQuoteKey ? liveCny : null;
-    if (!isRedPacket && !isTransfer && !isPaymentRequest) return null;
+    const senderDisplay = isFromUser ? userName : (d?.senderName || msg.senderName || "对方");
 
     // ── Red packet state ──
     const claimedBy = d?.claimedBy || [];
     const claimedAmounts = d?.claimedAmounts || {};
     const totalRecipients = d?.count || 1;
     const allClaimed = d?.status === "opened" || claimedBy.length >= totalRecipients;
-    const identityId = getCurrentIdentityId() ?? "";
-    const identity = resolveUserIdentity();
-    const userNames = [userName, ...(identity?.previousNames ?? [])];
-    const alreadyClaimed = d?.claimedByUserIds?.includes(identityId) || userNames.some(name => claimedBy.includes(name));
-    const userShare = d?.claimedAmountsByUserId?.[identityId] ?? userNames.map(name => claimedAmounts[name]).find(amount => amount !== undefined);
+    const alreadyClaimed = claimedBy.includes(userName);
+    const userShare = claimedAmounts[userName];
     const isDeclined = d?.status === "declined";
     const isReceived = d?.status === "received";
     const isPaid = d?.status === "paid";
 
     // ── Transfer state ──
-    const isRecipient = !d?.recipientName || userNames.includes(d.recipientName);
+    const isRecipient = !d?.recipientName || d.recipientName === userName;
     const transferDone = isReceived || isDeclined;
     const paymentDone = isPaid || isDeclined || d?.status === "canceled";
 
@@ -2141,15 +1688,14 @@ export function MediaDetailModal({ msg, userName, charName, groupSize, onAccept,
     };
 
     const handleRedPacketAccept = () => {
-        if (resolvedCny === null || walletCurrency !== (loadWalletState().currency || "CNY")) { setPaymentError("请等待汇率查询完成后领取。"); return; }
         const share = totalRecipients > 1 ? calcShare() : (d?.amount || 0);
         const newClaimedBy = [...claimedBy, userName];
         const newClaimedAmounts = { ...claimedAmounts, [userName]: share };
         const newAllClaimed = newClaimedBy.length >= totalRecipients;
         const newStatus = newAllClaimed ? "opened" as const : "pending" as const;
-        const updatedData = { ...d, status: newStatus, claimedBy: newClaimedBy, claimedAmounts: newClaimedAmounts, claimedByUserIds: [...(d?.claimedByUserIds ?? []), identityId], claimedAmountsByUserId: { ...d?.claimedAmountsByUserId, [identityId]: share }, receivedCurrency: walletCurrency, receivedAmount: cnyAmount(share, currency === walletCurrency ? 1 : liveRate!), exchangeRate: currency === walletCurrency ? 1 : liveRate!, exchangeRateAt: new Date().toISOString() };
+        const updatedData = { ...d, status: newStatus, claimedBy: newClaimedBy, claimedAmounts: newClaimedAmounts };
         updateMessageMediaData(msg.id, updatedData);
-        onAccept({ ...msg, mediaData: updatedData }, `${userName}领取了${senderDisplay}的红包，金额:${share} ${currency}`, "accept_red_packet");
+        onAccept({ ...msg, mediaData: updatedData }, `${userName}领取了${senderDisplay}的红包，金额:${share}元`, "accept_red_packet");
     };
 
     const handleRedPacketDecline = () => {
@@ -2159,11 +1705,8 @@ export function MediaDetailModal({ msg, userName, charName, groupSize, onAccept,
     };
 
     const handleTransferAccept = () => {
-        if (walletCurrency !== (loadWalletState().currency || "CNY")) { setPaymentError("钱包币种已变化，请重新打开转账。"); return; }
-        if (resolvedCny === null) { setPaymentError("正在查询最新汇率，请稍后再领取。"); return; }
         updateMessageMediaStatus(msg.id, "received");
-        const acceptedRate = currency === targetCurrency ? 1 : liveRate ?? undefined;
-        const updatedData = { ...d, status: "received" as const, receivedCurrency: targetCurrency, receivedAmount: resolvedCny, exchangeRate: acceptedRate, exchangeRateAt: new Date().toISOString(), ...(targetCurrency === "CNY" ? { cnyAmount: resolvedCny, exchangeRateToCny: acceptedRate } : {}) };
+        const updatedData = { ...d, status: "received" as const };
         onAccept({ ...msg, mediaData: updatedData }, `${userName}领取了${senderDisplay}的转账`, "accept_transfer");
     };
 
@@ -2175,8 +1718,7 @@ export function MediaDetailModal({ msg, userName, charName, groupSize, onAccept,
 
     const handlePaymentRequestAccept = () => {
         const amount = Number(d?.amount ?? d?.paymentRequestAmountLabel ?? 0);
-        const safeAmount = Number.isFinite(amount) && resolvedCny !== null ? Math.max(0, resolvedCny) : 0;
-        if (resolvedCny === null || walletCurrency !== (loadWalletState().currency || "CNY")) { setPaymentError("请等待汇率查询完成后支付。"); return; }
+        const safeAmount = Number.isFinite(amount) ? Math.max(0, Math.round(amount * 100) / 100) : 0;
         if (safeAmount <= 0) {
             setPaymentError("金额无效，无法代付。");
             return;
@@ -2203,10 +1745,6 @@ export function MediaDetailModal({ msg, userName, charName, groupSize, onAccept,
             paymentResolvedAt: new Date().toISOString(),
             paymentPayerName: userName,
             paymentWalletTransactionId: result.transaction.id,
-            receivedCurrency: targetCurrency,
-            receivedAmount: safeAmount,
-            exchangeRate: currency === targetCurrency ? 1 : liveRate ?? undefined,
-            exchangeRateAt: new Date().toISOString(),
         };
         updateMessageMediaData(msg.id, updatedData);
         onAccept({ ...msg, mediaData: updatedData }, `${userName}接受了${senderDisplay}的代付请求`, "accept_payment_request");
@@ -2230,7 +1768,7 @@ export function MediaDetailModal({ msg, userName, charName, groupSize, onAccept,
     let statusText = "";
     if (isRedPacket) {
         if (isDeclined) statusText = "已退回";
-        else if (alreadyClaimed && userShare != null) statusText = `你领取了 ${currencySymbol(currency)}${userShare.toFixed(2)} ${currency}`;
+        else if (alreadyClaimed && userShare != null) statusText = `你领取了 ¥${userShare.toFixed(2)}`;
         else if (allClaimed) statusText = "红包已领完";
         else if (isFromUser) statusText = "你发出的红包";
     } else {
@@ -2249,25 +1787,17 @@ export function MediaDetailModal({ msg, userName, charName, groupSize, onAccept,
     const paymentItemsText = d?.paymentRequestItemsText || (d?.paymentRequestItems || [])
         .map(item => `${item.title}/${item.detail}/${item.priceLabel}/${item.quantityLabel}`)
         .join("; ");
-    const modalAmountText = isTransfer
-        ? formatApplePayAmount(d?.amount)
-        : typeof d?.amount === "number" && Number.isFinite(d.amount)
-            ? d.amount.toFixed(2)
-            : String(d?.paymentRequestAmountLabel || "0.00");
+    const modalAmountText = typeof d?.amount === "number" && Number.isFinite(d.amount)
+        ? d.amount.toFixed(2)
+        : String(d?.paymentRequestAmountLabel || "0.00");
 
     return (
-        <div className={`modal-overlay${isTransfer ? " imessage-transfer-modal-overlay" : ""}`} onClick={onClose}>
-            <div className={`media-modal${isTransfer ? " media-modal-transfer" : ""}`} onClick={(e) => e.stopPropagation()}>
+        <div className="modal-overlay" onClick={onClose}>
+            <div className="media-modal" onClick={(e) => e.stopPropagation()}>
                 {/* Header with gradient */}
                 <div className={`media-modal-header ${gradientClass}`}>
-                    {isTransfer ? (
-                        <>
-                            <div className="media-modal-emoji media-modal-transfer-legacy">💰</div>
-                            <ApplePayBrand className="imessage-transfer-detail-brand hidden" />
-                        </>
-                    ) : <div className="media-modal-emoji">{isRedPacket ? "🧧" : "🧾"}</div>}
-                    <div className="media-modal-amount">{currencySymbol(currency)}{currency === "CNY" ? modalAmountText : formatApplePayAmount(d?.amount)}</div>
-                    {(isTransfer || isRedPacket || isPaymentRequest) && foreignAmount && <div className="media-modal-sub">按汇率折算为 {targetCurrency} {currencySymbol(targetCurrency)}{resolvedCny === null ? "查询中" : formatApplePayAmount(resolvedCny)}{(d?.exchangeRate ?? (quoteKey === currentQuoteKey ? liveRate : null)) != null && <div>1 {currency} = {d?.exchangeRate ?? liveRate} {targetCurrency}</div>}</div>}
+                    <div className="media-modal-emoji">{isRedPacket ? "🧧" : isTransfer ? "💰" : "🧾"}</div>
+                    <div className="media-modal-amount">¥{modalAmountText}</div>
                     <div className="media-modal-label">
                         {isRedPacket ? (d?.label || "恭喜发财，大吉大利") : isTransfer ? (d?.label || "转账") : "代付请求"}
                     </div>
@@ -2297,7 +1827,7 @@ export function MediaDetailModal({ msg, userName, charName, groupSize, onAccept,
                             {claimedBy.map((name) => (
                                 <div key={name} className="media-modal-list-row">
                                     <span>{name}</span>
-                                    <span className="media-modal-list-amt">{currencySymbol(currency)}{(claimedAmounts[name] ?? 0).toFixed(2)}</span>
+                                    <span className="media-modal-list-amt">¥{(claimedAmounts[name] ?? 0).toFixed(2)}</span>
                                 </div>
                             ))}
                         </div>
@@ -2452,11 +1982,17 @@ function MediaFileBubble({
         setProgress(audio.currentTime / audio.duration);
     }, []);
 
+    const [hasRef, setHasRef] = useState(() => hasCharacterReferenceImage(characterId));
+    const [imageUseReferenceDraft, setImageUseReferenceDraft] = useState(msg.mediaData?.useReferenceImage === true);
+
     const openImagePromptEditor = useCallback(() => {
+        const latestHasRef = hasCharacterReferenceImage(characterId);
+        setHasRef(latestHasRef);
         setImagePromptDraft(msg.mediaData?.label?.trim() || "");
+        setImageUseReferenceDraft(latestHasRef && msg.mediaData?.useReferenceImage === true);
         setImageRetryError("");
         setShowImagePromptEditor(true);
-    }, [msg.mediaData?.label]);
+    }, [characterId, msg.mediaData?.label, msg.mediaData?.useReferenceImage]);
 
     const handleRegenerateImage = useCallback(() => {
         const nextDescription = imagePromptDraft.trim();
@@ -2464,11 +2000,21 @@ function MediaFileBubble({
             setImageRetryError("提示词不能为空");
             return;
         }
+        const latestHasRef = hasCharacterReferenceImage(characterId);
         setShowImagePromptEditor(false);
         setImageRegenerating(true);
         setImageRetryError("");
-        retryChatGeneratedImage(msg, characterId, nextDescription)
-            .then(updated => {
+        retryChatGeneratedImage(msg, characterId, nextDescription, latestHasRef ? imageUseReferenceDraft : undefined)
+            .then(async (updated) => {
+                if (updated?.mediaUrl) {
+                    try {
+                        const img = new Image();
+                        img.src = updated.mediaUrl;
+                        if ("decode" in img) await img.decode().catch(() => {});
+                    } catch {
+                        // ignore predecode error
+                    }
+                }
                 onUpdate?.(updated);
             })
             .catch(error => {
@@ -2477,7 +2023,7 @@ function MediaFileBubble({
             .finally(() => {
                 setImageRegenerating(false);
             });
-    }, [characterId, imagePromptDraft, msg, onUpdate]);
+    }, [characterId, imagePromptDraft, imageUseReferenceDraft, msg, onUpdate]);
 
     const handleSeek = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
         e.stopPropagation();
@@ -2572,10 +2118,8 @@ function MediaFileBubble({
         const displayTitle = msg.mediaData?.imageGenerationPrompt ? "" : title;
         // 重试把状态落库为 pending（见 generated-image-retry.ts），角标据此显示——
         // 比组件内的 imageRegenerating 可靠：滚远了卸载再回来，角标还在。
-        const imageRegenPending = msg.mediaData?.imageGenerationStatus === "pending";
-        const canRegenerateImage = !imageRegenPending
-            && Boolean(msg.mediaData?.label?.trim())
-            && (msg.mediaData?.imageGenerationStatus === "generated" || Boolean(msg.mediaData?.imageGenerationPrompt));
+        const imageRegenPending = imageRegenerating;
+        const canRegenerateImage = Boolean(msg.mediaData?.label?.trim());
         return (
             <div className="chat-generated-image-retry-stack">
                 <div className="chat-generated-image-regen-wrap">
@@ -2597,6 +2141,9 @@ function MediaFileBubble({
                     <GeneratedImagePromptDialog
                         value={imagePromptDraft}
                         onChange={setImagePromptDraft}
+                        useReferenceImage={imageUseReferenceDraft}
+                        onUseReferenceImageChange={setImageUseReferenceDraft}
+                        hasReferenceImage={hasRef}
                         onConfirm={handleRegenerateImage}
                         onCancel={() => setShowImagePromptEditor(false)}
                         busy={imageRegenerating}
@@ -2647,47 +2194,29 @@ function MediaFileBubble({
     );
 }
 
-function MusicShareBubble({ msg, onPlay }: { msg: ChatMessage; onPlay?: MessageBubbleProps["onMusicPlay"] }) {
-    const track = msg.mediaData?.musicTrack;
-    const title = track?.title || msg.mediaData?.musicTitle || "未知歌曲";
-    const artist = track?.artist || msg.mediaData?.musicArtist || "";
-    const [failedCover, setFailedCover] = useState<string>();
-    const pending = msg.mediaData?.musicResolution === "pending";
-    const unresolved = msg.mediaData?.musicResolution === "unresolved";
-    const canPlay = !!onPlay;
-    if (msg.listeningContext?.reference) return <div style={{ width: "min(340px, 100%)" }} onClick={e => e.stopPropagation()}>
-        <LyricShareCard title={title} artist={artist} text={msg.listeningContext.reference.text} coverUrl={msg.mediaData?.musicCoverUrl || track?.coverUrl} onPlay={onPlay ? () => onPlay(title, artist || undefined, track) : undefined} />
-    </div>;
+function MusicShareBubble({ msg, onPlay }: { msg: ChatMessage; onPlay?: (title: string, artist?: string) => void }) {
+    const title = msg.mediaData?.musicTitle || "未知歌曲";
+    const artist = msg.mediaData?.musicArtist || "";
     return (
         <div
             className="chat-music-share-card"
-            role={canPlay ? "button" : undefined}
-            tabIndex={canPlay ? 0 : undefined}
-            aria-label={`播放音乐：${title}${artist ? ` · ${artist}` : ""}`}
-            onKeyDown={(e) => {
-                if (canPlay && (e.key === "Enter" || e.key === " ")) {
-                    e.preventDefault(); e.stopPropagation(); onPlay?.(title, artist || undefined, track);
-                }
-            }}
-            onClick={(e) => { e.stopPropagation(); if (canPlay) onPlay?.(title, artist || undefined, track); }}
+            style={{ cursor: "pointer" }}
+            onClick={(e) => { e.stopPropagation(); onPlay?.(title, artist || undefined); }}
         >
             <div className="chat-music-share-body">
                 <div className="chat-music-share-cover">
-                    {track?.coverUrl && failedCover !== track.coverUrl ? <img src={track.coverUrl} alt="专辑封面" loading="lazy" onError={() => setFailedCover(track.coverUrl)} /> : <svg aria-hidden="true" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--c-music-accent, #7c9a92)" strokeWidth="1.2">
                         <path d="M9 18V5l12-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="18" cy="16" r="3" />
-                    </svg>}
+                    </svg>
                 </div>
                 <div className="chat-music-share-info">
                     <div className="chat-music-share-title">{title}</div>
                     {artist && <div className="chat-music-share-artist">{artist}</div>}
                 </div>
-                {canPlay && <span className="chat-music-share-play" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5a1 1 0 0 1 1.5-.86l10 6.5a1 1 0 0 1 0 1.72l-10 6.5A1 1 0 0 1 8 18.5z" /></svg></span>}
             </div>
-            {msg.listeningContext?.reference && <div className="chat-music-share-lyric">“{msg.listeningContext.reference.text}”</div>}
             <div className="chat-music-share-footer">
-                <svg aria-hidden="true" width="13" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M17.05 12.54c.03 3.23 2.83 4.3 2.86 4.31-.02.08-.45 1.54-1.48 3.05-.9 1.3-1.83 2.6-3.3 2.63-1.44.03-1.9-.85-3.55-.85s-2.17.82-3.54.88c-1.42.05-2.5-1.42-3.4-2.72-1.85-2.67-3.27-7.55-1.37-10.85.94-1.64 2.62-2.68 4.44-2.7 1.39-.03 2.7.93 3.55.93.85 0 2.45-1.15 4.13-.98.7.03 2.67.28 3.93 2.12-.1.06-2.35 1.37-2.27 4.18ZM14.34 4.47c.75-.91 1.25-2.18 1.11-3.44-1.08.04-2.39.72-3.16 1.63-.7.8-1.32 2.1-1.15 3.34 1.2.09 2.42-.61 3.2-1.53Z" /></svg>
-                <span>Music</span>
-                {(pending || unresolved) && <span className="chat-music-share-status" role="status">{pending ? "正在匹配歌曲" : "轻点重新匹配播放"}</span>}
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M9 18V5l12-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="18" cy="16" r="3" /></svg>
+                <span>音乐</span>
             </div>
         </div>
     );
@@ -2781,24 +2310,21 @@ function synthesizeVoiceForMessage(msgId: string, characterId: string, speechTex
     return task;
 }
 
-export function VoiceMessageBubble({ msg, characterId, onUpdate, defaultTranslationExpanded = false, playbackOnly = false }: { msg: ChatMessage; characterId?: string; onUpdate?: (m: ChatMessage) => void; defaultTranslationExpanded?: boolean; playbackOnly?: boolean }) {
+function VoiceMessageBubble({ msg, characterId, onUpdate, defaultTranslationExpanded = false }: { msg: ChatMessage; characterId?: string; onUpdate?: (m: ChatMessage) => void; defaultTranslationExpanded?: boolean }) {
     const [playing, setPlaying] = useState(false);
     const [synthesizing, setSynthesizing] = useState(false);
     const [synthFailed, setSynthFailed] = useState(false);
     const audioRef = useRef<HTMLAudioElement | null>(null);
     const mountedRef = useRef(true);
     useEffect(() => { mountedRef.current = true; return () => { mountedRef.current = false; }; }, []);
-    const transcript = msg.mediaData?.label ?? "";
-    const text = voiceDisplayText(transcript) || "语音消息";
-    const bilingual = splitBilingualText(text, { allowUnchangedTranslation: true });
-    const authoredSpeech = voicePlaybackText(transcript, msg.mediaData?.speechText);
-    const speechText = (splitBilingualText(authoredSpeech, { allowUnchangedTranslation: true })?.original || authoredSpeech) || bilingual?.original || text;
+    const text = msg.mediaData?.label || "语音消息";
+    const bilingual = splitBilingualText(text);
+    const speechText = bilingual?.original || text;
     const synthesizedFromText = msg.mediaData?.synthesizedFromText;
     const needsResynthesis = msg.role !== "user" && synthesizedFromText !== speechText;
     const duration = msg.mediaData?.voiceDuration || Math.max(2, Math.ceil(speechText.length / 4));
 
     const playSrc = (src: string) => {
-        setSynthFailed(false);
         // 必须用 <audio> 元素:iOS 静音拨键会掐掉 Web Audio 的输出(表现为全线
         // 无声),媒体元素不受影响。元素属于宿主页面,锁屏媒体卡片指向站点本身,
         // 点了只会回到 App;播完清 src 让卡片立即撤下。
@@ -2808,34 +2334,25 @@ export function VoiceMessageBubble({ msg, characterId, onUpdate, defaultTranslat
         const finalize = () => {
             if (audioRef.current === audio) audioRef.current = null;
             try { audio.pause(); audio.removeAttribute("src"); audio.load(); } catch { /* ignore */ }
-            if (mountedRef.current) setPlaying(false);
+            setPlaying(false);
         };
         audio.onended = finalize;
-        const fail = () => { if (mountedRef.current) setSynthFailed(true); finalize(); };
-        audio.onerror = fail;
-        audio.play().catch(fail);
+        audio.onerror = finalize;
+        audio.play().catch(finalize);
     };
 
     // 点击才合成（不再挂载即合成）：已有音频直接播；没有就现场合成一次，
     // 合成结果已在任务内落库，之后任何时候点都是直接播放，不再消耗额度。
     const handlePlay = () => {
-        if (synthesizing || (playbackOnly && !msg.mediaUrl)) return;
+        if (synthesizing) return;
         if (playing && audioRef.current) {
             const active = audioRef.current;
-            active.pause();
+            audioRef.current = null;
+            try { active.pause(); active.removeAttribute("src"); active.load(); } catch { /* ignore */ }
             setPlaying(false);
             return;
         }
-        if (audioRef.current) {
-            const active = audioRef.current;
-            setSynthFailed(false);
-            setPlaying(true);
-            active.play().catch(() => {
-                if (mountedRef.current) { setPlaying(false); setSynthFailed(true); }
-            });
-            return;
-        }
-        if (msg.mediaUrl && (playbackOnly || !needsResynthesis)) {
+        if (msg.mediaUrl && !needsResynthesis) {
             playSrc(msg.mediaUrl);
             return;
         }
@@ -2861,12 +2378,39 @@ export function VoiceMessageBubble({ msg, characterId, onUpdate, defaultTranslat
 
     useEffect(() => () => { audioRef.current?.pause(); }, []);
 
+    // Wave bars — slightly irregular heights so the idle state already looks intentional.
+    const barCount = Math.min(Math.max(4, Math.round(duration / 2)), 9);
+    const barHeights = Array.from({ length: barCount }, (_, i) => {
+        const center = (barCount - 1) / 2;
+        const dist = Math.abs(i - center);
+        return Math.max(6, Math.round(15 - dist * 2.2));
+    });
+
     return (
-        <div className="voice-msg-bubble" onClick={handlePlay} role="button" tabIndex={0}
-            aria-disabled={playbackOnly && !msg.mediaUrl || undefined}
-            aria-label={playbackOnly && !msg.mediaUrl ? "未保存音频" : synthesizing ? "正在生成语音" : synthFailed ? "播放失败，点击重试" : playing ? "暂停语音" : "播放语音"}
-            onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handlePlay(); } }}>
-            <VoiceReferenceGraphic playing={playing} synthesizing={synthesizing} failed={synthFailed} duration={duration}/>
+        <div className="voice-msg-bubble" onClick={handlePlay}
+            style={{ minWidth: `${Math.min(60 + duration * 8, 220)}px` }}
+        >
+            <div className="voice-msg-icon-shell">
+                <div className="voice-msg-icon">
+                {synthesizing ? (
+                    <svg width="16" height="16" viewBox="0 0 24 24" className="animate-spin" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2a10 10 0 0 1 10 10" strokeLinecap="round" /></svg>
+                ) : playing ? (
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1" /><rect x="14" y="4" width="4" height="16" rx="1" /></svg>
+                ) : (
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
+                )}
+                </div>
+            </div>
+            <div className="voice-msg-bars" {...(playing ? { "data-playing": "" } : {})}>
+                {barHeights.map((height, i) => (
+                    <div
+                        key={i}
+                        className="voice-msg-bar"
+                        style={{ height: `${height}px`, animationDelay: `${i * 0.08}s` }}
+                    />
+                ))}
+            </div>
+            <span className="voice-msg-dur">{synthFailed ? "合成失败·点击重试" : `${duration}"`}</span>
         </div>
     );
 }

@@ -68,6 +68,8 @@ export type ChatSession = {
     /** Translate user phrases reused in the character's own speech; defaults on. */
     quoteTranslationEnabled?: boolean;
     collapseBilingualTranslation?: boolean;
+    /** Retry a failed offline-summary pass before falling back to the raw turn. */
+    offlineSummaryRetry?: boolean;
     /** 丢弃角色输出的无效表情包（名称不在角色表情包与内置表情中时直接滤除该消息） */
     discardInvalidStickers?: boolean;
     bilingualTranslationPrompt?: string;
