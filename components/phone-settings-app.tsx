@@ -14,7 +14,8 @@ import { WorldBookManager } from "./settings/worldbook-manager";
 import { RegexManager } from "./settings/regex-manager";
 import { DataManagement } from "./settings/data-management";
 import { UserIdentitySettings } from "./settings/user-identity";
-import { AboutDeclaration } from "./settings/about-declaration";
+import { ChangelogPage } from "./update-log/changelog-page";
+import { useReleaseList } from "@/lib/update-log/update-service";
 import { BindingManager } from "./settings/binding-manager";
 import { WeixinSettings } from "./settings/weixin-settings";
 import { CloudServicesPage } from "./settings/cloud-services-setup";
@@ -93,7 +94,7 @@ const SETTINGS_MENU = [
     { id: "widget", icon: LayoutTemplate, label: "桌面小组件", desc: "角色留在桌面上的话", iconColor: BINDING_ACCENTS.memory , glass: "" },
     { id: "agentComputer", icon: Laptop, label: "角色电脑", desc: "云端小电脑（自部署）", iconColor: BINDING_ACCENTS.memory , glass: "agent-computer" },
     { id: "identity", icon: UserCircle, label: "用户身份", desc: "个人信息", iconColor: BINDING_ACCENTS.identity , glass: "identity" },
-    { id: "about", icon: Info, label: "关于与声明", desc: "版本与协议", iconColor: BINDING_ACCENTS.memory , glass: "about" },
+    { id: "about", icon: Info, label: "更新日志", desc: "版本与历史", iconColor: BINDING_ACCENTS.memory , glass: "about" },
 ] as const;
 
 const realtimeIconStyle = {
@@ -136,6 +137,8 @@ export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
     const [keepAlive, setKeepAlive] = useState(false);
     // 角色电脑：施工中弹窗（返回 / 仍要看看）
     const pageBodyRef = useRef<HTMLDivElement | null>(null);
+    // 更新日志读同一份发布记录，线上拉到新版本时这一页也会同步刷新
+    const releases = useReleaseList();
 
     // ── 账号：显示当前登录 / 修改密码 / 退出登录 ──
     const selfHostedMode = isSelfHostedModeEnabled();
@@ -357,7 +360,7 @@ export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
             case "identity":
                 return <UserIdentitySettings />;
             case "about":
-                return <AboutDeclaration />;
+                return <ChangelogPage releases={releases} />;
             default:
                 return null;
         }
@@ -642,14 +645,18 @@ export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
                     </div>
                 )}
 
-                {currentPage !== "main" && (
+                {currentPage !== "main" && (currentPage === "about" ? (
+                    <div className="settings-log-wrap">
+                        {renderSubPage()}
+                    </div>
+                ) : (
                     // shrink-0：page-body 是 flex 容器，包裹层默认可压缩——内容超一屏时会被压到
                     // 恰好一屏高、卡片从中溢出，底部 padding 落不到内容末尾，最后一张卡贴死滚动边界
                     //（iOS 底部工具栏/安全区一盖就"没放下又滚不动"）。尾部留白 = 原 pb-8 + 安全区。
                     <div className="block min-h-full shrink-0 p-4 box-border" style={{ paddingBottom: "calc(32px + env(safe-area-inset-bottom, 0px))" }}>
                         {renderSubPage()}
                     </div>
-                )}
+                ))}
             </PageShell>
         </SettingsContext.Provider>
     );
