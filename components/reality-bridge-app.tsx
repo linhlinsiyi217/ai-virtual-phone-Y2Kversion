@@ -905,7 +905,7 @@ export function RealityBridgeApp({ onClose, onNotice }: {
           {tab === "main" ? (
             <section>
               <div className="rb-hello">
-                <h3>iOS现实桥</h3>
+                <h3>现实桥</h3>
                 <button
                   type="button"
                   className="rb-add"
