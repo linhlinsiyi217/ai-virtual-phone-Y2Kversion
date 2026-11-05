@@ -48,7 +48,6 @@ export const SettingsContext = createContext<{
 type SettingsPageProps = {
     onClose: () => void;
     onNotice: (msg: string) => void;
-    initialPage?: SubPage;
 };
 
 type SubPage =
@@ -126,8 +125,8 @@ const logoutIconStyle = {
     "--icon-color": "var(--c-danger)",
 } as CSSProperties;
 
-export function PhoneSettingsApp({ onClose, onNotice, initialPage = "main" }: SettingsPageProps) {
-    const [currentPage, setCurrentPage] = useState<SubPage>(initialPage);
+export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
+    const [currentPage, setCurrentPage] = useState<SubPage>("main");
     const [subpageTitle, setSubpageTitle] = useState<string | null>(null);
     const [subpageRightActions, setSubpageRightActions] = useState<Record<string, ReactNode>>({});
     const [overrideBack, setOverrideBack] = useState<(() => void) | null>(null);

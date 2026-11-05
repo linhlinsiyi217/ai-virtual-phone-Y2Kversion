@@ -37,8 +37,6 @@ import {
   personalPushFetch,
 } from "@/lib/personal-push-cloud";
 import { isValidShortcutEmailAddress, shortcutEmailSubjectTag } from "@/lib/shortcut-email";
-import { readPerceptionDiagnostics } from "@/lib/perception";
-import { loadDeviceActionConfig, TOGGLEABLE_ACTIONS, hasDeviceActionBridge } from "@/lib/device-action";
 
 type TabId = "main" | "history";
 
@@ -219,18 +217,9 @@ function ruleIcon(rule: BridgeRule) {
   return RB_ICON_INBOX;
 }
 
-export type SettingsDeepLinkPage =
-  | "perception"
-  | "deviceAction"
-  | "data"
-  | "cloud"
-  | "screenshot"
-  | "toolbox";
-
-export function RealityBridgeApp({ onClose, onNotice, onOpenSettings }: {
+export function RealityBridgeApp({ onClose, onNotice }: {
   onClose: () => void;
   onNotice?: (text: string) => void;
-  onOpenSettings?: (page: SettingsDeepLinkPage) => void;
 }) {
   const [tab, setTab] = useState<TabId>("main");
   const [settings, setSettings] = useState(() => loadBridgeSettings());
@@ -256,11 +245,7 @@ export function RealityBridgeApp({ onClose, onNotice, onOpenSettings }: {
   const [bridgeToken, setBridgeToken] = useState("");
   const [closing, setClosing] = useState(false);
   const [spinTurns, setSpinTurns] = useState(0);
-  const [mainSec, setMainSec] = useState<"android" | "rules" | "shortcuts" | "queries" | "screen">("android");
-  const perceptionDiag = useMemo(() => readPerceptionDiagnostics(), []);
-  const deviceActionCfg = useMemo(() => loadDeviceActionConfig(), []);
-  const deviceActionBridgeOk = useMemo(() => hasDeviceActionBridge(), []);
-  const deviceActionOnCount = TOGGLEABLE_ACTIONS.filter(id => deviceActionCfg.actions[id] === true).length;
+  const [mainSec, setMainSec] = useState<"rules" | "shortcuts" | "queries" | "screen">("rules");
   const [screenChat, setScreenChat] = useState<ScreenChatSettings>(() => loadScreenChatSettings());
   const [editingScreenChat, setEditingScreenChat] = useState<ScreenChatSettings | null>(null);
   const [histSec, setHistSec] = useState<"feed" | "commands">("feed");
@@ -920,18 +905,14 @@ export function RealityBridgeApp({ onClose, onNotice, onOpenSettings }: {
           {tab === "main" ? (
             <section>
               <div className="rb-hello">
-                <h3>现实桥</h3>
+                <h3>iOS现实桥</h3>
                 <button
                   type="button"
                   className="rb-add"
                   disabled={mainSec === "screen" && Boolean(screenChat.characterId)}
-                  aria-label={mainSec === "android" || mainSec === "rules" ? "新建联动" : mainSec === "shortcuts" ? "新建快捷动作" : mainSec === "queries" ? "新建数据项" : screenChat.characterId ? "屏幕速聊已配置" : "配置屏幕速聊"}
+                  aria-label={mainSec === "rules" ? "新建联动" : mainSec === "shortcuts" ? "新建快捷动作" : mainSec === "queries" ? "新建数据项" : screenChat.characterId ? "屏幕速聊已配置" : "配置屏幕速聊"}
                   onClick={() => {
-                    if (mainSec === "android") {
-                      setMainSec("rules");
-                      openRuleEditor(newRule(), false);
-                    }
-                    else if (mainSec === "rules") openRuleEditor(newRule(), false);
+                    if (mainSec === "rules") openRuleEditor(newRule(), false);
                     else if (mainSec === "shortcuts") openShortcutEditor(newShortcutAction(), false);
                     else if (mainSec === "queries") openDataItemEditor(newDataItem(), false);
                     else openScreenChatEditor(false);
@@ -1005,42 +986,12 @@ export function RealityBridgeApp({ onClose, onNotice, onOpenSettings }: {
               <>
                   <div className="rb-chipbar">
                     <div className="rb-chips">
-                      <button type="button" className={`rb-chip${mainSec === "android" ? " active" : ""}`} onClick={() => setMainSec("android")}>本机安卓桥</button>
                       <button type="button" className={`rb-chip${mainSec === "rules" ? " active" : ""}`} onClick={() => setMainSec("rules")}>自动联动</button>
                       <button type="button" className={`rb-chip${mainSec === "shortcuts" ? " active" : ""}`} onClick={() => setMainSec("shortcuts")}>快捷动作</button>
                       <button type="button" className={`rb-chip${mainSec === "queries" ? " active" : ""}`} onClick={() => setMainSec("queries")}>主动查询</button>
                       <button type="button" className={`rb-chip${mainSec === "screen" ? " active" : ""}`} onClick={() => setMainSec("screen")}>屏幕速聊</button>
                     </div>
                   </div>
-                  {mainSec === "android" ? (
-                    <>
-                      <div className="rb-hint" style={{ padding: "8px 4px 0" }}>
-                        安卓小手机可直接读取本机状态和执行设备动作；不经过云端，数据不离开本机。iPhone 的快捷指令功能仍保留在右侧分页。
-                      </div>
-                      <div className="rb-grid" style={{ marginTop: 10 }}>
-                        <div className="rb-rcard" onClick={() => onOpenSettings?.("perception")}>
-                          <div className="rb-rtop">
-                            <span className="rb-icchip">{RB_ICON_PHONE}</span>
-                            <span className="rb-type">{perceptionDiag.bridgeAvailable ? "已接通" : "需更新壳"}</span>
-                          </div>
-                          <b>感知 · 角色能看见什么</b>
-                          <p className="rb-rsum">{perceptionDiag.running ? "引擎运行中" : "引擎已停止"}{" · "}{perceptionDiag.accessibility ? "无障碍已开" : "无障碍未开"}{" · 本小时 "}{perceptionDiag.hourlyUsed}/{perceptionDiag.hourlyLimit}{" 条信号"}</p>
-                          <div className="rb-rfoot"><span className="rb-rstate">电量 / 网络 / 前台应用 / 步数 / 回到手机</span><span className="rb-link">去设置 →</span></div>
-                        </div>
-                        <div className="rb-rcard" onClick={() => onOpenSettings?.("deviceAction")}>
-                          <div className="rb-rtop">
-                            <span className="rb-icchip">{RB_ICON_GEAR}</span>
-                            <span className="rb-type">{deviceActionBridgeOk ? "已接通" : "需更新壳"}</span>
-                          </div>
-                          <b>操作设备 · 角色能做什么</b>
-                          <p className="rb-rsum">{deviceActionCfg.enabled ? `${deviceActionOnCount}/${TOGGLEABLE_ACTIONS.length} 个动作已开启` : "总开关已关闭，角色动不了你的设备"}</p>
-                          <div className="rb-rfoot"><span className="rb-rstate">手电筒 / 音量 / 亮度 / 勿扰 / 打开应用</span><span className="rb-link">去设置 →</span></div>
-                        </div>
-                      </div>
-                      <div className="rb-hint" style={{ padding: "12px 4px 0" }}>感知默认只读；操作设备会真实修改手机状态，必须在设置里逐项开启。</div>
-                    </>
-                  ) : null}
-
                   {mainSec === "rules" ? (rules.length === 0 ? (
                     <div className="rb-empty">
                       <b>还没有联动</b>
