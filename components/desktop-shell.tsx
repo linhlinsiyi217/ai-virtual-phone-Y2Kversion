@@ -27,7 +27,7 @@ import { PhoneQaApp } from "@/components/phone-qa-app";
 import { ChatPluginPageBoundary } from "@/components/chat/chat-plugin-page-boundary";
 import { ResourceHubApp } from "@/components/resource-hub/resource-hub-app";
 import "@/lib/qa-error-log";
-import { RealityBridgeApp } from "@/components/reality-bridge-app";
+import { RealityBridgeApp, type SettingsDeepLinkPage } from "@/components/reality-bridge-app";
 import { REALITY_BRIDGE_APP_EVENT_NAME, REALITY_BRIDGE_DATA_EVENT } from "@/lib/reality-bridge/types";
 import { DiaryApp } from "@/components/diary/diary-app";
 import { XiaohongshuApp } from "@/components/xiaohongshu/xiaohongshu-app";
@@ -1107,6 +1107,7 @@ export function DesktopShell({ initialThemeProfile, initialThemeAssets }: Deskto
   const backgroundRunSeqRef = useRef(0);
   const pendingCustomAppBackgroundToolsRef = useRef<Map<string, PendingCustomAppBackgroundTool>>(new Map());
   const [resourcesInitialPage, setResourcesInitialPage] = useState<ResourceSubPage>("main");
+  const [settingsInitialPage, setSettingsInitialPage] = useState<SettingsDeepLinkPage | "main">("main");
   const [dwellingMounted, setDwellingMounted] = useState(false);
   const [xiaohongshuMounted, setXiaohongshuMounted] = useState(false);
   const [xiaohongshuBusy, setXiaohongshuBusy] = useState(false);
@@ -2223,7 +2224,7 @@ export function DesktopShell({ initialThemeProfile, initialThemeAssets }: Deskto
   const renderFolderMini = (memberId: DesktopIconId) => {
     const meta = getDesktopIconMeta(memberId);
     if (!meta) return null;
-    const skinId = activeIconSkins[memberId];
+    const skinId = memberId === "diary" || memberId === "realitybridge" ? undefined : activeIconSkins[memberId];
     const skinUrl = skinId ? themeAssets[skinId] ?? null : null;
     const customUrl = meta.customApp && customAppIconStyles[meta.customApp.id] !== "global"
       ? meta.customApp.iconDataUrl ?? null
@@ -4080,7 +4081,11 @@ html,body{margin:0;padding:0;width:100%;height:100%;background:#121110;color:rgb
     if (activeApp === "settings") {
       return (
         <PhoneSettingsApp
-          onClose={() => setActiveApp(null)}
+          initialPage={settingsInitialPage}
+          onClose={() => {
+            setSettingsInitialPage("main");
+            setActiveApp(null);
+          }}
           onNotice={setNotice}
         />
       );
@@ -4108,7 +4113,16 @@ html,body{margin:0;padding:0;width:100%;height:100%;background:#121110;color:rgb
       return <PhoneCalendarApp onClose={() => setActiveApp(null)} onNotice={setNotice} />;
     }
     if (activeApp === "realitybridge") {
-      return <RealityBridgeApp onClose={() => setActiveApp(null)} onNotice={setNotice} />;
+      return (
+        <RealityBridgeApp
+          onClose={() => setActiveApp(null)}
+          onNotice={setNotice}
+          onOpenSettings={(page) => {
+            setSettingsInitialPage(page);
+            setActiveApp("settings");
+          }}
+        />
+      );
     }
     if (activeApp === "qa") {
       return (
@@ -4728,7 +4742,7 @@ html,body{margin:0;padding:0;width:100%;height:100%;background:#121110;color:rgb
                               if (!icon) return null;
                               const customApp = icon.customApp;
                               const builtinIconId = customApp ? null : icon.id as IconId;
-                              const iconSkinId = activeIconSkins[iconId];
+                              const iconSkinId = iconId === "diary" || iconId === "realitybridge" ? undefined : activeIconSkins[iconId];
                               const iconSkinUrl = iconSkinId ? themeAssets[iconSkinId] ?? null : null;
                               const customIconUrl = customApp && customAppIconStyles[customApp.id] !== "global"
                                 ? customApp.iconDataUrl ?? null
@@ -4867,7 +4881,7 @@ html,body{margin:0;padding:0;width:100%;height:100%;background:#121110;color:rgb
                     if (!icon) return null;
                     const customApp = icon.customApp;
                     const builtinIconId = customApp ? null : (icon.id as IconId);
-                    const iconSkinId = activeIconSkins[iconId];
+                    const iconSkinId = iconId === "diary" || iconId === "realitybridge" ? undefined : activeIconSkins[iconId];
                     const iconSkinUrl = iconSkinId ? themeAssets[iconSkinId] ?? null : null;
                     const customIconUrl = customApp && customAppIconStyles[customApp.id] !== "global"
                       ? customApp.iconDataUrl ?? null
