@@ -178,6 +178,8 @@ export type VoiceApiConfig = {
 // --- Image Generation ---
 export type ImageGenerationRequestMode = "server" | "direct";
 
+export type ImageGenerationProvider = "openai" | "novelai";
+
 export type ImageHostingProvider = "none" | "imgbb";
 
 export type ImageHostingSettings = {
@@ -189,8 +191,9 @@ export type ImageHostingSettings = {
     allowMascotUpload: boolean;
 };
 
-export type ImageGenerationSettings = {
-    enabled: boolean;
+export type OpenAiImagePreset = {
+    id: string;
+    name: string;
     requestMode: ImageGenerationRequestMode;
     apiKey: string;
     baseUrl: string;
@@ -198,6 +201,43 @@ export type ImageGenerationSettings = {
     size: string;
     quality: string;
     extraPrompt: string;
+};
+
+export type NovelAiPreset = {
+    id: string;
+    name: string;
+    model: string;
+    resolution: string;
+    steps: number;
+    scale: number;
+    sampler: string;
+    noiseSchedule?: string;
+    positivePrompt: string;
+    negativePrompt: string;
+    qualityToggle?: boolean;
+    smea?: boolean;
+    smeaDyn?: boolean;
+};
+
+export type NovelAiSettings = {
+    apiKey: string;
+    activePresetId: string;
+    presets: NovelAiPreset[];
+};
+
+export type ImageGenerationSettings = {
+    enabled: boolean;
+    /** 生图走哪个服务商：openai 兼容接口（默认）或 NovelAI 原生接口。 */
+    provider?: ImageGenerationProvider;
+    requestMode: ImageGenerationRequestMode;
+    apiKey: string;
+    baseUrl: string;
+    model: string;
+    size: string;
+    quality: string;
+    extraPrompt: string;
+    /** 可选：走 NovelAI 原生接口时的配置（缺省表示只用 OpenAI 兼容接口）。 */
+    novelai?: NovelAiSettings;
     characterReferences: Record<string, {
         assetId: string;
         updatedAt: number;

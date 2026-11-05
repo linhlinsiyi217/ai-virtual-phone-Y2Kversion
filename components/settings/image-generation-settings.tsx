@@ -2,17 +2,25 @@
 
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
 import { AlertCircle, Camera, ChevronDown, Image, RefreshCw, Sparkles, Trash2, Upload } from "lucide-react";
-import type { ImageGenerationSettings as ImageGenerationSettingsType } from "@/lib/settings-types";
+import type { ImageGenerationSettings as ImageGenerationSettingsType, NovelAiPreset } from "@/lib/settings-types";
 import {
     DEFAULT_IMAGE_GENERATION_SETTINGS,
+    DEFAULT_NOVELAI_PRESET,
     loadImageGenerationSettings,
     saveImageGenerationSettings,
 } from "@/lib/settings-storage";
+import {
+    NOVELAI_MODEL_OPTIONS,
+    NOVELAI_RESOLUTION_OPTIONS,
+    NOVELAI_SAMPLER_OPTIONS,
+    NOVELAI_NOISE_SCHEDULE_OPTIONS,
+} from "@/lib/novelai-image-config";
 import { loadCharacters } from "@/lib/character-storage";
 import type { Character } from "@/lib/character-types";
 import { getChatImageFromIndexedDB, saveChatImageToIndexedDB } from "@/lib/chat-asset-storage";
 import {
     fetchImageGenerationModels,
+    fetchNovelAiModels,
     filterLikelyImageModels,
     generateImageFromConfiguredApi,
 } from "@/lib/image-generation-service";
@@ -128,6 +136,42 @@ export function ImageGenerationSettings() {
         });
     }, [persist, settings]);
 
+    const naiSettings = useMemo(() => settings.novelai ?? {
+        apiKey: "",
+        activePresetId: DEFAULT_NOVELAI_PRESET.id,
+        presets: [DEFAULT_NOVELAI_PRESET],
+    }, [settings.novelai]);
+    const naiPresets = naiSettings.presets.length > 0 ? naiSettings.presets : [DEFAULT_NOVELAI_PRESET];
+    const activeNai: NovelAiPreset = naiPresets.find(preset => preset.id === naiSettings.activePresetId) || naiPresets[0];
+
+    const updateNovelAi = useCallback((patch: Partial<typeof naiSettings>) => {
+        updateSettings({ novelai: { ...naiSettings, ...patch } });
+    }, [updateSettings, naiSettings]);
+
+    const updateNaiPreset = useCallback((patch: Partial<NovelAiPreset>) => {
+        const presets = naiPresets.map(preset => preset.id === activeNai.id ? { ...preset, ...patch } : preset);
+        updateSettings({ novelai: { ...naiSettings, presets } });
+    }, [updateSettings, naiSettings, naiPresets, activeNai.id]);
+
+    const pullNaiModels = async () => {
+        setStatus(null);
+        if (!naiSettings.apiKey.trim()) {
+            setStatus({ success: false, message: "请先填写 NovelAI API Token。" });
+            return;
+        }
+        setIsFetchingModels(true);
+        try {
+            const fetched = await fetchNovelAiModels(naiSettings.apiKey);
+            setModels(fetched);
+            setStatus({ success: true, message: `Token 验证通过，共 ${fetched.length} 个模型可选。` });
+        } catch (err) {
+            setModels([]);
+            setStatus({ success: false, message: err instanceof Error ? err.message : String(err) });
+        } finally {
+            setIsFetchingModels(false);
+        }
+    };
+
     const likelyModels = useMemo(() => filterLikelyImageModels(models), [models]);
 
     const fetchModels = async () => {
@@ -154,6 +198,10 @@ export function ImageGenerationSettings() {
 
     const testGeneration = async () => {
         setStatus(null);
+        if (settings.provider === "novelai" && !naiSettings.apiKey.trim()) {
+            setStatus({ success: false, message: "请先填写 NovelAI API Token。" });
+            return;
+        }
         setIsTesting(true);
         try {
             const result = await generateImageFromConfiguredApi({
@@ -216,6 +264,17 @@ export function ImageGenerationSettings() {
 
             <div className="menu-group p-4 flex flex-col gap-4">
                 <div className="flex flex-col gap-1">
+                    <label className="menu-desc ml-1">服务商</label>
+                    <Select
+                        value={settings.provider === "novelai" ? "novelai" : "openai"}
+                        onChange={(event) => updateSettings({ provider: event.target.value as "openai" | "novelai" })}
+                    >
+                        <option value="openai">OpenAI 兼容接口</option>
+                        <option value="novelai">NovelAI 原生接口</option>
+                    </Select>
+                </div>
+
+                <div className="flex flex-col gap-1">
                     <label className="menu-desc ml-1">请求方式</label>
                     <Select
                         value={settings.requestMode}
@@ -231,6 +290,109 @@ export function ImageGenerationSettings() {
                     </span>
                 </div>
 
+                {settings.provider === "novelai" ? (
+                    <>
+                        <div className="flex flex-col gap-1">
+                            <label className="menu-desc ml-1">NovelAI API Token</label>
+                            <Input
+                                type="password"
+                                value={naiSettings.apiKey}
+                                onChange={(event) => updateNovelAi({ apiKey: event.target.value })}
+                                placeholder="pst-..."
+                            />
+                            <button
+                                type="button"
+                                onClick={pullNaiModels}
+                                disabled={isFetchingModels}
+                                className="ui-btn ui-btn-secondary mt-1 self-start"
+                            >
+                                <RefreshCw size={14} />
+                                {isFetchingModels ? "验证中..." : "验证并拉取模型"}
+                            </button>
+                        </div>
+
+                        <div className="flex flex-col gap-1">
+                            <label className="menu-desc ml-1">模型</label>
+                            <Select value={activeNai.model} onChange={(event) => updateNaiPreset({ model: event.target.value })}>
+                                {NOVELAI_MODEL_OPTIONS.map(option => (
+                                    <option key={option.value} value={option.value}>{option.label}</option>
+                                ))}
+                            </Select>
+                        </div>
+
+                        <div className="flex flex-col gap-1">
+                            <label className="menu-desc ml-1">分辨率</label>
+                            <Select value={activeNai.resolution} onChange={(event) => updateNaiPreset({ resolution: event.target.value })}>
+                                {NOVELAI_RESOLUTION_OPTIONS.map(option => (
+                                    <option key={option.value} value={option.value}>{option.label}</option>
+                                ))}
+                            </Select>
+                        </div>
+
+                        <div className="flex gap-3">
+                            <div className="flex flex-1 flex-col gap-1">
+                                <label className="menu-desc ml-1">采样器</label>
+                                <Select value={activeNai.sampler} onChange={(event) => updateNaiPreset({ sampler: event.target.value })}>
+                                    {NOVELAI_SAMPLER_OPTIONS.map(option => (
+                                        <option key={option.value} value={option.value}>{option.label}</option>
+                                    ))}
+                                </Select>
+                            </div>
+                            <div className="flex flex-1 flex-col gap-1">
+                                <label className="menu-desc ml-1">噪声调度</label>
+                                <Select
+                                    value={activeNai.noiseSchedule ?? "karras"}
+                                    onChange={(event) => updateNaiPreset({ noiseSchedule: event.target.value })}
+                                >
+                                    {NOVELAI_NOISE_SCHEDULE_OPTIONS.map(option => (
+                                        <option key={option.value} value={option.value}>{option.label}</option>
+                                    ))}
+                                </Select>
+                            </div>
+                        </div>
+
+                        <div className="flex gap-3">
+                            <div className="flex flex-1 flex-col gap-1">
+                                <label className="menu-desc ml-1">步数</label>
+                                <Input
+                                    type="number"
+                                    value={activeNai.steps}
+                                    onChange={(event) => updateNaiPreset({ steps: Number(event.target.value) || 0 })}
+                                />
+                            </div>
+                            <div className="flex flex-1 flex-col gap-1">
+                                <label className="menu-desc ml-1">提示词引导 (scale)</label>
+                                <Input
+                                    type="number"
+                                    step="0.5"
+                                    value={activeNai.scale}
+                                    onChange={(event) => updateNaiPreset({ scale: Number(event.target.value) || 0 })}
+                                />
+                            </div>
+                        </div>
+
+                        <div className="flex flex-col gap-1">
+                            <label className="menu-desc ml-1">正向提示词</label>
+                            <Textarea
+                                value={activeNai.positivePrompt}
+                                onChange={(event) => updateNaiPreset({ positivePrompt: event.target.value })}
+                                placeholder="画师串 / 风格词 / 质量词"
+                                rows={3}
+                            />
+                        </div>
+
+                        <div className="flex flex-col gap-1">
+                            <label className="menu-desc ml-1">负面提示词</label>
+                            <Textarea
+                                value={activeNai.negativePrompt}
+                                onChange={(event) => updateNaiPreset({ negativePrompt: event.target.value })}
+                                placeholder="不要出现的元素"
+                                rows={3}
+                            />
+                        </div>
+                    </>
+                ) : (
+                    <>
                 <div className="flex flex-col gap-1">
                     <label className="menu-desc ml-1">Base URL</label>
                     <Input
@@ -306,6 +468,8 @@ export function ImageGenerationSettings() {
                         </Select>
                     </div>
                 </div>
+                </>
+                )}
 
                 <div className="flex flex-col gap-1">
                     <label className="menu-desc ml-1">补充提示词</label>

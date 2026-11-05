@@ -1,5 +1,15 @@
-import type { ImageGenerationSettings } from "./settings-types";
-import { loadImageGenerationSettings } from "./settings-storage";
+import type { ImageGenerationSettings, NovelAiPreset } from "./settings-types";
+import { DEFAULT_NOVELAI_PRESET, loadImageGenerationSettings } from "./settings-storage";
+import JSZip from "jszip";
+import {
+  getNovelAiResolution,
+  normalizeNovelAiModel,
+  normalizeNovelAiNoiseSchedule,
+  normalizeNovelAiSampler,
+  normalizeNovelAiScale,
+  normalizeNovelAiSteps,
+  NOVELAI_COMMON_MODELS,
+} from "./novelai-image-config";
 import { getChatImageFromIndexedDB } from "./chat-asset-storage";
 import { storeMediaBlob } from "./media-cache-storage";
 import { throwIfAborted } from "./abort-utils";
@@ -512,6 +522,128 @@ async function generateImageViaServer(params: {
   }
 }
 
+async function generateNovelAiDirect(params: {
+  apiKey: string;
+  preset: NovelAiPreset;
+  prompt: string;
+  signal?: AbortSignal;
+}): Promise<ImageGenerationApiResponse> {
+  const { apiKey, preset, prompt, signal } = params;
+  throwIfAborted(signal);
+
+  const { width, height } = getNovelAiResolution(preset.resolution);
+
+  const url = "https://image.novelai.net/ai/generate-image";
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${apiKey}`,
+    "Content-Type": "application/json",
+  };
+
+  const body = JSON.stringify({
+    input: prompt,
+    model: normalizeNovelAiModel(preset.model),
+    action: "generate",
+    parameters: {
+      width,
+      height,
+      scale: normalizeNovelAiScale(preset.scale),
+      sampler: normalizeNovelAiSampler(preset.sampler),
+      steps: normalizeNovelAiSteps(preset.steps),
+      n_samples: 1,
+      ucPreset: 0,
+      qualityToggle: preset.qualityToggle !== false,
+      sm: preset.smea === true,
+      sm_dyn: preset.smeaDyn === true,
+      dynamic_thresholding: false,
+      controlnet_strength: 1,
+      legacy: false,
+      add_original_image: false,
+      uncond_scale: 1,
+      cfg_rescale: 0,
+      noise_schedule: normalizeNovelAiNoiseSchedule(preset.noiseSchedule),
+      negative_prompt: preset.negativePrompt || "",
+    },
+  });
+
+  const controller = new AbortController();
+  const onOuterAbort = () => controller.abort();
+  if (signal) signal.addEventListener("abort", onOuterAbort, { once: true });
+  const totalTimer = setTimeout(() => controller.abort(), 180_000);
+
+  try {
+    const res = await fetch(url, { method: "POST", headers, body, signal: controller.signal });
+    if (!res.ok) {
+      const errText = await res.text().catch(() => "");
+      throw new Error(`NovelAI 接口报错 ${res.status}: ${errText.slice(0, 200)}`);
+    }
+
+    const arrayBuf = await res.arrayBuffer();
+    const uint8 = new Uint8Array(arrayBuf);
+    const isZip = (uint8[0] === 0x50 && uint8[1] === 0x4b && uint8[2] === 0x03 && uint8[3] === 0x04)
+      || (res.headers.get("content-type") || "").toLowerCase().includes("zip");
+
+    if (isZip) {
+      const zip = await JSZip.loadAsync(arrayBuf);
+      const files = Object.keys(zip.files);
+      const pngFile = files.find(f => f.endsWith(".png")) || files[0];
+      if (!pngFile) throw new Error("NovelAI 返回的压缩包内未找到图片");
+      const b64 = await zip.files[pngFile].async("base64");
+      return { b64, mimeType: "image/png" };
+    }
+
+    let binary = "";
+    for (let i = 0; i < uint8.length; i++) {
+      binary += String.fromCharCode(uint8[i]);
+    }
+    return { b64: btoa(binary), mimeType: res.headers.get("content-type") || "image/png" };
+  } catch (error) {
+    if (controller.signal.aborted && !signal?.aborted) {
+      throw new Error("NovelAI 直连请求超时（180 秒未返回）");
+    }
+    if (error instanceof TypeError) {
+      throw new Error("NovelAI 浏览器直连失败：可能受浏览器跨域 (CORS) 限制，请稍后重试或改用服务端转发。");
+    }
+    throw error;
+  } finally {
+    clearTimeout(totalTimer);
+    if (signal) signal.removeEventListener("abort", onOuterAbort);
+  }
+}
+
+export async function fetchNovelAiModels(apiKey: string): Promise<string[]> {
+  const token = apiKey.trim();
+  if (!token) throw new Error("请先填写 NovelAI API Token。");
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15_000);
+  try {
+    const res = await fetch("https://image.novelai.net/user/data", {
+      method: "GET",
+      headers: { Authorization: `Bearer ${token}` },
+      signal: controller.signal,
+    });
+    if (!res.ok) {
+      const detail = await res.text().catch(() => "");
+      if (res.status === 401 || res.status === 403) {
+        throw new Error("NovelAI API Token 无效或已失效，请重新获取后再试。");
+      }
+      throw new Error(`NovelAI Token 验证失败 ${res.status}${detail ? `: ${detail.slice(0, 160)}` : ""}`);
+    }
+    return [...NOVELAI_COMMON_MODELS];
+  } catch (error) {
+    if (controller.signal.aborted) {
+      throw new Error("NovelAI Token 验证超时，请检查网络后重试。");
+    }
+    if (error instanceof TypeError) {
+      throw new Error("无法连接 NovelAI，请检查网络后重试。");
+    }
+    if (error instanceof Error) throw error;
+    throw new Error("NovelAI Token 验证失败，请检查网络后重试。");
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 export async function generateImageFromConfiguredApi(params: {
   description: string;
   characterId?: string;
@@ -526,6 +658,44 @@ export async function generateImageFromConfiguredApi(params: {
   if (!settings.enabled) return null;
 
   const description = params.description.trim();
+  // NovelAI 原生接口
+  if (settings.provider === "novelai") {
+    const naiApiKey = settings.novelai?.apiKey?.trim();
+    if (!naiApiKey) return null;
+
+    const presets = settings.novelai?.presets && settings.novelai.presets.length > 0
+      ? settings.novelai.presets
+      : [DEFAULT_NOVELAI_PRESET];
+    const activePreset = presets.find(p => p.id === settings.novelai?.activePresetId) || presets[0];
+
+    const positiveParts: string[] = [];
+    if (activePreset.positivePrompt?.trim()) positiveParts.push(activePreset.positivePrompt.trim());
+    if (description) positiveParts.push(description);
+    const fullPrompt = positiveParts.join(", ");
+
+    const data = await generateNovelAiDirect({
+      apiKey: naiApiKey,
+      preset: activePreset,
+      prompt: fullPrompt,
+      signal: params.signal,
+    });
+
+    throwIfAborted(params.signal);
+    const naiMime = data.mimeType || "image/png";
+    const naiBlob = base64ToBlob(data.b64, naiMime);
+    throwIfAborted(params.signal);
+    const naiMediaRef = params.persistResult === false ? "" : await storeMediaBlob(naiBlob, naiMime, "image");
+    throwIfAborted(params.signal);
+    return {
+      mediaRef: naiMediaRef,
+      dataUrl: `data:${naiMime};base64,${data.b64}`,
+      blob: naiBlob,
+      mimeType: naiMime,
+      prompt: fullPrompt,
+      usedReferenceImage: false,
+    };
+  }
+
   if (!description || !settings.apiKey.trim() || !settings.baseUrl.trim() || !settings.model.trim()) return null;
 
   const reference = params.characterId ? settings.characterReferences[params.characterId] : undefined;

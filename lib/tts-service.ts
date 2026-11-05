@@ -361,11 +361,11 @@ export function playAudioBlobViaMediaElement(blob: Blob): { promise: Promise<voi
     return playAudioBlobElement(blob);
 }
 
-function playAudioBlobElement(blob: Blob): { promise: Promise<void>; abort: () => void } {
+function playAudioBlobElement(blob: Blob, volume?: number): { promise: Promise<void>; abort: () => void } {
     const url = URL.createObjectURL(blob);
     const audio = getSharedAudio();
     audio.muted = false;
-    audio.volume = _ttsVolume;
+    audio.volume = volume ?? _ttsVolume;
     audio.src = url;
 
     let settled = false;
@@ -396,9 +396,13 @@ function playAudioBlobElement(blob: Blob): { promise: Promise<void>; abort: () =
  * session back to the microphone (lets SpeechRecognition restart next turn).
  * Returns an abort function to stop playback early. Playback is sequential.
  */
-export function playAudioBlob(blob: Blob): { promise: Promise<void>; abort: () => void } {
+export function playAudioBlob(
+    blob: Blob,
+    options?: { volume?: number },
+): { promise: Promise<void>; abort: () => void } {
+    const volume = options?.volume;
     const ctx = getAudioContext();
-    if (!ctx) return playAudioBlobElement(blob);
+    if (!ctx) return playAudioBlobElement(blob, volume);
 
     let settled = false;
     let resolveFn: () => void = () => {};
@@ -448,7 +452,7 @@ export function playAudioBlob(blob: Blob): { promise: Promise<void>; abort: () =
                 source.buffer = audioBuffer;
                 // Route through a gain node so the in-app volume slider applies.
                 gain = ctx.createGain();
-                gain.gain.value = _ttsVolume;
+                gain.gain.value = volume ?? _ttsVolume;
                 source.connect(gain);
                 gain.connect(ctx.destination);
                 _activeGain = gain;
@@ -460,7 +464,7 @@ export function playAudioBlob(blob: Blob): { promise: Promise<void>; abort: () =
                 // 此前这里直接 finalize，正是「语音条有声、通话没声」的来源之一。
                 if (settled) return;
                 cleanupWebAudio();
-                const fallback = playAudioBlobElement(blob);
+                const fallback = playAudioBlobElement(blob, volume);
                 fallbackAbort = fallback.abort;
                 void fallback.promise.then(() => {
                     if (settled) return;
