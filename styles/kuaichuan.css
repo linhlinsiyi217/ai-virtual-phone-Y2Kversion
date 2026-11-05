@@ -649,3 +649,9 @@
 .kc-config-reset { background: var(--kc-panel-2); color: var(--kc-dim); border: 1px solid var(--kc-line); }
 .kc-config-save:active { transform: scale(0.97); }
 .kc-config-reset:active { transform: scale(0.97); }
+
+/* Project status-bar safety: this app renders its own header instead of PageShell. */
+.kc-app {
+    box-sizing: border-box;
+    padding-top: var(--page-header-safe-top, max(48px, env(safe-area-inset-top, 48px)));
+}

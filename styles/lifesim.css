@@ -617,3 +617,9 @@
   animation: ls-fade-in 0.18s ease;
   pointer-events: none;
 }
+
+/* Project status-bar safety: keep the custom header below the shared phone status bar. */
+.ls-app {
+  box-sizing: border-box;
+  padding-top: var(--page-header-safe-top, max(48px, env(safe-area-inset-top, 48px)));
+}
