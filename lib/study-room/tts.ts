@@ -128,7 +128,7 @@ async function speakWithCharacter(
   const tuned = rate === 1 ? config : { ...config, speechSpeed: rate };
   const blob = await synthesizeSpeech(text, tuned);
   if (!blob) return null;
-  const handle = playAudioBlob(blob);
+  const handle = playAudioBlob(blob, { volume: getReadingVolume() });
   return { promise: handle.promise, abort: handle.abort };
 }
 
