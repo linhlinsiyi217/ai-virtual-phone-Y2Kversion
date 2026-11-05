@@ -1008,6 +1008,52 @@ export async function sendLLMStreamRequest(
 }
 
 /**
+ * 与 sendLLMRequest 同签名、同返回，但传输优先走流式。
+ * iOS Safari 对长期没有响应字节的请求容易提前断开；流式会持续收到增量，
+ * 最终仍在本地收齐全文后一次返回，所以调用界面无需改变。
+ * 只有完全没收到任何正文/思考增量时才退回非流式，避免一次生成重复计费。
+ */
+export async function sendLLMRequestPreferStream(
+    config: ApiConfig,
+    preset: PresetConfig | null,
+    messages: LLMMessage[],
+    regexes: RegexConfig[],
+    meta?: { characterName?: string; userName?: string },
+    options?: Parameters<typeof sendLLMRequest>[5],
+): Promise<string> {
+    let received = false;
+    let reasoning = "";
+    try {
+        const result = await sendLLMStreamRequest(config, preset, messages, regexes, meta, {
+            skipOutputRegex: options?.skipOutputRegex,
+            includeReasoning: options?.includeReasoning,
+            appId: options?.appId,
+            appTags: options?.appTags,
+            followUpCount: options?.followUpCount,
+            debugSessionId: options?.debugSessionId,
+            signal: options?.signal,
+        }, {
+            onDelta: () => { received = true; },
+            onReasoningDelta: (text: string) => {
+                received = true;
+                reasoning += text;
+            },
+        });
+        if (reasoning) {
+            try { options?.onReasoning?.(reasoning); } catch { /* 回调不影响正文 */ }
+        }
+        if (options?.includeReasoning && reasoning.trim()) {
+            return `<think>\n${reasoning.trim()}\n</think>\n\n${result.content}`;
+        }
+        return result.content;
+    } catch (error) {
+        if (received || options?.signal?.aborted) throw error;
+        console.warn("[ChatEngine] 流式请求未收到内容，退回非流式：", error);
+        return sendLLMRequest(config, preset, messages, regexes, meta, options);
+    }
+}
+
+/**
  * Shared LLM HTTP request: provider normalization → consecutive same-role merge → API call → log → output regex.
  * Used by both generateChatCompletion (1:1 chat) and generateGroupChatCompletion (group chat).
  */
