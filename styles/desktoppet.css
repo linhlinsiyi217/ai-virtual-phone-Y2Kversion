@@ -1,0 +1,869 @@
+/* styles/desktoppet.css — 桌宠 App（G5）
+   桌宠本体 / 桌宠聊天 / 后台调度 / 通知记录 / 系统消息
+   全部跟随 tokens.css 主题变量与 app-text-scale 文字缩放，走 page-shell 容器。 */
+
+.desktoppet-home {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 14px 28px;
+}
+
+.desktoppet-card {
+  background: var(--c-card);
+  border: 1px solid var(--c-card-border);
+  border-radius: 18px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.desktoppet-section-title {
+  font-size: calc(13px*var(--app-text-scale,1));
+  font-weight: 600;
+  color: var(--c-text-title);
+}
+
+/* ── 主页状态卡 ── */
+.desktoppet-hero {
+  flex-direction: row;
+  align-items: center;
+  gap: 14px;
+}
+
+.desktoppet-hero-avatar {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--c-card-border);
+  flex-shrink: 0;
+  background: var(--c-panel);
+}
+
+.desktoppet-hero-main {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  flex: 1;
+}
+
+.desktoppet-hero-name {
+  font-size: calc(17px*var(--app-text-scale,1));
+  font-weight: 700;
+  color: var(--c-text-title);
+}
+
+.desktoppet-hero-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  width: fit-content;
+  font-size: calc(11.5px*var(--app-text-scale,1));
+  color: var(--c-text);
+  background: color-mix(in srgb, var(--c-icon-active) 8%, transparent);
+  border-radius: 999px;
+  padding: 3px 9px;
+}
+
+.desktoppet-hero-state[data-state="floating"] {
+  color: var(--c-success);
+  background: color-mix(in srgb, var(--c-success) 12%, transparent);
+}
+
+.desktoppet-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.desktoppet-hero-hint {
+  font-size: calc(11.5px*var(--app-text-scale,1));
+  color: var(--c-text);
+  line-height: 1.5;
+}
+
+/* ── 通用小件 ── */
+.desktoppet-header-btn {
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: transparent;
+  color: var(--c-icon-active);
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.desktoppet-header-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.desktoppet-header-actions {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.desktoppet-chip-btn {
+  border: 1px solid var(--c-card-border);
+  background: var(--c-panel);
+  color: var(--c-text-title);
+  font-size: calc(12px*var(--app-text-scale,1));
+  padding: 5px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.desktoppet-chip-btn[data-active="true"] {
+  background: color-mix(in srgb, var(--c-success) 16%, transparent);
+  border-color: color-mix(in srgb, var(--c-success) 40%, transparent);
+  color: var(--c-success);
+}
+
+.desktoppet-mini-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border: 1px solid var(--c-card-border);
+  background: var(--c-panel);
+  color: var(--c-text-title);
+  font-size: calc(12px*var(--app-text-scale,1));
+  padding: 6px 14px;
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.desktoppet-mini-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.desktoppet-mini-btn-primary {
+  background: var(--c-success);
+  border-color: var(--c-success);
+  color: #fff;
+}
+
+.desktoppet-badge {
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--c-danger);
+  color: #fff;
+  font-size: calc(11px*var(--app-text-scale,1));
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.desktoppet-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 48px 20px;
+  color: var(--c-text);
+  font-size: calc(12.6px*var(--app-text-scale,1));
+}
+
+.desktoppet-spin {
+  animation: desktoppet-spin 1s linear infinite;
+}
+
+@keyframes desktoppet-spin {
+  to { transform: rotate(360deg); }
+}
+
+.desktoppet-loading-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--c-icon);
+  animation: desktoppet-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes desktoppet-pulse {
+  0%, 100% { opacity: 0.3; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1.15); }
+}
+
+/* ── 消息中心入口 ── */
+.desktoppet-entry {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 4px;
+  border: none;
+  background: transparent;
+  border-radius: 12px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.desktoppet-entry + .desktoppet-entry {
+  border-top: 1px solid color-mix(in srgb, var(--c-card-border) 60%, transparent);
+}
+
+.desktoppet-entry-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 13px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.desktoppet-entry-icon[data-tone="amber"] { background: var(--c-icon-amber); color: #8a6a2f; }
+.desktoppet-entry-icon[data-tone="teal"] { background: var(--c-icon-teal); color: #2f7b74; }
+.desktoppet-entry-icon[data-tone="violet"] { background: var(--c-icon-violet); color: #5a4d96; }
+
+.desktoppet-entry-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.desktoppet-entry-name {
+  font-size: calc(14px*var(--app-text-scale,1));
+  font-weight: 600;
+  color: var(--c-text-title);
+}
+
+.desktoppet-entry-desc {
+  font-size: calc(11.5px*var(--app-text-scale,1));
+  color: var(--c-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.desktoppet-entry-chevron {
+  color: var(--c-icon);
+  flex-shrink: 0;
+}
+
+/* ── 表单 ── */
+.desktoppet-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.desktoppet-field-label {
+  font-size: calc(12.6px*var(--app-text-scale,1));
+  font-weight: 600;
+  color: var(--c-text-title);
+}
+
+.desktoppet-field-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.desktoppet-field-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.desktoppet-field-desc {
+  font-size: calc(11.2px*var(--app-text-scale,1));
+  color: var(--c-text);
+  line-height: 1.55;
+  margin: 0;
+}
+
+.desktoppet-input,
+.desktoppet-select,
+.desktoppet-textarea,
+.desktoppet-mini-input {
+  background: var(--c-input);
+  border: 1px solid var(--c-input-border);
+  border-radius: 12px;
+  color: var(--c-text-title);
+  font-size: calc(13px*var(--app-text-scale,1));
+  padding: 9px 12px;
+  outline: none;
+  font-family: inherit;
+  min-width: 0;
+}
+
+.desktoppet-input { flex: 1; }
+.desktoppet-select { flex: 1; appearance: auto; }
+.desktoppet-textarea { resize: vertical; line-height: 1.6; }
+.desktoppet-mini-input { width: 74px; }
+
+.desktoppet-chip-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* ── 开关 ── */
+.desktoppet-toggle {
+  width: 46px;
+  height: 28px;
+  border-radius: 999px;
+  border: none;
+  background: color-mix(in srgb, var(--c-icon-active) 18%, transparent);
+  position: relative;
+  cursor: pointer;
+  transition: background 0.2s ease;
+  flex-shrink: 0;
+}
+
+.desktoppet-toggle[data-active="true"] {
+  background: var(--c-success);
+}
+
+.desktoppet-toggle-knob {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  transition: transform 0.2s ease;
+}
+
+.desktoppet-toggle[data-active="true"] .desktoppet-toggle-knob {
+  transform: translateX(18px);
+}
+
+/* ── 聊天入口大按钮 ── */
+.desktoppet-chat-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: none;
+  border-radius: 999px;
+  background: var(--c-success);
+  color: #fff;
+  font-size: calc(14.5px*var(--app-text-scale,1));
+  font-weight: 600;
+  padding: 13px 20px;
+  cursor: pointer;
+  margin-top: 2px;
+}
+
+.desktoppet-chat-cta:active {
+  filter: brightness(0.94);
+}
+
+/* ── 桌宠聊天页 ── */
+.desktoppet-chat {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  padding: 12px 14px 4px;
+}
+
+.desktoppet-msg-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.desktoppet-msg-row {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+}
+
+.desktoppet-msg-row[data-side="user"] {
+  justify-content: flex-end;
+}
+
+.desktoppet-msg-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  background: var(--c-panel);
+}
+
+.desktoppet-bubble {
+  max-width: 76%;
+  padding: 9px 13px;
+  border-radius: 16px;
+  font-size: calc(13.2px*var(--app-text-scale,1));
+  line-height: 1.6;
+  word-break: break-word;
+}
+
+.desktoppet-bubble p {
+  margin: 0;
+}
+
+.desktoppet-bubble[data-side="user"] {
+  background: var(--c-bubble-self);
+  color: #10330c;
+  border-bottom-right-radius: 5px;
+}
+
+.desktoppet-bubble[data-side="mascot"] {
+  background: var(--c-bubble-other);
+  color: var(--c-text-title);
+  border: 1px solid var(--c-card-border);
+  border-bottom-left-radius: 5px;
+}
+
+.desktoppet-msg-images {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+
+.desktoppet-msg-images img {
+  width: 108px;
+  height: 108px;
+  object-fit: cover;
+  border-radius: 10px;
+}
+
+.desktoppet-msg-tool {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  margin-left: 40px;
+  font-size: calc(11px*var(--app-text-scale,1));
+  color: var(--c-text);
+  background: color-mix(in srgb, var(--c-icon-active) 7%, transparent);
+  border-radius: 999px;
+  padding: 3px 10px;
+}
+
+.desktoppet-msg-tool-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--c-success);
+}
+
+.desktoppet-msg-tool[data-ok="false"] .desktoppet-msg-tool-dot {
+  background: var(--c-danger);
+}
+
+.desktoppet-typing {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.desktoppet-typing span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--c-icon);
+  animation: desktoppet-typing 1.2s ease-in-out infinite;
+}
+
+.desktoppet-typing span:nth-child(2) { animation-delay: 0.18s; }
+.desktoppet-typing span:nth-child(3) { animation-delay: 0.36s; }
+
+@keyframes desktoppet-typing {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+  30% { transform: translateY(-4px); opacity: 1; }
+}
+
+.desktoppet-chat-footer {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 14px calc(10px + env(safe-area-inset-bottom, 0px));
+  background: color-mix(in srgb, var(--c-page-body-bg) 88%, transparent);
+  backdrop-filter: blur(12px);
+}
+
+.desktoppet-chat-input {
+  flex: 1;
+  background: var(--c-panel);
+  border: 1px solid var(--c-card-border);
+  border-radius: 999px;
+  padding: 10px 16px;
+  font-size: calc(13.2px*var(--app-text-scale,1));
+  color: var(--c-text-title);
+  outline: none;
+  font-family: inherit;
+}
+
+.desktoppet-chat-send {
+  width: 42px;
+  height: 42px;
+  border: none;
+  border-radius: 50%;
+  background: var(--c-success);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.desktoppet-chat-send:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.desktoppet-chat-stop {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid var(--c-danger);
+  color: var(--c-danger);
+  background: color-mix(in srgb, var(--c-danger) 8%, transparent);
+  border-radius: 999px;
+  padding: 10px 0;
+  font-size: calc(13px*var(--app-text-scale,1));
+  cursor: pointer;
+}
+
+.desktoppet-chat-disabled {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 64px 24px;
+  color: var(--c-text);
+  text-align: center;
+}
+
+.desktoppet-chat-disabled p {
+  margin: 0;
+  font-size: calc(14px*var(--app-text-scale,1));
+  font-weight: 600;
+  color: var(--c-text-title);
+}
+
+.desktoppet-chat-disabled-hint {
+  font-size: calc(12px*var(--app-text-scale,1)) !important;
+  font-weight: 400 !important;
+  color: var(--c-text) !important;
+  line-height: 1.6;
+}
+
+/* ── 后台调度页 ── */
+.desktoppet-schedule {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 14px 28px;
+}
+
+.desktoppet-schedule-create {
+  border: 1px solid color-mix(in srgb, var(--c-success) 35%, transparent);
+}
+
+.desktoppet-schedule-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 2px;
+}
+
+.desktoppet-schedule-item + .desktoppet-schedule-item {
+  border-top: 1px solid color-mix(in srgb, var(--c-card-border) 60%, transparent);
+}
+
+.desktoppet-schedule-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  border: none;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  padding: 0;
+}
+
+.desktoppet-schedule-name {
+  font-size: calc(13.5px*var(--app-text-scale,1));
+  font-weight: 600;
+  color: var(--c-text-title);
+}
+
+.desktoppet-schedule-meta {
+  font-size: calc(11.4px*var(--app-text-scale,1));
+  color: var(--c-text);
+  line-height: 1.5;
+}
+
+.desktoppet-schedule-intent {
+  font-size: calc(11.2px*var(--app-text-scale,1));
+  color: var(--c-icon);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.desktoppet-schedule-tag {
+  flex-shrink: 0;
+  font-size: calc(10.5px*var(--app-text-scale,1));
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--c-icon-active) 8%, transparent);
+  color: var(--c-text);
+}
+
+.desktoppet-schedule-tag[data-kind="followup"] {
+  background: color-mix(in srgb, var(--c-warning) 14%, transparent);
+  color: var(--c-warning);
+}
+
+.desktoppet-schedule-tag[data-kind="timed"] {
+  background: color-mix(in srgb, var(--c-success) 14%, transparent);
+  color: var(--c-success);
+}
+
+.desktoppet-schedule-tag[data-kind="idle"] {
+  background: var(--c-icon-teal);
+  color: #2f7b74;
+}
+
+.desktoppet-schedule-acts {
+  display: inline-flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.desktoppet-schedule-act {
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--c-icon-active) 7%, transparent);
+  color: var(--c-text-title);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: calc(11px*var(--app-text-scale,1));
+}
+
+.desktoppet-schedule-act:active {
+  background: color-mix(in srgb, var(--c-icon-active) 14%, transparent);
+}
+
+.desktoppet-schedule-note {
+  margin: 0;
+  font-size: calc(11.2px*var(--app-text-scale,1));
+  color: var(--c-icon);
+  line-height: 1.6;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+/* ── 通知记录页 ── */
+.desktoppet-notices {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 14px 28px;
+}
+
+.desktoppet-notices-hint {
+  margin: 0;
+  font-size: calc(11.4px*var(--app-text-scale,1));
+  color: var(--c-success);
+  background: color-mix(in srgb, var(--c-success) 10%, transparent);
+  border-radius: 12px;
+  padding: 8px 12px;
+}
+
+.desktoppet-notice-list {
+  display: flex;
+  flex-direction: column;
+  background: var(--c-card);
+  border: 1px solid var(--c-card-border);
+  border-radius: 18px;
+  overflow: hidden;
+}
+
+.desktoppet-notice-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: none;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.desktoppet-notice-item + .desktoppet-notice-item {
+  border-top: 1px solid color-mix(in srgb, var(--c-card-border) 60%, transparent);
+}
+
+.desktoppet-notice-item:active {
+  background: color-mix(in srgb, var(--c-icon-active) 6%, transparent);
+}
+
+.desktoppet-notice-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.desktoppet-notice-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.desktoppet-notice-name {
+  font-size: calc(13.5px*var(--app-text-scale,1));
+  font-weight: 600;
+  color: var(--c-text-title);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.desktoppet-notice-group {
+  font-style: normal;
+  font-size: calc(10px*var(--app-text-scale,1));
+  color: #2f7b74;
+  background: var(--c-icon-teal);
+  border-radius: 6px;
+  padding: 1px 5px;
+  flex-shrink: 0;
+}
+
+.desktoppet-notice-time {
+  font-size: calc(10.8px*var(--app-text-scale,1));
+  color: var(--c-icon);
+  flex-shrink: 0;
+}
+
+.desktoppet-notice-body {
+  margin: 0;
+  font-size: calc(12.4px*var(--app-text-scale,1));
+  color: var(--c-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.5;
+}
+
+.desktoppet-notices-note {
+  margin: 0;
+  text-align: center;
+  font-size: calc(11px*var(--app-text-scale,1));
+  color: var(--c-icon);
+}
+
+/* ── 系统消息页 ── */
+.desktoppet-system {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 14px 28px;
+}
+
+.desktoppet-system-warn {
+  margin: 0;
+  font-size: calc(11.4px*var(--app-text-scale,1));
+  color: var(--c-warning);
+  background: color-mix(in srgb, var(--c-warning) 10%, transparent);
+  border-radius: 12px;
+  padding: 8px 12px;
+  line-height: 1.5;
+}
+
+.desktoppet-system-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.desktoppet-system-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border: 1px solid var(--c-card-border);
+  background: var(--c-card);
+  border-radius: 14px;
+  padding: 10px 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.desktoppet-system-item[data-fail] {
+  border-color: color-mix(in srgb, var(--c-danger) 40%, transparent);
+  background: color-mix(in srgb, var(--c-danger) 5%, var(--c-card));
+}
+
+.desktoppet-system-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.desktoppet-system-session {
+  font-size: calc(12.6px*var(--app-text-scale,1));
+  font-weight: 600;
+  color: var(--c-text-title);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.desktoppet-system-time {
+  font-size: calc(10.8px*var(--app-text-scale,1));
+  color: var(--c-icon);
+  flex-shrink: 0;
+}
+
+.desktoppet-system-body {
+  margin: 0;
+  font-size: calc(12.2px*var(--app-text-scale,1));
+  color: var(--c-text);
+  line-height: 1.55;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.desktoppet-system-item[data-fail] .desktoppet-system-body {
+  color: var(--c-danger);
+}

@@ -40,7 +40,7 @@ import {
 } from "./calendar-storage";
 import type { CalendarOwnerType, CalendarScheduleItem } from "./calendar-types";
 import { formatIsoDate, getWeekStartIso, normalizeTime } from "./calendar-utils";
-import { simpleLLMCall } from "./api-helpers";
+import { simpleLLMCallPreferStream } from "./simple-llm-stream";
 import { generateEmbedding } from "./memory-embedding";
 import { loadMemoryConfig, loadMemoryEntriesByType, saveMemoryEntry } from "./memory-storage";
 import { formatCoreMemories, formatLongTermMemories } from "./memory-injector";
@@ -1327,7 +1327,7 @@ export async function runCustomAppAiChat(app: InstalledCustomApp, record: Record
     ].filter(Boolean) as { role: string; content: string }[];
   const timeoutMs = optionalCustomAppTimeoutMs(record.timeoutMs);
   const result = await withOptionalCustomAppTimeout(timeoutMs, "ai.chat", signal => (
-    simpleLLMCall(config, messages, {
+    simpleLLMCallPreferStream(config, messages, {
       temperature: typeof record.temperature === "number" ? record.temperature : undefined,
       max_tokens: typeof record.maxTokens === "number" ? record.maxTokens : typeof record.max_tokens === "number" ? record.max_tokens : undefined,
       signal,

@@ -20,6 +20,9 @@ import { pinyin } from "pinyin-pro";
 import { kvSet } from "@/lib/kv-db";
 import { scrollElementWithinContainer } from "@/lib/dom-scroll";
 import { ChatFallbackAvatar } from "./chat-fallback-avatar";
+import { EncounterPage } from "./encounter-page";
+import { CouplePage } from "./couple-page";
+import { COUPLE_BINDING_UPDATED_EVENT, coupleDaysSince, loadCoupleBinding, type CoupleBinding } from "@/lib/couple-storage";
 import {
     DEFAULT_MASCOT_AVATAR,
     getMascotSettingsSnapshot,
@@ -54,6 +57,9 @@ export function ChatContactsList({ onCloseApp, onSelectSession, onSelectMascot, 
     const [greetingText, setGreetingText] = useState("");
     // 添加页是否由名片打开：返回时应回到原聊天室而非联系人列表
     const addFromCardRef = useRef(false);
+    const [isEncounterOpen, setIsEncounterOpen] = useState(false);
+    const [isCoupleOpen, setIsCoupleOpen] = useState(false);
+    const [coupleBinding, setCoupleBinding] = useState<CoupleBinding | null>(() => loadCoupleBinding());
     const mascotSettings = useSyncExternalStore(subscribeMascotSettings, getMascotSettingsSnapshot, getMascotSettingsSnapshot);
     const [mascotAvatarUrl, setMascotAvatarUrl] = useState(mascotSettings.avatarImage || DEFAULT_MASCOT_AVATAR);
 
@@ -62,6 +68,12 @@ export function ChatContactsList({ onCloseApp, onSelectSession, onSelectMascot, 
     const deferredContactFilter = useDeferredValue(contactFilter);
     const bodyRef = useRef<HTMLDivElement>(null);
     const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+    useEffect(() => {
+        const sync = () => setCoupleBinding(loadCoupleBinding());
+        window.addEventListener(COUPLE_BINDING_UPDATED_EVENT, sync);
+        return () => window.removeEventListener(COUPLE_BINDING_UPDATED_EVENT, sync);
+    }, []);
 
     useEffect(() => {
         let cancelled = false;
@@ -242,6 +254,19 @@ export function ChatContactsList({ onCloseApp, onSelectSession, onSelectMascot, 
                             <div className="minimal-unread-count ml-auto shrink-0">{pendingRequests.length}</div>
                         )}
                     </div>
+                </div>
+
+                <div className="mb-3 mt-1">
+                    <button type="button" className="minimal-list-item w-full text-left" onClick={() => setIsEncounterOpen(true)}>
+                        <span className="w-[48px] h-[48px] rounded-full bg-[var(--c-icon-violet,#8a6bb8)] flex items-center justify-center shrink-0 text-white text-xl">✦</span>
+                        <span className="flex-1 overflow-hidden h-[48px] flex flex-col justify-center gap-1"><b className="ts-16 text-[var(--c-text-title)]">邂逅</b><span className="ts-13 opacity-70">随机遇见一位还没有会话的新朋友</span></span>
+                    </button>
+                </div>
+                <div className="mb-3">
+                    <button type="button" className="minimal-list-item w-full text-left" onClick={() => setIsCoupleOpen(true)}>
+                        <span className="w-[48px] h-[48px] rounded-full bg-[#e8557a] flex items-center justify-center shrink-0 text-white text-xl">♥</span>
+                        <span className="flex-1 overflow-hidden h-[48px] flex flex-col justify-center gap-1"><b className="ts-16 text-[var(--c-text-title)]">情侣空间</b><span className="ts-13 opacity-70 truncate">{coupleBinding ? `和${chars.find(c => c.id === coupleBinding.characterId)?.name || "TA"}在一起第 ${coupleDaysSince(coupleBinding.since)} 天` : "绑定你的恋人"}</span></span>
+                    </button>
                 </div>
 
                 {mascotSettings.chatEnabled && (
@@ -568,6 +593,16 @@ export function ChatContactsList({ onCloseApp, onSelectSession, onSelectMascot, 
                     )}
                 </PageShell>
                 </div>
+                </div>
+            )}
+            {isEncounterOpen && (
+                <div className="absolute inset-0 z-[9999] bg-[var(--c-page-body-bg,#fff)]">
+                    <EncounterPage onBack={() => setIsEncounterOpen(false)} onSelectSession={session => { setIsEncounterOpen(false); onSelectSession(session); }} />
+                </div>
+            )}
+            {isCoupleOpen && (
+                <div className="absolute inset-0 z-[9999] bg-[var(--c-page-body-bg,#fff)]">
+                    <CouplePage onBack={() => setIsCoupleOpen(false)} onSelectSession={session => { setIsCoupleOpen(false); onSelectSession(session); }} />
                 </div>
             )}
         </div>

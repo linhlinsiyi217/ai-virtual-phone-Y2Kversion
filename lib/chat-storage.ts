@@ -160,6 +160,8 @@ export type ChatMessage = {
     toolExecutionId?: string; // Links visible tool attachments to their persisted tool result
     editableResponseText?: string; // Processed text shown in the reply editor
     isRetracted?: boolean;
+    /** 悄悄话（G10）：发送时蒙上一层雾，轻触气泡才显示内容；角色侧上下文不受影响 */
+    whisper?: boolean;
     mediaType?: "image" | "audio" | "video"
         | "red_packet" | "transfer" | "location"
         | "poke" | "sticker" | "quote" | "dice"
@@ -174,6 +176,7 @@ export type ChatMessage = {
         | "payment_request" | "accept_payment_request" | "decline_payment_request"
         | "listening_invite" | "music" | "music_share" | "music_notify" | "music_not_found"
         | "xiaohongshu_note_share"
+        | "html_interactive"
         | "gift"
         | "contact_card"
         | "forwarded_chat"

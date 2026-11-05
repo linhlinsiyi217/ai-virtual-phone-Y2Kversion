@@ -8,7 +8,7 @@ import { MomentsFeed } from "./moments-feed";
 import { ChatRoom } from "./chat-room";
 import { MascotChatRoom } from "./mascot-chat-room";
 import { UserProfilePanel } from "./user-profile-panel";
-import { MessageCircle, Users, Aperture, UserRound } from "lucide-react";
+import { MessageCircle, Users, Aperture, UserRound, Plus, Palette, LogOut, X } from "lucide-react";
 import { ChatSession, loadChatSessions, pushChatMessage, hydrateChatStorage } from "@/lib/chat-storage";
 import { notifyMascotPageContext } from "@/lib/mascot-events";
 import { loadChatAppCharacters as loadCharacters } from "@/lib/chat-app-characters";
@@ -18,6 +18,8 @@ import { formatXiaohongshuShareForPrompt, type ChatSharePayload } from "@/lib/ch
 import { CHAT_OPEN_SESSION_EVENT, CHAT_OPEN_ADD_CONTACT_EVENT } from "@/lib/chat-notification-events";
 import { CHAT_SESSIONS_MERGED_EVENT, type ChatSessionsMergedDetail } from "@/lib/chat-session-merge";
 import { getMascotSettingsSnapshot } from "@/lib/mascot-settings";
+import { CHAT_BEAUTY_SCOPES, CHAT_BEAUTY_UPDATED_EVENT, loadChatBeauty, type ChatBeautyScope } from "@/lib/chat-beauty";
+import { ChatBeautyDecoration } from "./chat-beauty-decoration";
 
 type TabKey = "messages" | "contacts" | "feeds" | "me";
 
@@ -44,6 +46,11 @@ export const PhoneChatApp = memo(function PhoneChatApp({ onClose, initialSession
     const [visitedSessions, setVisitedSessions] = useState<Map<string, ChatSession>>(new Map());
     const [dbReady, setDbReady] = useState(false);
     const [hideTabBar, setHideTabBar] = useState(false);
+    const [dockOpen, setDockOpen] = useState(false);
+    const [beautyOpenRequest, setBeautyOpenRequest] = useState(0);
+    const [beauty, setBeauty] = useState<Record<ChatBeautyScope, { css: string; html: string }>>(() =>
+        Object.fromEntries(CHAT_BEAUTY_SCOPES.map(item => [item.id, loadChatBeauty(item.id)])) as Record<ChatBeautyScope, { css: string; html: string }>
+    );
 
     useEffect(() => {
         if (!dbReady || !feedsRequest || initialSessionId) return;
@@ -249,6 +256,12 @@ export const PhoneChatApp = memo(function PhoneChatApp({ onClose, initialSession
         return () => window.removeEventListener("chat-app-css-updated", onCSSUpdate);
     }, []);
 
+    useEffect(() => {
+        const update = () => setBeauty(Object.fromEntries(CHAT_BEAUTY_SCOPES.map(item => [item.id, loadChatBeauty(item.id)])) as Record<ChatBeautyScope, { css: string; html: string }>);
+        window.addEventListener(CHAT_BEAUTY_UPDATED_EVENT, update);
+        return () => window.removeEventListener(CHAT_BEAUTY_UPDATED_EVENT, update);
+    }, []);
+
     // Listen for tab bar hide/show from sub-pages (e.g. CSS editor)
     useEffect(() => {
         const onHide = (e: Event) => setHideTabBar((e as CustomEvent).detail);
@@ -262,11 +275,16 @@ export const PhoneChatApp = memo(function PhoneChatApp({ onClose, initialSession
     return (
         <div
             className="chat-app absolute inset-0 flex flex-col overflow-hidden z-10"
+            data-active-tab={activeTab}
             {...(activeSession || activeMascot ? { "data-room-active": "" } : {})}
             {...(hideTabBar ? { "data-tabbar-hidden": "" } : {})}
         >
             {/* Chat app-level custom CSS (lower priority than per-session CSS) */}
             {chatAppCSS && <SessionCustomCSS css={chatAppCSS} scope=".chat-app" />}
+            {CHAT_BEAUTY_SCOPES.map(item => beauty[item.id].css ? (
+                <SessionCustomCSS key={item.id} css={beauty[item.id].css} scope={item.id === "offline" ? ".chat-app[data-room-active] .chat-offline-body" : item.selector} />
+            ) : null)}
+            <ChatBeautyDecoration slot={activeSession || activeMascot ? "room" : activeTab} html={beauty[activeSession || activeMascot ? "room" : activeTab].html} />
             {/* The Main Content Area */}
             <div className="chat-main-content relative flex-1 flex flex-col overflow-hidden" {...(activeSession || activeMascot ? { "data-covered-by-room": "" } : {})}>
                 {activeTab === "messages" && <ChatMessageList onCloseApp={onClose} activeSession={activeSession} onSelectSession={(session) => { setActiveMascot(false); setActiveSession(session); }} onSelectMascot={handleSelectMascot} />}
@@ -289,11 +307,22 @@ export const PhoneChatApp = memo(function PhoneChatApp({ onClose, initialSession
                     />
                 )}
                 {activeTab === "feeds" && <MomentsFeed onCloseApp={onClose} />}
-                {activeTab === "me" && <UserProfilePanel onClose={() => setActiveTab("messages")} />}
+                {activeTab === "me" && <UserProfilePanel onClose={() => setActiveTab("messages")} openBeautyRequest={beautyOpenRequest} />}
             </div>
 
             {/* Bottom Navigation Bar — hide when inside a chat room */}
-            <nav className="chat-tab-bar chat-bottom-glass-bar" data-ui="nav" style={{ display: activeSession || activeMascot || hideTabBar ? "none" : undefined }}>
+            <div className={`chat-dock-cluster ${dockOpen ? "is-open" : ""}`} style={{ display: activeSession || activeMascot || hideTabBar ? "none" : undefined }}>
+            <div className="chat-dock-quick-panel" aria-hidden={!dockOpen}>
+                {[
+                    { label: "消息", icon: MessageCircle, run: () => setActiveTab("messages") },
+                    { label: "联系人", icon: Users, run: () => setActiveTab("contacts") },
+                    { label: "动态", icon: Aperture, run: () => setActiveTab("feeds") },
+                    { label: "美化", icon: Palette, run: () => { setActiveTab("me"); setBeautyOpenRequest(value => value + 1); } },
+                    { label: "我的", icon: UserRound, run: () => setActiveTab("me") },
+                    { label: "退出", icon: LogOut, run: onClose },
+                ].map(item => <button key={item.label} tabIndex={dockOpen ? 0 : -1} onClick={() => { item.run(); setDockOpen(false); }}><item.icon size={21} /><span>{item.label}</span></button>)}
+            </div>
+            <nav className="chat-tab-bar chat-bottom-glass-bar" data-ui="nav" data-active-tab={activeTab}>
                 <button
                     className={`chat-tab ${activeTab === "messages" ? "chat-tab-active" : ""}`}
                     onClick={() => setActiveTab("messages")}
@@ -323,6 +352,10 @@ export const PhoneChatApp = memo(function PhoneChatApp({ onClose, initialSession
                     <span className="chat-tab-label">主页</span>
                 </button>
             </nav>
+            <button className="chat-dock-plus" aria-label={dockOpen ? "关闭快捷菜单" : "打开快捷菜单"} aria-expanded={dockOpen} onClick={() => setDockOpen(value => !value)}>
+                {dockOpen ? <X size={27} /> : <Plus size={28} />}
+            </button>
+            </div>
 
             {/* Chat Rooms — all visited sessions stay mounted, only active one is visible */}
             {[...visitedSessions.values()].map(sess => (

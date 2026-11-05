@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useMemo, type CSSProperties } from "react";
-import CSSSchemeBar from "@/components/ui/css-scheme-picker";
 import {
     loadFollowUpConfig,
     saveFollowUpConfig,
@@ -13,7 +12,6 @@ import type { UserIdentity } from "@/components/settings/user-identity";
 import { getApiLogs, clearApiLogs, type DebugInfo } from "@/lib/chat-engine";
 import type { FollowUpConfig } from "@/lib/settings-storage";
 import { PageShell } from "@/components/ui/page-shell";
-import { CHAT_APP_CSS_EXAMPLE } from "@/lib/css-examples";
 import { Toggle } from "@/components/ui/form";
 import { StickerManager } from "./sticker-manager";
 import { ChatPluginManager } from "./chat-plugin-manager";
@@ -35,6 +33,7 @@ import { addChatContact, createOrGetSession } from "@/lib/chat-storage";
 import { kvGet, kvSet, kvRemove } from "@/lib/kv-db";
 import { formatWalletAmount, getWalletBalance, loadWalletState, WALLET_UPDATED_EVENT } from "@/lib/wallet-storage";
 import { ChatFallbackAvatar } from "./chat-fallback-avatar";
+import { ChatBeautyCenter } from "./chat-beauty-center";
 import {
     Loader2,
     Bell,
@@ -68,6 +67,7 @@ import { BINDING_ACCENTS, CONTENT_APP_ACCENTS } from "@/lib/ui-accent-colors";
 type UserProfilePanelProps = {
     onClose: () => void;
     className?: string;
+    openBeautyRequest?: number;
 };
 
 const profileSettingsIconStyle = (color: string): CSSProperties => ({
@@ -148,7 +148,7 @@ function isBrowserNotificationGranted(): boolean {
 /* ══════════════════════════════════════════
    Main export
    ══════════════════════════════════════════ */
-export function UserProfilePanel({ onClose, className }: UserProfilePanelProps) {
+export function UserProfilePanel({ onClose, className, openBeautyRequest = 0 }: UserProfilePanelProps) {
     const [showFollowUpEditor, setShowFollowUpEditor] = useState(false);
     const [showApiLog, setShowApiLog] = useState(false);
     const [showStickerManager, setShowStickerManager] = useState(false);
@@ -199,6 +199,12 @@ export function UserProfilePanel({ onClose, className }: UserProfilePanelProps) 
             });
         } catch (e) { }
     }, []);
+
+    useEffect(() => {
+        if (!openBeautyRequest) return;
+        window.dispatchEvent(new CustomEvent("chat-hide-tabbar", { detail: true }));
+        setShowCSSEditor(true);
+    }, [openBeautyRequest]);
 
     useEffect(() => {
         const syncWallet = () => {
@@ -268,7 +274,7 @@ export function UserProfilePanel({ onClose, className }: UserProfilePanelProps) 
         return <ApiLogViewer onBack={() => { window.dispatchEvent(new CustomEvent("chat-hide-tabbar", { detail: false })); setShowApiLog(false); }} />;
     }
     if (showCSSEditor) {
-        return <ChatCSSEditor onBack={() => { setShowCSSEditor(false); }} />;
+        return <ChatBeautyCenter onBack={() => { window.dispatchEvent(new CustomEvent("chat-hide-tabbar", { detail: false })); setShowCSSEditor(false); }} />;
     }
     if (showStickerManager) {
         return <StickerManager onBack={() => { window.dispatchEvent(new CustomEvent("chat-hide-tabbar", { detail: false })); setShowStickerManager(false); }} />;
@@ -401,7 +407,7 @@ export function UserProfilePanel({ onClose, className }: UserProfilePanelProps) 
                             <div className="w-[42px] h-[42px] rounded-[14px] bg-[color-mix(in_srgb,var(--c-danger)_15%,transparent)] text-[var(--c-danger)] flex items-center justify-center">
                                 <Palette size={22} strokeWidth={2} />
                             </div>
-                            <span className="ts-12 font-semibold text-[var(--c-text-title)]">外观CSS</span>
+                            <span className="ts-12 font-semibold text-[var(--c-text-title)]">美化工坊</span>
                         </button>
                     </div>
 
@@ -484,49 +490,6 @@ export function UserProfilePanel({ onClose, className }: UserProfilePanelProps) 
     );
 }
 
-
-/* ══════════════════════════════════════════
-   Chat CSS Editor (sub-page)
-   ══════════════════════════════════════════ */
-function ChatCSSEditor({ onBack }: { onBack: () => void }) {
-    const [css, setCss] = useState(() => kvGet("chat-app-custom-css") || "");
-
-    const handleApply = () => {
-        const trimmed = css.trim();
-        if (trimmed) kvSet("chat-app-custom-css", trimmed);
-        else kvRemove("chat-app-custom-css");
-        window.dispatchEvent(new CustomEvent("chat-app-css-updated"));
-    };
-
-    const handleClear = () => {
-        setCss("");
-        kvRemove("chat-app-custom-css");
-        window.dispatchEvent(new CustomEvent("chat-app-css-updated"));
-    };
-
-    return (
-        <PageShell title="自定义 CSS" onBack={() => { window.dispatchEvent(new CustomEvent("chat-hide-tabbar", { detail: false })); onBack(); }}>
-            <div className="p-4 flex flex-col gap-3 flex-1">
-                <div className="ts-12 text-[var(--c-text)] opacity-70">
-                    在此输入 CSS 自定义聊天页面样式（联系人列表、朋友圈、聊天室默认样式等）。单独聊天室的 CSS 优先级更高。
-                </div>
-                <textarea
-                    value={css}
-                    onChange={(e) => setCss(e.target.value)}
-                    placeholder="/* 输入 CSS 自定义聊天页面样式... */"
-                    className="ui-textarea font-mono ts-13 leading-relaxed flex-1"
-                    style={{ minHeight: 280, resize: "none", scrollbarWidth: "none" }}
-                />
-                <div className="flex gap-2 items-center">
-                    <CSSSchemeBar target="chat_app" currentCSS={css} onLoad={setCss} />
-                    <button type="button" className="ui-btn ui-btn-outline flex-1" onClick={() => setCss(CHAT_APP_CSS_EXAMPLE)}>示例</button>
-                    <button type="button" className="ui-btn ui-btn-outline flex-1" onClick={handleClear}>清除</button>
-                    <button type="button" className="ui-btn ui-btn-soft-action flex-1" onClick={handleApply}>应用</button>
-                </div>
-            </div>
-        </PageShell>
-    );
-}
 
 /* ══════════════════════════════════════════
    Follow-Up Settings Editor (sub-page)

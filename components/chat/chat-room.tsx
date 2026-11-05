@@ -42,6 +42,7 @@ import { CustomAppRunner } from "@/components/app-market/custom-app-runner";
 import { CustomAppForegroundBoundary } from "@/components/app-market/custom-app-failure";
 
 import { ChatSettingsPanel } from "./chat-settings-panel";
+import { ChatMemoryPanel } from "./chat-memory-panel";
 import { VoiceCallScreen } from "./voice-call-screen";
 import { VideoCallScreen } from "./video-call-screen";
 import { GroupCallScreen } from "./group-call-screen";
@@ -58,7 +59,7 @@ import { useKeyboardDismissAutoSend } from "@/components/chat/use-keyboard-dismi
 import { cancelBailoutKey } from "@/lib/push-bailout-client";
 import { PENDING_REPLY_PREFIX } from "@/lib/friend-request-engine";
 import type { UserIdentity } from "@/components/settings/user-identity";
-import { AlertCircle, Blocks, Check, Trash2, User, ChevronLeft, ChevronRight, Clapperboard, Clock, Gift, Languages, Loader2, MoreHorizontal, X } from "lucide-react";
+import { AlertCircle, Blocks, Check, Trash2, User, ChevronLeft, ChevronRight, Clapperboard, Clock, EyeOff, Gift, Languages, Loader2, MoreHorizontal, X } from "lucide-react";
 import { setDebugChatState } from "@/lib/debug-store";
 import { SessionCustomCSS } from "@/components/ui/session-custom-css";
 import { setChatActive } from "@/lib/music-action-queue";
@@ -614,6 +615,7 @@ const ChatTextInputBar = memo(forwardRef<ChatTextInputHandle, {
     muteUntilMs: number;
     isGenerating: boolean;
     theaterMode: boolean;
+    whisperMode: boolean;
     enterToSendEnabled: boolean;
     quotingMessage: ChatMessage | null;
     showEmojiPanel: boolean;
@@ -628,6 +630,8 @@ const ChatTextInputBar = memo(forwardRef<ChatTextInputHandle, {
     onTogglePlusMenu: () => void;
     onToggleTheaterMode: () => void;
     onCloseTheaterMode: () => void;
+    onToggleWhisperMode: () => void;
+    onOpenMemoryPanel: () => void;
     onOpenRichModal: (modal: RichModalKind) => void;
     onOpenCustomPlusAction: (action: RegisteredCustomAppChatPlusAction) => void;
     onStartVideoCall: () => void;
@@ -645,6 +649,7 @@ const ChatTextInputBar = memo(forwardRef<ChatTextInputHandle, {
     muteUntilMs,
     isGenerating,
     theaterMode,
+    whisperMode,
     enterToSendEnabled,
     quotingMessage,
     showEmojiPanel,
@@ -659,6 +664,8 @@ const ChatTextInputBar = memo(forwardRef<ChatTextInputHandle, {
     onTogglePlusMenu,
     onToggleTheaterMode,
     onCloseTheaterMode,
+    onToggleWhisperMode,
+    onOpenMemoryPanel,
     onOpenRichModal,
     onOpenCustomPlusAction,
     onStartVideoCall,
@@ -729,6 +736,8 @@ const ChatTextInputBar = memo(forwardRef<ChatTextInputHandle, {
         { icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--c-text)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18V5l11-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="17" cy="16" r="3" /></svg>, label: "音乐", onClick: () => onOpenRichModal("music") },
         { icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--c-text)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0Z" /><circle cx="12" cy="10" r="3" /></svg>, label: "线下模式", onClick: onToggleOfflineMode },
         { icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--c-text)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></svg>, label: "照片墙", onClick: () => onOpenRichModal("photo") },
+        { icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--c-text)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" /><circle cx="12" cy="13" r="4" /></svg>, label: "回忆", onClick: () => { onClosePanels(); onOpenMemoryPanel(); } },
+        { icon: <EyeOff size={22} strokeWidth={1.5} color={whisperMode ? "var(--c-icon-active)" : "var(--c-text)"} />, label: "悄悄话", active: whisperMode, onClick: () => { onClosePanels(); onToggleWhisperMode(); } },
         { icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--c-text)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2" /><line x1="7" y1="8" x2="17" y2="8" /><line x1="7" y1="12" x2="14" y2="12" /><line x1="7" y1="16" x2="11" y2="16" /></svg>, label: "文字图片", onClick: () => onOpenRichModal("text_photo") },
         { icon: <DrawingGlyph />, label: "绘图", onClick: () => onOpenRichModal("drawing") },
         { icon: <AlertCircle size={22} strokeWidth={1.5} color="var(--c-text)" />, label: "系统指令", onClick: () => onOpenRichModal("system_instruction") },
@@ -766,6 +775,14 @@ const ChatTextInputBar = memo(forwardRef<ChatTextInputHandle, {
                     >
                         <X size={14} strokeWidth={2} />
                     </button>
+                </div>
+            )}
+            {whisperMode && (
+                <div className="chat-theater-mode-strip" data-whisper="" role="status">
+                    <span className="chat-theater-mode-icon" aria-hidden="true"><EyeOff size={16} strokeWidth={1.8} /></span>
+                    <span className="chat-theater-mode-title">悄悄话模式</span>
+                    <span className="chat-whisper-strip-hint">发送后会蒙雾，轻触才显示</span>
+                    <button type="button" className="chat-theater-mode-close" onClick={onToggleWhisperMode} aria-label="关闭悄悄话模式"><X size={14} strokeWidth={2} /></button>
                 </div>
             )}
             {quotingMessage && (
@@ -1100,6 +1117,8 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
     const [isGenerating, setIsGenerating] = useState(false);
     const [offlineMode, setOfflineMode] = useState(false);
     const [theaterMode, setTheaterMode] = useState(() => kvGet(CHAT_THEATER_MODE_PREFIX + session.id) === "1");
+    const [whisperMode, setWhisperMode] = useState(false);
+    const [showMemoryPanel, setShowMemoryPanel] = useState(false);
     const [offlineTurns, setOfflineTurns] = useState<ChatOfflineTurn[]>([]);
     const [offlineVisibleCount, setOfflineVisibleCount] = useState(OFFLINE_INITIAL_LOAD);
     const [pendingOfflineUserText, setPendingOfflineUserText] = useState("");
@@ -3994,7 +4013,9 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
                 content: currentText,
                 mediaType: diceOnly ? "dice" : isQuoting ? "quote" : undefined,
                 mediaData: diceOnly ? { diceFace } : isQuoting ? quoteData : undefined,
+                ...(whisperMode ? { whisper: true } : {}),
             });
+            if (whisperMode) setWhisperMode(false);
 
             setMessages(prev => [...prev, newMsg]);
             if (diceOnly) {
@@ -6257,6 +6278,7 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
 	                muteUntilMs={session.isGroup && session.groupMutes?.[GROUP_SELF_KEY] ? new Date(session.groupMutes[GROUP_SELF_KEY]).getTime() : 0}
 	                isGenerating={isGenerating}
 	                theaterMode={theaterMode}
+	                whisperMode={whisperMode}
 	                enterToSendEnabled={enterToSendEnabled}
 	                quotingMessage={quotingMessage}
                 showEmojiPanel={showEmojiPanel}
@@ -6271,6 +6293,8 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
 	                onTogglePlusMenu={() => { setShowPlusMenu(!showPlusMenu); setShowEmojiPanel(false); setShowStickerPanel(false); }}
 	                onToggleTheaterMode={toggleTheaterMode}
 	                onCloseTheaterMode={closeTheaterMode}
+	                onToggleWhisperMode={() => setWhisperMode(v => !v)}
+	                onOpenMemoryPanel={() => setShowMemoryPanel(true)}
 	                onOpenRichModal={(modal) => { setShowPlusMenu(false); setRichModal(modal); }}
                 onOpenCustomPlusAction={handleOpenCustomPlusAction}
                 onStartVideoCall={() => { cancelFollowUp(session.id); setShowPlusMenu(false); setCallInitiator("user"); setShowVideoCall(true); }}
@@ -6788,6 +6812,18 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
                 <GeneratedImageErrorDialog
                     message={imageGenerationFailure}
                     onClose={() => setImageGenerationFailure(null)}
+                />
+            )}
+
+            {showMemoryPanel && (
+                <ChatMemoryPanel
+                    session={session}
+                    characterName={character?.name || "对方"}
+                    onClose={() => setShowMemoryPanel(false)}
+                    onCheckInMessage={(content) => {
+                        const sysMsg = pushChatMessage({ sessionId: session.id, role: "system", content });
+                        setMessages(prev => [...prev, sysMsg]);
+                    }}
                 />
             )}
 

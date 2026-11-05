@@ -10,7 +10,7 @@ import {
 } from "./settings-storage";
 import type { ApiConfig, PresetConfig, RegexConfig, WorldBookConfig } from "./settings-types";
 import { assemblePromptPayload, type LLMMessage } from "./llm-prompt-assembler";
-import { previewMessagesForApi, sendLLMRequest, ChatEngineError } from "./chat-engine";
+import { previewMessagesForApi, sendLLMRequestPreferStream, ChatEngineError } from "./chat-engine";
 import { loadMemoryConfig } from "./memory-storage";
 import { retrieveCoreMemoriesForPrompt, retrieveMemoriesForPrompt } from "./memory-service";
 import { formatCoreMemories, formatLongTermMemories } from "./memory-injector";
@@ -151,7 +151,7 @@ export async function generateStoryCompletion(
   const userIdentity = resolveUserIdentity(characterId, "story");
   const macroEngine = new MacroEngine(character.name, userIdentity?.name ?? "用户");
 
-  const rawOutput = await sendLLMRequest(apiConfig, preset, llmMessages, regexes, {
+  const rawOutput = await sendLLMRequestPreferStream(apiConfig, preset, llmMessages, regexes, {
     characterName: character.name,
   }, { skipOutputRegex: true, includeReasoning: true, appId: "story", appTags: ["story"], signal: options?.signal });
 

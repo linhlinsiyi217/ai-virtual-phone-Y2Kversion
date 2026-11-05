@@ -14,14 +14,6 @@ export type MusicLyricChatSharePayload = {
     title: string;
     artist: string;
     lyric: string;
-    authorName?: string;
-    body?: string;
-    description?: string;
-    noteType?: "post" | "video";
-    tags?: string[];
-    imageAssetId?: string;
-    coverIcon?: string;
-    tone?: string;
 };
 
 export type XiaohongshuNoteChatSharePayload = {
