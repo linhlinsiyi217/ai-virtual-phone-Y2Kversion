@@ -2176,3 +2176,14 @@ function isRuntimeIndexItem(value: unknown): value is WeixinCloudRuntimeIndexIte
     && typeof item.updatedAt === "string"
   );
 }
+
+/**
+ * 换设备重连用的部署探测：微信云函数没有健康检查接口，但部署流程一定会把
+ * cron 密钥写进备份桶（见 ensureWeixinCloudCronSecret）——桶里有这个对象，
+ * 就说明该项目部署过微信接入。
+ */
+export async function probeWeixinCloudDeployed(): Promise<boolean> {
+  const config = requireCloudBackupConfig();
+  const existing = await getObject(config, WEIXIN_CLOUD_CRON_SECRET_PATH);
+  return Boolean(existing);
+}
