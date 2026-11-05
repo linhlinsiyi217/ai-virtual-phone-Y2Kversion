@@ -48,7 +48,7 @@ export type TxtDecodeResult = {
     encoding: string;
 };
 
-const TXT_DECODER_CANDIDATES = ["utf-8", "gb18030", "gbk", "big5", "utf-16le", "utf-16be"];
+const TXT_DECODER_CANDIDATES = ["utf-8", "gb18030", "gbk", "big5", "shift_jis", "utf-16le", "utf-16be"];
 
 function decodeWithEncoding(buffer: ArrayBuffer, encoding: string): string | null {
     try {
@@ -124,6 +124,27 @@ export function decodeTxtArrayBuffer(buffer: ArrayBuffer, preferredEncoding?: st
     return best ?? { text: decodeWithEncoding(buffer, "utf-8") ?? "", encoding: "utf-8" };
 }
 
+// ── Oversize chapter splitting（G7 大文件分片）──
+// 无标题的超长 TXT（整本一本书一个"全文"章）和超长单章会让 IndexedDB 单条记录
+// 巨大、批注/讨论把整章发给模型也会爆 token。超过阈值的章节按段落数切成
+// "（N/M）"子章；标题来自原文行首的自动提取，不丢内容。
+
+/** 单个子章的最大段落数（约 8k-12k 字，兼顾阅读节奏与存储粒度） */
+const MAX_PARAGRAPHS_PER_SLICE = 200;
+
+function sliceOversizeChapter(title: string, paragraphs: string[]): ParsedChapter[] {
+    if (paragraphs.length <= MAX_PARAGRAPHS_PER_SLICE) return [{ title, paragraphs }];
+    const slices: ParsedChapter[] = [];
+    const total = Math.ceil(paragraphs.length / MAX_PARAGRAPHS_PER_SLICE);
+    for (let i = 0; i < total; i += 1) {
+        slices.push({
+            title: `${title}（${i + 1}/${total}）`,
+            paragraphs: paragraphs.slice(i * MAX_PARAGRAPHS_PER_SLICE, (i + 1) * MAX_PARAGRAPHS_PER_SLICE),
+        });
+    }
+    return slices;
+}
+
 // ── Chapter heading patterns ──
 const CHAPTER_PATTERNS = [
     /^第[零一二三四五六七八九十百千\d]+[章节回卷集篇]/,       // 第X章, 第X节, 第X回...
@@ -183,10 +204,7 @@ export function parseTxtContent(text: string, fileName?: string, mode: TxtParagr
     if (chapterStarts.length === 0) {
         return {
             title: bookTitle,
-            chapters: [{
-                title: "全文",
-                paragraphs: splitParagraphs(trimBlankEdges(lines), resolvedMode),
-            }],
+            chapters: sliceOversizeChapter("全文", splitParagraphs(trimBlankEdges(lines), resolvedMode)),
         };
     }
 
@@ -198,7 +216,7 @@ export function parseTxtContent(text: string, fileName?: string, mode: TxtParagr
         const chapterLines = trimBlankEdges(lines.slice(start, end));
         const paragraphs = splitParagraphs(chapterLines, resolvedMode);
         if (paragraphs.length > 0) {
-            chapters.push({ title: chapterStarts[i].title, paragraphs });
+            chapters.push(...sliceOversizeChapter(chapterStarts[i].title, paragraphs));
         }
     }
 
@@ -207,7 +225,7 @@ export function parseTxtContent(text: string, fileName?: string, mode: TxtParagr
         const prologueLines = trimBlankEdges(lines.slice(0, chapterStarts[0].lineIdx));
         const paragraphs = splitParagraphs(prologueLines, resolvedMode);
         if (paragraphs.length > 0) {
-            chapters.unshift({ title: "序", paragraphs });
+            chapters.unshift(...sliceOversizeChapter("序", paragraphs));
         }
     }
 

@@ -17,6 +17,7 @@ import { PhonePlaceholderApp } from "@/components/phone-placeholder-app";
 import MusicApp from "@/components/music/music-app";
 import MusicPlayer from "@/components/music/music-player";
 import MusicFloat from "@/components/music/music-float";
+import DesktopLyrics from "@/components/music/desktop-lyrics";
 import { ListeningGlow } from "@/components/music/listening-glow";
 import ShareDestinationSheet from "@/components/chat/share-destination-sheet";
 import QuickReplyWindow from "@/components/chat/quick-reply-window";
@@ -35,6 +36,8 @@ import { VnApp } from "@/components/vn/vn-app";
 import ReadingApp from "@/components/reading/reading-app";
 import { XApp } from "@/components/x/x-app";
 import { DeepTalkApp } from "@/components/deep-talk/deep-talk-app";
+import { StoryPlusApp } from "@/components/storyplus/storyplus-app";
+import { DesktopPetApp } from "@/components/desktoppet/desktoppet-app";
 import { PerceptionBootstrap } from "@/components/perception/perception-bootstrap";
 import StudyRoomApp from "@/components/study-room/study-room-app";
 import MapApp from "@/components/map/map-app";
@@ -50,6 +53,8 @@ import { CheckPhoneApp } from "@/components/checkphone/checkphone-app";
 import { ShoppingApp } from "@/components/shopping/shopping-app";
 import { GameHubApp } from "@/components/game/game-hub-app";
 import { MixologyApp } from "@/components/mixology/mixology-app";
+import LifesimApp from "@/components/lifesim/lifesim-app";
+import { KuaichuanApp } from "@/components/kuaichuan/kuaichuan-app";
 import InterviewMagazineApp from "@/components/interview/interview-magazine-app";
 import { CoCreateApp } from "@/components/cocreate/cocreate-app";
 import { PhotoAlbumApp } from "@/components/photo-album/photo-album-app";
@@ -64,6 +69,7 @@ import { hydrateVnStorage } from "@/lib/vn-storage";
 import { hydrateSettingsDb } from "@/lib/settings-db";
 import { hydrateDwellingStorage } from "@/lib/dwelling-storage";
 import { hydrateCheckPhoneStorage } from "@/lib/checkphone-storage";
+import { ensureMiyaDeepAppsInstalled } from "@/lib/miya-deep-apps";
 import {
   DOCK_DEFAULT,
   ICONS,
@@ -148,6 +154,7 @@ import { generateChatCompletion, flattenCompletionResult } from "@/lib/chat-engi
 import { parseAIResponse } from "@/lib/rich-message-parser";
 import { requestBackgroundChatReply, scheduleFollowUp } from "@/lib/follow-up-service";
 import { CHAT_MESSAGE_NOTICE_EVENT, CHAT_OPEN_SESSION_EVENT, type ChatMessageNoticeDetail } from "@/lib/chat-notification-events";
+import { recordChatNotice } from "@/lib/notice-history";
 import { startIncomingCallVibration } from "@/lib/call-vibration";
 import { setMascotContext } from "@/lib/mascot-context";
 import { DESKTOP_WIDGETS_CHANGED_EVENT } from "@/lib/mascot-events";
@@ -1055,6 +1062,7 @@ const MusicShellOverlays = memo(function MusicShellOverlays({
       <CallLayer />
       {musicPlayer?.showFullPlayer && musicPlayer.currentTrack && <MusicPlayer />}
       <MusicFloat hidden={activeApp === "music" || musicPlayer?.showFullPlayer} />
+      <DesktopLyrics hidden={activeApp === "music"} />
       <ListeningGlow />
     </>
   );
@@ -1531,6 +1539,10 @@ export function DesktopShell({ initialThemeProfile, initialThemeAssets }: Deskto
       }
       setLayout(createDefaultDesktopIconLayout(hydratedWidgets));
       setDesktopReady(true);
+    }).then(() => {
+      // G12：首启把 Miya 深入 App（备忘/待办/健康/云盘/浏览器/外卖/相册）
+      // 按自定义 App 格式装好并摆上桌面；已装过的自动跳过，可正常卸载。
+      ensureMiyaDeepAppsInstalled();
     });
   }, []);
 
@@ -2581,6 +2593,16 @@ html,body{margin:0;padding:0;width:100%;height:100%;background:#121110;color:rgb
       const title = detailSenderName && detailSenderName !== "对方"
         ? detailSenderName
         : (isGroup ? session.groupName || "群聊" : session.alias || char?.name || "新消息");
+
+      if (!detail.isTest) {
+        recordChatNotice({
+          sessionId: detail.sessionId,
+          senderName: title,
+          body: detail.body.trim(),
+          avatar: char ? char.avatar : detail.avatar ?? null,
+          isGroup,
+        });
+      }
 
       if (chatMessageNoticeTimerRef.current !== null) {
         window.clearTimeout(chatMessageNoticeTimerRef.current);
@@ -4127,6 +4149,14 @@ html,body{margin:0;padding:0;width:100%;height:100%;background:#121110;color:rgb
       return <DeepTalkApp onClose={() => setActiveApp(null)} onNotice={setNotice} onOpenChatSession={openChatSessionFromNotice} />;
     }
 
+    if (activeApp === "storyplus") {
+      return <StoryPlusApp onClose={() => setActiveApp(null)} onNotice={setNotice} onOpenStoryApp={() => setActiveApp("story")} onOpenChatSession={openChatSessionFromNotice} />;
+    }
+
+    if (activeApp === "desktoppet") {
+      return <DesktopPetApp onClose={() => setActiveApp(null)} onNotice={setNotice} onOpenChatSession={openChatSessionFromNotice} />;
+    }
+
     if (activeApp === "studyroom") {
       return <StudyRoomApp onClose={() => setActiveApp(null)} />;
     }
@@ -4154,6 +4184,14 @@ html,body{margin:0;padding:0;width:100%;height:100%;background:#121110;color:rgb
 
     if (activeApp === "mixology") {
       return <MixologyApp onClose={() => setActiveApp(null)} />;
+    }
+
+    if (activeApp === "lifesim") {
+      return <LifesimApp onClose={() => setActiveApp(null)} />;
+    }
+
+    if (activeApp === "kuaichuan") {
+      return <KuaichuanApp onClose={() => setActiveApp(null)} />;
     }
 
     if (activeApp === "appmarket") {

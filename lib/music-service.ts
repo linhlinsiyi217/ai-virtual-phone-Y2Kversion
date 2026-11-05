@@ -391,15 +391,35 @@ export async function getUserPlaylists(): Promise<NeteasePlaylist[]> {
     } catch { return []; }
 }
 
-/** Fetch tracks in a playlist */
-export async function getPlaylistTracks(playlistId: number): Promise<NeteaseSearchResult[]> {
+export type NeteaseTrackListError = {
+    kind: "auth" | "unavailable";
+    message: string;
+};
+
+/** Fetch tracks in a playlist and preserve the real failure reason for callers. */
+export async function getPlaylistTracksDetailed(
+    playlistId: number,
+): Promise<{ tracks: NeteaseSearchResult[]; error: NeteaseTrackListError | null }> {
     const base = neteaseBase();
-    if (!base) return [];
+    if (!base) return { tracks: [], error: null };
     try {
         const resp = await fetch(withNeteaseParams(`${base}/playlist/track/all?id=${playlistId}&timestamp=${Date.now()}`));
+        if (!resp.ok) return { tracks: [], error: { kind: "unavailable", message: `歌单服务响应异常（HTTP ${resp.status}）` } };
         const data = await resp.json();
-        return (data?.songs || []).map(mapSongToSearchResult);
-    } catch { return []; }
+        const code = typeof data?.code === "number" ? data.code : 200;
+        if (code === 301 || code === 401 || code === 403) {
+            return { tracks: [], error: { kind: "auth", message: "需要登录网易云账号才能打开这个歌单" } };
+        }
+        const songs = Array.isArray(data?.songs) ? data.songs : [];
+        return { tracks: songs.map(mapSongToSearchResult), error: null };
+    } catch {
+        return { tracks: [], error: { kind: "unavailable", message: "歌单服务暂时不可用（API 请求失败或离线）" } };
+    }
+}
+
+export async function getPlaylistTracks(playlistId: number): Promise<NeteaseSearchResult[]> {
+    const { tracks } = await getPlaylistTracksDetailed(playlistId);
+    return tracks;
 }
 
 export async function getDailyRecommendSongs(): Promise<NeteaseSearchResult[]> {

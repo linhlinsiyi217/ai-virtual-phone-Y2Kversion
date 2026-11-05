@@ -29,7 +29,7 @@ export type MusicState = {
 
 export type MusicActions = {
     playTrack: (track: MusicTrack) => void;
-    playUrl: (url: string, track: MusicTrack) => void; // play from URL (online streams)
+    playUrl: (url: string, track: MusicTrack) => Promise<boolean>; // play from URL (online streams)
     pause: () => void;
     resume: () => void;
     togglePlay: () => void;
@@ -244,9 +244,9 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     }, [loadAndPlay]);
 
     /** Play from a direct URL (for online streaming) */
-    const playUrl = useCallback((url: string, track: MusicTrack) => {
+    const playUrl = useCallback(async (url: string, track: MusicTrack): Promise<boolean> => {
         const audio = audioRef.current;
-        if (!audio) return;
+        if (!audio) return false;
         setFloatDismissed(false);
         cleanupBlobUrl();
         audio.pause();
@@ -254,7 +254,12 @@ export function MusicProvider({ children }: { children: ReactNode }) {
         audioTrackId.current = track.id;
         setCurrentTrack(track);
         setCurrentTime(0);
-        audio.play().catch(() => {});
+        try {
+            await audio.play();
+            return true;
+        } catch {
+            return false;
+        }
     }, [cleanupBlobUrl]);
 
     const pause = useCallback(() => {

@@ -4,6 +4,7 @@ import { useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { ChevronLeft, Check, Pencil, Smile, Eraser } from "lucide-react";
 import type { ChatPhotoAnnotation } from "@/lib/chat-storage";
+export type { ChatPhotoAnnotation } from "@/lib/chat-storage";
 
 export function PhotoMarkupEditor({ imageUrl, fallbackText, initial, onSave, onClose, renderLayer }: {
     imageUrl?: string; fallbackText?: string; initial?: ChatPhotoAnnotation[];

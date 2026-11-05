@@ -27,6 +27,7 @@ import { ListeningPlayerPresence, useListeningPresence } from "./listening-prese
 import MusicCommentsPage from "./music-comments";
 import MusicArtistPage from "./music-artist";
 import { loadMusicBg, playerBgStyle, MUSIC_BG_EVENT, type MusicBgConfig } from "@/lib/music-bg";
+import { DESKTOP_LYRICS_EVENT, isDesktopLyricsEnabled, setDesktopLyricsEnabled } from "@/lib/music-lyrics";
 
 const PLAY_MODE_ICONS: Record<PlayMode, { svg: string; label: string }> = {
     sequence: {
@@ -143,6 +144,18 @@ export default function MusicPlayer() {
             }, duration);
         }
     }, []);
+
+    const [desktopLyricsOn, setDesktopLyricsOn] = useState(() => isDesktopLyricsEnabled());
+    useEffect(() => {
+        const sync = () => setDesktopLyricsOn(isDesktopLyricsEnabled());
+        window.addEventListener(DESKTOP_LYRICS_EVENT, sync);
+        return () => window.removeEventListener(DESKTOP_LYRICS_EVENT, sync);
+    }, []);
+    const toggleDesktopLyrics = useCallback(() => {
+        const next = !isDesktopLyricsEnabled();
+        setDesktopLyricsEnabled(next);
+        showMusicToast(next ? "桌面歌词已开启" : "桌面歌词已关闭");
+    }, [showMusicToast]);
 
     const beginMusicLoadingToast = useCallback((trackId: string) => {
         if (musicToastTimerRef.current) clearTimeout(musicToastTimerRef.current);
@@ -693,6 +706,9 @@ export default function MusicPlayer() {
                     </svg>
                 </button>
                 <button className="music-player-ctrl-btn mp-ctrl-side mp-share-button" aria-label="分享到聊天" title="分享到聊天" onClick={openShareViaChat}><svg aria-hidden="true" width="28" height="28" viewBox="0 0 28 28" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M5.5 20a11 11 0 1 1 17 0M8.2 17.6a7.5 7.5 0 1 1 11.6 0M10.8 15.2a4 4 0 1 1 6.4 0" /><path d="m14 15 7.5 10H6.5z" fill="currentColor" stroke="none" /></svg></button>
+                <button className="music-player-ctrl-btn mp-ctrl-side" aria-label={desktopLyricsOn ? "关闭桌面歌词" : "开启桌面歌词"} title={desktopLyricsOn ? "关闭桌面歌词" : "开启桌面歌词"} data-on={desktopLyricsOn ? "" : undefined} onClick={toggleDesktopLyrics}>
+                    <svg aria-hidden="true" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M4 6h16M4 12h10"/><path d="M19 15l2 2-2 2M15 17h4"/></svg>
+                </button>
                 <button
                     className="music-player-ctrl-btn mp-ctrl-side"
                     onClick={() => setShowQueue(true)}
