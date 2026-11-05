@@ -24,6 +24,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # 部署前先检查更新日志：版本号必须和 package.json 一致，旧记录不许改写
+      - name: Check changelog
+        run: node scripts/check-changelog.mjs
+
       - uses: actions/setup-java@v4
         with:
           distribution: temurin

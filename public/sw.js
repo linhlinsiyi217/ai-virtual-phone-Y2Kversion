@@ -1,4 +1,4 @@
-const CACHE_VERSION = "ai-phone-pwa-v12";
+const CACHE_VERSION = "ai-phone-pwa-v13";
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
@@ -38,6 +38,8 @@ function isCacheableRequest(request) {
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return false;
   if (url.pathname.startsWith("/api/")) return false;
+  // 版本文件与更新日志必须每次联网取最新，不能进离线缓存
+  if (url.pathname === "/version.json" || url.pathname === "/update-log.json") return false;
   if (url.pathname.startsWith("/_next/static/")) return true;
   return ["font", "image", "script", "style", "worker"].includes(request.destination);
 }
