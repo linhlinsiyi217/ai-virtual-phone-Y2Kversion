@@ -1,0 +1,36 @@
+/* 全局设计 token（黑白界面规范 v1）——所有页面共用，禁止各自发明颜色与圆角 */
+:root {
+  --ui-bg: #ffffff;
+  --ui-ink: #0a0a0a;
+  --ui-muted: #6e6e73;
+  --ui-group: #f2f2f4;
+  --ui-line: #d9d9de;
+  --ui-green: #30d158;
+
+  --ui-radius-group: 24px;
+  --ui-space-page: 16px;
+  --ui-space-group: 24px;
+  --ui-space-row: 14px;
+
+  --ui-font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --ui-fs-display: 36px;
+  --ui-lh-display: 42px;
+  --ui-fs-nav: 17px;
+  --ui-lh-nav: 22px;
+  --ui-fs-section: 12px;
+  --ui-lh-section: 16px;
+  --ui-fs-row: 17px;
+  --ui-lh-row: 24px;
+  --ui-fs-body: 14px;
+  --ui-lh-body: 21px;
+  --ui-fs-hint: 12px;
+  --ui-lh-hint: 18px;
+}
+
+.dark {
+  --ui-bg: #0b0b0c;
+  --ui-ink: #f5f5f7;
+  --ui-muted: #a1a1a6;
+  --ui-group: #1c1c1f;
+  --ui-line: #2c2c30;
+}
