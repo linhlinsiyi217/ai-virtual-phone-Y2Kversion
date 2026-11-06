@@ -1,4 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">float-Yyk</string>
+    <string name="phone_widget_desc">桌面小组件：显示角色发来的最新消息</string>
+    <string name="accessibility_service_description">用于让角色看到你当前在用的应用界面，并在切换应用时把通话/聊天浮窗保持在最前。只读取界面结构，不上传屏幕内容。</string>
+    <string name="accessibility_service_summary">让浮窗在切换应用后仍然置顶，并支持角色感知当前界面</string>
 </resources>
