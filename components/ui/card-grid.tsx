@@ -25,11 +25,36 @@ export function CardGrid({
   items,
   label,
   labelClassName,
+  variant = "grid",
 }: {
   items: CardItem[];
   label?: string;
   labelClassName?: string;
+  /** grid = 原来的双列卡片；list = iOS 式分组列表（无彩色图标、发丝分隔线） */
+  variant?: "grid" | "list";
 }) {
+  if (variant === "list") {
+    return (
+      <div>
+        {label && <h3 className="settings-list-section">{label}</h3>}
+        <div className="settings-list-group">
+          {items.map((item) => {
+            const Icon = item.icon;
+            return (
+              <button key={item.id} className="settings-list-row" type="button" onClick={item.onClick}>
+                <span className="settings-list-icon"><Icon size={19} strokeWidth={1.6} /></span>
+                <span className="settings-list-copy">
+                  <span className="settings-list-label">{item.label}</span>
+                  {item.desc && <span className="settings-list-desc">{item.desc}</span>}
+                </span>
+                <ChevronRight size={16} strokeWidth={1.5} className="settings-list-chevron" aria-hidden="true" />
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
   return (
     <div>
       {label && <h3 className={labelClassName ?? "card-section-label"}>{label}</h3>}

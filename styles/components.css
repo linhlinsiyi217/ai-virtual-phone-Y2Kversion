@@ -5524,3 +5524,73 @@
   :is(.menu-item, .ctx-menu-btn, .chat-plus-menu-item,
       .imessage-header-call-option, .mp-option) { transition: none; }
 }
+
+/* ── 设置首页：iOS 式黑白分组列表 ───────────────────────────── */
+.settings-list-section {
+  margin: 26px 0 8px 4px;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--c-text-muted, #8a8a8f);
+}
+.settings-list-group {
+  background: var(--c-card, #fff);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 0 0 .5px var(--c-card-border, rgba(0,0,0,.08));
+}
+.settings-list-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 13px 16px;
+  background: transparent;
+  border: 0;
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
+  transition: background-color .16s ease, transform var(--ui-spring-duration, 420ms) cubic-bezier(.22, 1.6, .32, 1);
+}
+.settings-list-row + .settings-list-row {
+  border-top: .5px solid var(--c-card-border, rgba(0,0,0,.08));
+}
+.settings-list-row:active {
+  background: rgba(0, 0, 0, .045);
+  transform: scale(.994);
+}
+.settings-list-icon {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  background: rgba(0, 0, 0, .05);
+  color: var(--c-text-title, #111);
+  flex: none;
+}
+.settings-list-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+.settings-list-label {
+  font-size: 15.5px;
+  font-weight: 600;
+  letter-spacing: -.01em;
+  color: var(--c-text-title, #111);
+}
+.settings-list-desc {
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--c-text-muted, #8a8a8f);
+}
+.settings-list-chevron {
+  color: var(--c-text-muted, #b4b4b8);
+  flex: none;
+}
+.dark .settings-list-icon { background: rgba(255, 255, 255, .08); }
+.dark .settings-list-row:active { background: rgba(255, 255, 255, .06); }

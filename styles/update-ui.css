@@ -835,3 +835,7 @@
     scroll-behavior: auto;
   }
 }
+
+/* 公告条目：主句 + 一句小解释 */
+.uui-row-copy { display: flex; flex-direction: column; gap: 3px; line-height: 1.45; }
+.uui-row-copy small { font-size: 11.5px; color: var(--uui-mute2, #8a8a8f); font-weight: 400; }

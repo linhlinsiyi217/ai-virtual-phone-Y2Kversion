@@ -36,7 +36,10 @@ export function UpdateNoticeCard({
             return (
               <div className="uui-row" key={`${line.type}-${index}`}>
                 <i className={`uui-chip ${meta.cls}`}>{meta.label}</i>
-                <span>{line.text}</span>
+                <span className="uui-row-copy">
+                  {line.text}
+                  {line.sub && <small>{line.sub}</small>}
+                </span>
               </div>
             );
           })}

@@ -431,44 +431,25 @@ export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
                             </button>
                         )}
                         <CardGrid
-                            label="API Config"
-                            labelClassName="settings-menu-section-title"
-                            items={SETTINGS_MENU.filter(item => ["api", "voice"].includes(item.id)).map(makeCardItem)}
+                            variant="list"
+                            label="接口"
+                            items={SETTINGS_MENU.filter(item => ["api", "voice", "imageGeneration"].includes(item.id)).map(makeCardItem)}
                         />
-                        <div className="settings-data-rules-section">
-                            <h3 className="settings-menu-section-title">Data & Rules</h3>
-                            <div className="mt-[10px] flex flex-col gap-3">
-                                <CardGrid
-                                    items={SETTINGS_MENU.filter(item => ["presets", "worldbook", "regex", "data"].includes(item.id)).map(makeCardItem)}
-                                />
-                                <FeaturedCard item={bindingFeaturedItem} />
-                            </div>
-                        </div>
-                        <div className="settings-image-generation-section">
-                            <h3 className="settings-menu-section-title">Image Generation</h3>
-                            <div className="mt-[10px]">
-                                <FeaturedCard item={imageGenerationFeaturedItem} />
-                            </div>
-                        </div>
-                        <div>
-                            <h3 className="settings-menu-section-title">Connections</h3>
-                            <div className="mt-[10px]">
-                                <FeaturedCard item={cloudFeaturedItem} />
-                            </div>
-                            <div className="mt-[10px]">
-                                <CardGrid
-                                    items={SETTINGS_MENU.filter(item => ["weixin", "toolbox"].includes(item.id)).map(makeCardItem)}
-                                />
-                            </div>
-                            <div className="mt-[10px]">
-                                <FeaturedCard item={agentComputerFeaturedItem} />
-                            </div>
-                            <div className="mt-[10px]">
-                                <CardGrid
-                                    items={SETTINGS_MENU.filter(item => ["callOverlay", "perception", "deviceAction", "systemCalendar", "screenshot", "widget"].includes(item.id)).map(makeCardItem)}
-                                />
-                            </div>
-                        </div>
+                        <CardGrid
+                            variant="list"
+                            label="数据与规则"
+                            items={SETTINGS_MENU.filter(item => ["presets", "worldbook", "regex", "data", "binding"].includes(item.id)).map(makeCardItem)}
+                        />
+                        <CardGrid
+                            variant="list"
+                            label="连接"
+                            items={SETTINGS_MENU.filter(item => ["cloud", "weixin", "toolbox", "agentComputer"].includes(item.id)).map(makeCardItem)}
+                        />
+                        <CardGrid
+                            variant="list"
+                            label="运行"
+                            items={SETTINGS_MENU.filter(item => ["callOverlay", "perception", "deviceAction", "systemCalendar", "screenshot", "widget"].includes(item.id)).map(makeCardItem)}
+                        />
                         <div className="settings-realtime-section">
                             <h3 className="settings-menu-section-title">Runtime</h3>
                             <div className="app-card card-featured settings-toggle-card">
@@ -551,8 +532,8 @@ export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
                             </div>
                         </div>
                         <CardGrid
-                            label="User"
-                            labelClassName="settings-menu-section-title"
+                            variant="list"
+                            label="账号"
                             items={SETTINGS_MENU.filter(item => ["identity", "about"].includes(item.id)).map(makeCardItem)}
                         />
                         {accountSheetOpen && (
