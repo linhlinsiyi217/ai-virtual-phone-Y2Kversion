@@ -235,6 +235,14 @@ const PRIMARY_DATA_MODULES: DataModuleDefinition[] = [
     ],
   },
   {
+    id: "favorites",
+    label: "收藏",
+    description: "全部聊天、剧情和动态收藏，包含语音、图片等媒体",
+    variant: "action",
+    large: true,
+    sources: [{ type: "indexeddb", dbName: "AiPhoneFavoritesDB", label: "收藏记录" }],
+  },
+  {
     id: "apps",
     label: "内容应用",
     description: "日历、日记、购物、余额、阅读、音乐、经期记录与应用偏好",

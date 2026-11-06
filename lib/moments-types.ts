@@ -2,6 +2,10 @@
 // Type definitions for the Moments (朋友圈) feature.
 
 export type MomentPost = {
+    /** 云端归属账号（收藏夹等跨设备功能用）；本地动态可能没有。 */
+    chatAccountId?: string;
+    /** 发布者身份 id（收藏夹按身份归档用）。 */
+    userIdentityId?: string;
     id: string;                     // "moment_timestamp_random"
     authorType: "user" | "character";
     authorId: string;               // characterId or "user"

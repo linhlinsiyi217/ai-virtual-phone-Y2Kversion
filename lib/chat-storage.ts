@@ -39,6 +39,8 @@ export type ChatContact = {
 };
 
 export type ChatSession = {
+    /** 云端归属账号（收藏夹等跨设备功能用）；本地会话可能没有。 */
+    chatAccountId?: string;
     bubbleColors?: import("./chat-bubble-colors").BubbleColors;
     /** Character avatars as shown inside this chat app only. Character profiles keep their own avatar. */
     characterAvatars?: Record<string, string | null>;

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import {
   AlertTriangle,
   Archive,
+  Bookmark,
   Brain,
   Database,
   Download,
@@ -99,6 +100,7 @@ const MODULE_ICONS: Record<DataModuleId, LucideIcon> = {
   desktop: Palette,
   memory: Brain,
   social: UsersRound,
+  favorites: Bookmark,
   apps: Smartphone,
   resource_hub: Store,
   creative: Sparkles,
@@ -112,6 +114,7 @@ const MODULE_ACCENTS: Record<DataModuleId, string> = {
   desktop: BINDING_ACCENTS.voice,
   memory: BINDING_ACCENTS.memory,
   social: CONTENT_APP_ACCENTS.moments,
+  favorites: BINDING_ACCENTS.api,
   apps: CONTENT_APP_ACCENTS.calendar,
   resource_hub: CONTENT_APP_ACCENTS.shopping,
   creative: CONTENT_APP_ACCENTS.story,

@@ -156,6 +156,9 @@ export type BackupOptions = {
   scope?: "current" | "all";
   /** Strip embedded images/audio/video (keeps text/config/structure + avatars). */
   excludeMedia?: boolean;
+  /** 只导出收藏相关的数据（收藏应用单独导出用）。
+   *  TODO: 目前仅接收参数、不做过滤——导出转换器尚未接入，导出结果会包含该模块全部记录。 */
+  favoriteEntity?: unknown;
 };
 
 // Modules whose media is kept even in "exclude media" mode (avatars are identity).

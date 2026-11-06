@@ -801,3 +801,6 @@ export async function clearSource(source: DataSource): Promise<ClearResult> {
   }
   return result;
 }
+
+/** Runs after the read transaction ends; undefined skips a record. */
+export type ExportRecordTransform = (value: unknown, storeName: string) => Promise<unknown>;

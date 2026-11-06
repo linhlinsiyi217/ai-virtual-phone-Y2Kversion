@@ -29,6 +29,12 @@ const MEDIA_MIN_LENGTH = 2048;
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && Object.getPrototypeOf(value) === Object.prototype;
 }
+/** A portable URL value; unlike Blob encoding, restores directly into img/audio src. */
+export async function serializeMediaUrl(blob: Blob, collector?: MediaCollector): Promise<unknown> {
+  if (!collector) return blobToDataUrl(blob);
+  return { [MEDIA_REF_MARKER]: true, mimeType: blob.type, ref: await collector.add(blob), encoding: "dataurl" } satisfies SerializedMediaRef;
+}
+
 
 function blobToDataUrl(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
