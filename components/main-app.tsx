@@ -9,7 +9,7 @@ import { RealityBridgeScheduler } from "@/components/reality-bridge-scheduler";
 import { MediaMaintenanceScheduler } from "@/components/media-maintenance-scheduler";
 import { DesktopShell } from "./desktop-shell";
 import { OfflinePushRevampAnnouncement } from "./offline-push-revamp-announcement";
-import { UpdateNotice } from "./update-log/update-notice";
+import { UpdateCenter } from "./update-log/update-center";
 import { SplashAnimation } from "./splash-animation";
 import { MusicProvider } from "@/lib/music-context";
 import { hydrateKvDb } from "@/lib/kv-db";
@@ -299,7 +299,7 @@ export function MainApp({ resumeAfterIdentitySwitch = false }: { resumeAfterIden
               initialThemeAssets={preparedDesktopTheme?.assets}
             />
             <OfflinePushRevampAnnouncement />
-            <UpdateNotice />
+            <UpdateCenter />
             <CloudBackupScheduler />
             <RealityBridgeScheduler />
             <MediaMaintenanceScheduler />

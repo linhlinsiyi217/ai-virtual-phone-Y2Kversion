@@ -15,7 +15,6 @@ import { RegexManager } from "./settings/regex-manager";
 import { DataManagement } from "./settings/data-management";
 import { UserIdentitySettings } from "./settings/user-identity";
 import { ChangelogPage } from "./update-log/changelog-page";
-import { useReleaseList } from "@/lib/update-log/update-service";
 import { BindingManager } from "./settings/binding-manager";
 import { WeixinSettings } from "./settings/weixin-settings";
 import { CloudServicesPage } from "./settings/cloud-services-setup";
@@ -137,8 +136,6 @@ export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
     const [keepAlive, setKeepAlive] = useState(false);
     // 角色电脑：施工中弹窗（返回 / 仍要看看）
     const pageBodyRef = useRef<HTMLDivElement | null>(null);
-    // 更新日志读同一份发布记录，线上拉到新版本时这一页也会同步刷新
-    const releases = useReleaseList();
 
     // ── 账号：显示当前登录 / 修改密码 / 退出登录 ──
     const selfHostedMode = isSelfHostedModeEnabled();
@@ -360,7 +357,7 @@ export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
             case "identity":
                 return <UserIdentitySettings />;
             case "about":
-                return <ChangelogPage releases={releases} />;
+                return <ChangelogPage />;
             default:
                 return null;
         }

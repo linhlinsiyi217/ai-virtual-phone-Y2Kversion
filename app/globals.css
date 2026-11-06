@@ -46,6 +46,7 @@
 @import "../styles/chat-beauty-center.css";
 @import "../styles/shell-monochrome-ui.css";
 @import "../styles/update-log.css";
+@import "../styles/update-ui.css";
 
 @theme {
   /* 间距 (4px 基准) */

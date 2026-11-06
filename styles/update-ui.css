@@ -1,0 +1,837 @@
+/* ══════════════════════════════════════════════════════════════
+   更新界面（更新弹窗 / 更新公告 / 更新日志）
+   视觉取自 design/update-ui.html：纯白、黑、浅灰，细线描边，无渐变无重投影
+   ══════════════════════════════════════════════════════════════ */
+
+:root {
+  --uui-pg: #f3f3f1;
+  --uui-card: #ffffff;
+  --uui-ink: #111111;
+  --uui-mute: #7a7a7a;
+  --uui-mute2: #a8a8a8;
+  --uui-line: #e7e7e4;
+  --uui-band: #f6f6f4;
+  --uui-bt: #121212;
+  --uui-btx: #ffffff;
+  --uui-new: #2f6b4f;
+  --uui-improve: #2f5c8a;
+  --uui-fix: #9a5b24;
+  --uui-cat-line: #111111;
+  --uui-cat-inner: #ececee;
+  --uui-cat-cheek: #f4cfcf;
+  --uui-cat-muzzle: #fbf8f7;
+  --uui-cat-hi: #ffffff;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --uui-pg: #101011;
+    --uui-card: #1a1a1c;
+    --uui-ink: #f1f1ef;
+    --uui-mute: #9a9a9a;
+    --uui-mute2: #656565;
+    --uui-line: #2a2a2d;
+    --uui-band: #232326;
+    --uui-bt: #f2f2f0;
+    --uui-btx: #111111;
+    --uui-new: #7fd0a8;
+    --uui-improve: #9ec5f0;
+    --uui-fix: #f0bd86;
+    --uui-cat-line: #f1f1ef;
+    --uui-cat-inner: #2a2a2d;
+    --uui-cat-cheek: #6b4a4a;
+    --uui-cat-muzzle: #26262a;
+    --uui-cat-hi: #1a1a1c;
+  }
+}
+
+/* ── 遮罩层 ─────────────────────────────────────────────────── */
+.uui-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  padding-bottom: 18px;
+  background: rgba(0, 0, 0, 0.5);
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
+  overscroll-behavior: contain;
+}
+.uui-mask-note {
+  align-items: center;
+  padding: 24px;
+}
+
+/* ── ① 更新弹窗（底部半弹窗） ─────────────────────────────── */
+.uui-sh {
+  width: 100%;
+  max-width: 430px;
+  max-height: 90vh;
+  max-height: 90dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--uui-card);
+  border: 1px solid var(--uui-line);
+  border-radius: 26px;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.22);
+  transform: translateY(24px);
+  animation: uui-rise 0.3s ease-out forwards;
+  transition: transform 0.28s ease;
+}
+@keyframes uui-rise {
+  to {
+    transform: translateY(0);
+  }
+}
+.uui-hd {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 18px 18px 0;
+}
+.uui-hd b {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.uui-x {
+  width: 26px;
+  height: 26px;
+  flex: none;
+  cursor: pointer;
+  border: 1px solid var(--uui-line);
+  border-radius: 50%;
+  background: var(--uui-band);
+  position: relative;
+}
+.uui-x::before,
+.uui-x::after {
+  content: "";
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  top: 12px;
+  height: 1px;
+  background: var(--uui-mute);
+}
+.uui-x::before {
+  transform: rotate(45deg);
+}
+.uui-x::after {
+  transform: rotate(-45deg);
+}
+.uui-bd {
+  padding: 4px 18px 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.uui-hero {
+  position: relative;
+  padding: 6px 0 14px;
+  text-align: center;
+}
+.uui-cat {
+  display: block;
+  margin: 0 auto;
+  line-height: 0;
+}
+.uui-num {
+  font-family: "Iowan Old Style", "Palatino Linotype", "Songti SC", Georgia, serif;
+  font-size: 64px;
+  line-height: 1;
+  font-weight: 600;
+  letter-spacing: -0.04em;
+  font-variant-numeric: lining-nums tabular-nums;
+}
+.uui-meta {
+  margin-top: 6px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--uui-mute2);
+  font-variant-numeric: tabular-nums;
+}
+.uui-eyebrow {
+  margin-top: 6px;
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  color: var(--uui-mute2);
+  text-transform: uppercase;
+}
+.uui-title {
+  font-size: 15px;
+  font-weight: 600;
+}
+.uui-rule {
+  width: 30px;
+  height: 1px;
+  background: var(--uui-line);
+  margin: 12px auto;
+}
+.uui-box {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  text-align: left;
+  background: var(--uui-band);
+  border: 1px solid var(--uui-line);
+  border-radius: 16px;
+}
+.uui-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--uui-ink);
+}
+.uui-chip {
+  flex: none;
+  font-style: normal;
+  font-size: 10px;
+  line-height: 1.5;
+  padding: 1px 7px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.uui-c-new {
+  color: var(--uui-new);
+  background: color-mix(in srgb, var(--uui-new) 9%, transparent);
+}
+.uui-c-improve {
+  color: var(--uui-improve);
+  background: color-mix(in srgb, var(--uui-improve) 9%, transparent);
+}
+.uui-c-fix {
+  color: var(--uui-fix);
+  background: color-mix(in srgb, var(--uui-fix) 9%, transparent);
+}
+.uui-hl {
+  margin-top: 8px;
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+.uui-st {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12.5px;
+  color: var(--uui-ink);
+}
+.uui-dot {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--uui-line);
+  border-radius: 50%;
+  font-style: normal;
+  font-size: 10px;
+  color: var(--uui-mute);
+}
+.uui-st.ok .uui-dot {
+  color: #fff;
+  background: var(--uui-new);
+  border-color: var(--uui-new);
+}
+.uui-st.cur .uui-dot {
+  color: var(--uui-ink);
+  border-color: var(--uui-ink);
+  animation: uui-pulse 1.4s ease-in-out infinite;
+}
+.uui-ft {
+  padding: 12px 18px calc(18px + env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.uui-note {
+  margin: 0;
+  text-align: center;
+  font-size: 11px;
+  color: var(--uui-mute2);
+}
+.uui-note-flat {
+  padding: 0 18px;
+}
+.uui-btns {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr;
+  gap: 10px;
+}
+.uui-btn {
+  height: 48px;
+  border-radius: 14px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+.uui-btn:active {
+  transform: scale(0.985);
+  opacity: 0.88;
+}
+.uui-pri {
+  background: var(--uui-bt);
+  color: var(--uui-btx);
+}
+.uui-sec {
+  background: var(--uui-band);
+  color: var(--uui-ink);
+  border-color: var(--uui-line);
+}
+.uui-block {
+  width: calc(100% - 36px);
+  margin: 12px 18px calc(16px + env(safe-area-inset-bottom));
+}
+
+/* ── ② 更新公告（正中弹窗） ───────────────────────────────── */
+.uui-nt {
+  width: 100%;
+  max-width: 350px;
+  max-height: 88vh;
+  max-height: 88dvh;
+  overflow-y: auto;
+  background: var(--uui-card);
+  border: 1px solid var(--uui-line);
+  border-radius: 24px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.24);
+  padding: 22px 0 0;
+  animation: uui-pop 0.28s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+  overscroll-behavior: contain;
+}
+@keyframes uui-pop {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+.uui-nt .uui-hd {
+  padding: 16px 18px 0;
+  justify-content: center;
+}
+.uui-nt .uui-hero {
+  padding: 0 18px 12px;
+}
+.uui-nt .uui-num {
+  font-size: 46px;
+  margin-top: 6px;
+}
+.uui-nt .uui-box {
+  margin: 0 18px;
+}
+.uui-nt .uui-note {
+  margin-top: 10px;
+}
+.uui-nt .uui-hd b {
+  font-size: 14px;
+}
+.uui-nt .uui-cat .cat {
+  width: 104px;
+}
+
+/* ── ③ 更新日志（设置里的整页） ───────────────────────────── */
+.uui-log {
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  background: var(--uui-pg);
+  padding: 6px 14px 34px;
+}
+.uui-logcard {
+  display: grid;
+  grid-template-columns: 92px 1fr;
+  min-height: 236px;
+  margin-top: 6px;
+  padding: 5px;
+  background: var(--uui-card);
+  border: 1px solid var(--uui-line);
+  border-radius: 22px;
+}
+.uui-strip {
+  position: relative;
+  overflow: hidden;
+  border-right: 1px solid var(--uui-line);
+}
+.uui-wheel {
+  position: relative;
+  z-index: 1;
+  height: 236px;
+  overflow-y: auto;
+  scroll-snap-type: y mandatory;
+  scrollbar-width: none;
+  padding: 96px 0;
+  -webkit-mask-image: linear-gradient(transparent, #000 20%, #000 80%, transparent);
+  mask-image: linear-gradient(transparent, #000 20%, #000 80%, transparent);
+}
+.uui-wheel::-webkit-scrollbar {
+  display: none;
+}
+.uui-witem {
+  height: 44px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.25;
+  font-variant-numeric: tabular-nums;
+  color: var(--uui-mute2);
+  scroll-snap-align: center;
+  cursor: pointer;
+  user-select: none;
+  transition: color 0.2s ease;
+}
+.uui-witem b {
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+}
+.uui-witem i {
+  font-style: normal;
+  font-size: 9px;
+  letter-spacing: 0.04em;
+}
+.uui-witem.on {
+  color: var(--uui-ink);
+}
+.uui-witem.on b {
+  font-weight: 700;
+}
+.uui-band {
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  top: 50%;
+  height: 44px;
+  transform: translateY(-50%);
+  border-radius: 12px;
+  background: var(--uui-band);
+  z-index: 0;
+  pointer-events: none;
+}
+.uui-logmain {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 14px 12px 12px 16px;
+  animation: uui-fade 0.28s ease both;
+}
+@keyframes uui-fade {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+.uui-daterow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--uui-mute2);
+}
+.uui-date {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.uui-arrows {
+  margin-left: auto;
+  display: flex;
+  gap: 6px;
+}
+.uui-arrow {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: var(--uui-band);
+  cursor: pointer;
+}
+.uui-arrow svg {
+  width: 14px;
+  height: 14px;
+  stroke: var(--uui-mute);
+  stroke-width: 1.6;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.uui-arrow:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.uui-vbig {
+  margin: 10px 0 0;
+  font-family: "Iowan Old Style", "Palatino Linotype", "Songti SC", Georgia, serif;
+  font-size: 42px;
+  line-height: 1.05;
+  font-weight: 600;
+  letter-spacing: -0.04em;
+  font-variant-numeric: lining-nums tabular-nums;
+}
+.uui-logtitle {
+  margin-top: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.45;
+}
+.uui-counts {
+  display: flex;
+  margin-top: auto;
+  padding-top: 10px;
+  border-top: 1px solid var(--uui-line);
+}
+.uui-counts div {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.uui-counts b {
+  font-family: "Iowan Old Style", "Palatino Linotype", "Songti SC", Georgia, serif;
+  font-size: 21px;
+  font-weight: 500;
+  line-height: 1;
+  font-variant-numeric: lining-nums tabular-nums;
+}
+.uui-counts span {
+  font-size: 10px;
+  color: var(--uui-mute2);
+  letter-spacing: 0.12em;
+}
+.uui-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 12px;
+}
+.uui-catcard {
+  background: var(--uui-card);
+  border: 1px solid var(--uui-line);
+  border-radius: 22px;
+  overflow: hidden;
+}
+.uui-cath {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 14px 15px 0;
+}
+.uui-cath b {
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+.uui-cath em {
+  font-style: normal;
+  font-size: 9.5px;
+  color: var(--uui-mute2);
+  letter-spacing: 0.3em;
+  margin-left: 8px;
+}
+.uui-catnum {
+  flex: none;
+  font-family: "Iowan Old Style", "Palatino Linotype", "Songti SC", Georgia, serif;
+  font-size: 14px;
+  color: var(--uui-mute2);
+  font-variant-numeric: tabular-nums;
+}
+.uui-cathint {
+  margin: 3px 15px 2px;
+  font-size: 11px;
+  color: var(--uui-mute2);
+  letter-spacing: 0.08em;
+}
+.uui-item {
+  display: flex;
+  gap: 10px;
+  padding: 12px 15px;
+  border-top: 1px solid var(--uui-line);
+}
+.uui-num2 {
+  flex: none;
+  width: 18px;
+  font-family: "Iowan Old Style", "Palatino Linotype", "Songti SC", Georgia, serif;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--uui-mute2);
+  font-variant-numeric: tabular-nums;
+}
+.uui-item-body {
+  flex: 1;
+  min-width: 0;
+}
+.uui-item-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.uui-item-head b {
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.45;
+}
+.uui-app {
+  margin-left: auto;
+  flex: none;
+  font-style: normal;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: var(--uui-band);
+  color: var(--uui-mute);
+  white-space: nowrap;
+  margin-top: 2px;
+}
+.uui-item p {
+  margin: 4px 0 0;
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--uui-mute);
+}
+.uui-thanks {
+  margin: 18px 0 30px;
+  text-align: center;
+  font-size: 11px;
+  color: var(--uui-mute2);
+  letter-spacing: 0.04em;
+}
+.uui-empty {
+  padding: 48px 0;
+  text-align: center;
+}
+.uui-empty .uui-hl {
+  margin-top: 14px;
+}
+.uui-empty .uui-cat .cat {
+  width: 110px;
+}
+
+/* ── 猫咪（造型来自设计稿，不改线条） ────────────────────── */
+.uui-cat .cat {
+  width: 124px;
+  height: auto;
+  display: block;
+  overflow: visible;
+}
+.uui-cat .ln {
+  fill: none;
+  stroke: var(--uui-cat-line);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.uui-cat .s {
+  stroke-width: 1.6;
+}
+.uui-cat .wf {
+  stroke-width: 2.2;
+}
+.uui-cat .gy {
+  fill: var(--uui-cat-inner);
+  stroke: none;
+}
+.uui-cat .cat-bell {
+  stroke: var(--uui-cat-line);
+  stroke-width: 1.7;
+}
+.uui-cat .dt {
+  fill: var(--uui-cat-line);
+}
+.uui-cat .bl {
+  fill: var(--uui-cat-cheek);
+  opacity: 0.72;
+}
+.uui-cat .bs {
+  fill: none;
+  stroke: var(--uui-cat-cheek);
+}
+.uui-cat .mz {
+  fill: var(--uui-cat-muzzle);
+}
+.uui-cat .nz {
+  fill: var(--uui-cat-line);
+}
+.uui-cat .ey {
+  fill: var(--uui-cat-line);
+}
+
+/* 更新日志的通用标记不需要外框底色 */
+.uui-num2.uui-c-new,
+.uui-num2.uui-c-improve,
+.uui-num2.uui-c-fix,
+.uui-mark.uui-c-new,
+.uui-mark.uui-c-improve,
+.uui-mark.uui-c-fix {
+  border: none;
+}
+.uui-num2.uui-c-new,
+.uui-mark.uui-c-new {
+  color: var(--uui-new);
+  background: none;
+}
+.uui-num2.uui-c-improve,
+.uui-mark.uui-c-improve {
+  color: var(--uui-improve);
+  background: none;
+}
+.uui-num2.uui-c-fix,
+.uui-mark.uui-c-fix {
+  color: var(--uui-fix);
+  background: none;
+}
+.uui-cat .mzf {
+  fill: var(--uui-cat-inner);
+}
+.uui-cat .halo {
+  stroke: var(--uui-mute2);
+}
+.uui-cat .bob {
+  transform-origin: 80px 126px;
+  animation: uui-bob 3.2s ease-in-out infinite;
+}
+.uui-cat .hop {
+  animation: uui-hop 1.6s ease-in-out infinite;
+  transform-origin: 80px 134px;
+}
+.uui-cat .ear {
+  transform-origin: 80px 46px;
+  animation: uui-ear 3.6s ease-in-out infinite;
+}
+.uui-cat .tuft {
+  transform-origin: 80px 42px;
+  animation: uui-tuft 3.6s ease-in-out infinite;
+}
+.uui-cat .arm {
+  transform-origin: 104px 122px;
+  animation: uui-wave 1.2s ease-in-out infinite;
+}
+.uui-cat .z {
+  animation: uui-z 2.4s ease-in-out infinite;
+}
+@keyframes uui-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-2px);
+  }
+}
+@keyframes uui-hop {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+@keyframes uui-ear {
+  0%,
+  86%,
+  100% {
+    transform: rotate(0);
+  }
+  89% {
+    transform: rotate(-6deg);
+  }
+  92% {
+    transform: rotate(4deg);
+  }
+  95% {
+    transform: rotate(0);
+  }
+}
+@keyframes uui-tuft {
+  0%,
+  100% {
+    transform: rotate(0);
+  }
+  50% {
+    transform: rotate(4deg);
+  }
+}
+@keyframes uui-wave {
+  0%,
+  100% {
+    transform: rotate(0);
+  }
+  50% {
+    transform: rotate(-18deg);
+  }
+}
+@keyframes uui-z {
+  0%,
+  100% {
+    opacity: 0.3;
+    transform: translateY(0);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
+}
+@keyframes uui-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(17, 17, 17, 0.12);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(17, 17, 17, 0.06);
+  }
+}
+
+@media (max-width: 380px) {
+  .uui-num {
+    font-size: 54px;
+  }
+  .uui-vbig {
+    font-size: 34px;
+  }
+  .uui-nt .uui-num {
+    font-size: 36px;
+  }
+  .uui-logcard {
+    grid-template-columns: 84px 1fr;
+  }
+  .uui-logmain {
+    padding-left: 10px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .uui-sh,
+  .uui-nt,
+  .uui-cat .bob,
+  .uui-cat .hop,
+  .uui-cat .ear,
+  .uui-cat .tuft,
+  .uui-cat .arm,
+  .uui-cat .z,
+  .uui-st.cur .uui-dot {
+    animation: none !important;
+  }
+  .uui-wheel {
+    scroll-behavior: auto;
+  }
+}

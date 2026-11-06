@@ -32,3 +32,6 @@ tools/weixin-local-assistant/config.txt
 *.ts.net.crt
 *.ts.net.key
 /public/models/world-builder/
+
+# 构建时由 scripts/gen-version.mjs 生成
+/public/version.json
