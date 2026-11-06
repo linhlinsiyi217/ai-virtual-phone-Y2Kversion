@@ -939,6 +939,8 @@ export function prepareShortTermContext(
         includeDirectChatEntries?: boolean;
         timeAware?: boolean;
         promptTimestampOptions?: PromptTimestampOptions;
+        /** 只取这个时间点之后的历史（剧情记忆继承开关用到）。 */
+        afterTimestamp?: number;
     },
 ): {
     recentBlocks: RecentBlock[];
@@ -962,7 +964,10 @@ export function prepareShortTermContext(
     const wbActivationContext = timeline.slice(-10).map(e => e.content).join("\n");
     const budget = memConfig.shortTermTokenBudget;
     const currentTag = getFeatureTag(appId);
-    const history = options?.history ?? [];
+    const rawHistory = options?.history ?? [];
+    const history = options?.afterTimestamp
+        ? rawHistory.filter((m) => Date.parse(m.createdAt) >= options.afterTimestamp!)
+        : rawHistory;
     const characterName = loadCharacters().find(c => c.id === characterId)?.name ?? "角色";
     const wrapsCurrentHistory = appId === "chat" || appId === "group_chat" || appId === "story" || appId === "vn" || appId === "adventure";
     const skipDirectChatEntries = appId === "chat" && !options?.includeDirectChatEntries;

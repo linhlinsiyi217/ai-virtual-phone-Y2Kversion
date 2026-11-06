@@ -23,7 +23,7 @@ function buildSrcDoc(html: string, raw: string, frameId: string): string {
         : inject + base;
 }
 
-export function CustomStatusFrame({ html, raw }: { html: string; raw: string }) {
+export function CustomStatusFrame({ html, raw, kind: _kind, title: _title }: { html: string; raw: string; kind?: string; title?: string }) {
     const iframeRef = useRef<HTMLIFrameElement | null>(null);
     const [frameId] = useState(() => `csf_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`);
     const [height, setHeight] = useState(FRAME_MIN_HEIGHT);

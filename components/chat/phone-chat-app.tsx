@@ -31,6 +31,10 @@ export type PhoneChatAppProps = {
     onSessionChange?: (session: ChatSession | null) => void;
     sharePayload?: ChatSharePayload | null;
     onShareDone?: () => void;
+    /** 剧情内嵌聊天：用户发出消息后的回调 */
+    onUserMessageSent?: (message: import("@/lib/chat-storage").ChatMessage, session: import("@/lib/chat-storage").ChatSession) => void;
+    /** 剧情内嵌聊天：角色发布动态后的回调 */
+    onMomentPublished?: (post: import("@/lib/moments-types").MomentPost) => void;
 };
 
 export const PhoneChatApp = memo(function PhoneChatApp({ onClose, initialSessionId, feedsRequest, sessionRequest, onSessionChange, sharePayload, onShareDone }: PhoneChatAppProps) {

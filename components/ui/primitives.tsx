@@ -69,10 +69,13 @@ export function Avatar({
   src,
   name,
   size = "md",
+  cssSized: _cssSized,
 }: {
   src?: string;
   name: string;
   size?: "sm" | "md" | "lg";
+  /** 由外层 CSS 控制尺寸时置 true（此时忽略 size 映射）。 */
+  cssSized?: boolean;
 }) {
   const sizeMap = { sm: 28, md: 40, lg: 56 };
   const px = sizeMap[size];

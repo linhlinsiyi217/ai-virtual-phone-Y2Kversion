@@ -39,9 +39,13 @@ type ActiveMomentComposer = {
 
 type MomentsFeedProps = {
     onCloseApp: () => void;
+    /** 紧凑模式（嵌在剧情里时用） */
+    compact?: boolean;
+    /** 用户发布动态后的回调 */
+    onUserPublished?: (post: import("@/lib/moments-types").MomentPost) => void;
 };
 
-export function MomentsFeed({ onCloseApp }: MomentsFeedProps) {
+export function MomentsFeed({ onCloseApp, compact: _compact, onUserPublished: _onUserPublished }: MomentsFeedProps) {
     const [posts, setPosts] = useState<MomentPost[]>([]);
     const [showCompose, setShowCompose] = useState(false);
     const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
