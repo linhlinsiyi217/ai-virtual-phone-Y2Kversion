@@ -169,7 +169,6 @@ function ModuleChipSelector({
             type="button"
             className="data-module-chip"
             aria-pressed={selected}
-            style={iconStyle(MODULE_ACCENTS[item.id])}
             {...(selected ? { "data-selected": "" } : {})}
             onClick={() => {
               if (selected) onChange(selectedIds.filter((id) => id !== item.id));

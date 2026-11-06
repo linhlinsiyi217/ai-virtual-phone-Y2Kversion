@@ -149,3 +149,24 @@
 @media (prefers-reduced-motion: reduce) {
   .page.page :global(.ui-btn), .scopeOption { transition: none; }
 }
+
+/* ── 黑白规范：模块选择块统一灰底单色 ── */
+.page :global(.data-module-chip) {
+  background: var(--ui-bg, #fff);
+  border: 0.5px solid var(--ui-line, #d9d9de);
+  color: var(--ui-ink, #0a0a0a);
+  border-radius: 14px;
+}
+.page :global(.data-module-chip[data-selected]) {
+  background: var(--ui-ink, #0a0a0a);
+  border-color: var(--ui-ink, #0a0a0a);
+  color: var(--ui-bg, #fff);
+}
+.page :global(.data-chip-mark) {
+  background: var(--ui-group, #f2f2f4);
+  color: var(--ui-ink, #0a0a0a);
+}
+.page :global(.data-module-chip[data-selected] .data-chip-mark) {
+  background: rgba(255, 255, 255, .16);
+  color: var(--ui-bg, #fff);
+}
