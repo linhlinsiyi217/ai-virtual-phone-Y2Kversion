@@ -7294,3 +7294,22 @@
   line-height: 0.6;
   opacity: 0.7;
 }
+
+/* ── 聊天底部栏：果断回弹 + 拉伸 ── */
+.chat-tab-bar {
+  transform-origin: 50% 100%;
+  transition: transform var(--ui-spring-duration, 420ms) cubic-bezier(.22, 1.6, .32, 1);
+  will-change: transform;
+}
+.chat-tab-bar:active { transform: scale(1.022, 0.955); }
+.chat-tab-bar button {
+  transform-origin: 50% 80%;
+  transition: transform var(--ui-spring-duration, 420ms) cubic-bezier(.22, 1.6, .32, 1);
+}
+.chat-tab-bar button:active { transform: scale(var(--ui-press-scale, .91)); }
+.chat-tab-bar button[data-active="true"] { animation: chat-tab-pop var(--ui-spring-duration, 420ms) cubic-bezier(.22, 1.6, .32, 1); }
+@keyframes chat-tab-pop {
+  0% { transform: scale(1); }
+  35% { transform: scale(calc(1 + (1 - var(--ui-press-scale, .91)) * 0.9)); }
+  100% { transform: scale(1); }
+}

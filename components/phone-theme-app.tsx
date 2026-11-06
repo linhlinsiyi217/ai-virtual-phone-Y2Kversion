@@ -867,6 +867,7 @@ function InterfaceMotionPage({
   const dockRadius = Number((draft.cssOverrides["--floating-dock-radius"] || "24px").replace("px", ""));
   const dockOpacity = Number(draft.cssOverrides["--floating-dock-opacity"] || "0.92");
   const bounceStrength = Math.max(0, Math.min(100, Math.round((1 - pressScale) / 0.0016)));
+  const [previewKey, setPreviewKey] = useState(0);
 
   const applyOverrides = (values: Record<string, string>, notice?: string) => {
     const next = normalizeThemeProfile({
@@ -919,6 +920,9 @@ function InterfaceMotionPage({
 
       <section>
         <h3 className="appearance-menu-section-title">按钮回弹</h3>
+        <p className="ts-11 px-1 -mt-1 text-[var(--c-text)] opacity-70">
+          影响所有按钮按下时的缩放幅度和回弹速度，包括桌面底栏的图标、聊天底栏的标签。
+        </p>
         <div className="menu-group mt-2.5 px-4 py-3 flex flex-col gap-4">
           <label className="flex flex-col gap-2">
             <span className="flex justify-between ts-12"><span>回弹力度</span><strong>{bounceStrength}%</strong></span>
@@ -931,12 +935,23 @@ function InterfaceMotionPage({
             <span className="flex justify-between ts-12"><span>松手回弹速度</span><strong>{springMs}ms</strong></span>
             <input className="ui-slider" type="range" min={220} max={620} step={20} value={springMs} onChange={event => applyOverrides({ "--ui-spring-duration": `${event.target.value}ms` })} />
           </label>
-          <button type="button" className="ui-btn ui-btn-primary w-full">按一下预览回弹</button>
+          <button
+            type="button"
+            key={previewKey}
+            className="ui-btn ui-btn-primary w-full ui-preview-press"
+            style={{ animationDuration: `${springMs}ms` }}
+            onClick={() => setPreviewKey(key => key + 1)}
+          >
+            按一下预览回弹
+          </button>
         </div>
       </section>
 
       <section>
         <h3 className="appearance-menu-section-title">悬浮底栏</h3>
+        <p className="ts-11 px-1 -mt-1 text-[var(--c-text)] opacity-70">
+          影响桌面底部那条悬浮栏：圆角有多大、底色有多透。上面这块就是它的实时预览。
+        </p>
         <div className="menu-group mt-2.5 px-4 py-3 flex flex-col gap-4">
           <div className="h-16 flex items-center justify-around px-3 border border-[var(--c-card-border)] shadow-lg" style={{ borderRadius: dockRadius, background: `rgba(255,255,255,${dockOpacity})` }}>
             {[0, 1, 2, 3].map(index => <span key={index} className="w-7 h-7 rounded-full" style={{ background: index === 0 ? "var(--shell-accent, #111113)" : "var(--shell-input, #f1f1f3)" }} />)}
