@@ -360,3 +360,17 @@ export async function sendTestOfflinePush(): Promise<{ ok: boolean; error?: stri
     if (!data.ok) return { ok: false, error: data.error || "发送失败。" };
     return { ok: true };
 }
+
+export async function sendShellTestPush(): Promise<{ ok: boolean; error?: string }> {
+    try {
+        const response = await fetch("/api/push/test", { method: "POST", credentials: "include" });
+        const data = await response.json().catch(() => ({})) as { ok?: boolean; error?: string };
+        if (!response.ok || !data.ok) {
+            return { ok: false, error: data.error || `测试推送失败（HTTP ${response.status}）。` };
+        }
+        return { ok: true };
+    } catch {
+        return { ok: false, error: "测试推送请求失败，请检查网络。" };
+    }
+}
+

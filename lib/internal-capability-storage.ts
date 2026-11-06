@@ -1,3 +1,20 @@
+export const RESERVED_INTERNAL_TOOL_NAMES: string[] = [
+    "在桌面留句话",
+    "请求看屏幕",
+    "查看手机状态",
+    "操作手机设备",
+    "查看系统日程",
+    "写入系统日历",
+    "写入记忆",
+    "发送文件",
+    "角色电脑",
+    "稍后主动联系",
+    "设置定时醒来",
+    "查看全部手机数据",
+    "查看一起听排名",
+    "管理一起听歌单",
+];
+
 import type { InternalCapabilityConfig } from "./settings-types";
 import { isAgentComputerConfigured, isContainerComputer } from "./agent-computer";
 import { kvGet, kvSet, registerKvMigration } from "./kv-db";
