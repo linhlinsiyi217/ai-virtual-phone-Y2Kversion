@@ -83,3 +83,34 @@
 .settings-overview-copy b { font-size: 17px; line-height: 24px; font-weight: 600; }
 .settings-overview-copy small { font-size: 13px; line-height: 18px; }
 .settings-overview-group { border-radius: 24px; }
+
+/* ── 按钮按原型统一：胶囊、扁平、无光晕 ───────────────────────── */
+.ui-btn {
+  border-radius: 999px;
+  min-height: 50px;
+  padding: 0 20px;
+  font-size: 16px;
+  font-weight: 650;
+  letter-spacing: .04em;
+}
+.ui-btn-primary,
+.ui-btn-action,
+.ui-btn-success {
+  background: var(--ui-ink, #0a0a0a);
+  color: var(--ui-bg, #fff);
+  box-shadow: none;
+}
+.ui-btn-outline {
+  background: var(--ui-group, #f4f4f6);
+  color: var(--ui-ink, #0a0a0a);
+  border: 0;
+}
+.ui-btn:disabled { opacity: .4; transform: none; box-shadow: none; }
+.ui-btn:focus-visible,
+.settings-overview-row:focus-visible,
+.settings-list-row:focus-visible {
+  outline: 2px solid var(--ui-ink, #0a0a0a);
+  outline-offset: 2px;
+}
+/* 加载态：按钮内的文字后跟三点呼吸，避免"点了没反应" */
+.ui-btn[aria-busy="true"] { opacity: .7; pointer-events: none; }
