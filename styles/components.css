@@ -288,8 +288,6 @@
     animation-iteration-count: 1 !important;
   }
 }
-  to   { opacity: 1; transform: scale(1); }
-}
 
 /* ══════════════════════════════════════════
    Unified Glass Primitives — Shared Base
