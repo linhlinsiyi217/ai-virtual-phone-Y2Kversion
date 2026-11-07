@@ -5643,3 +5643,18 @@
   line-height: var(--ui-lh-body, 21px);
   color: var(--ui-muted, #6e6e73);
 }
+
+/* ── 设置页：白底 + 雾灰分组（对齐设计图） ── */
+.page-menu.settings-main-menu { background: var(--ui-bg, #fff); }
+.page-menu.settings-main-menu .settings-list-group {
+  background: var(--ui-group, #f2f2f4);
+  box-shadow: none;
+}
+.page-menu.settings-main-menu .settings-list-icon {
+  background: var(--ui-bg, #fff);
+  color: var(--ui-ink, #0a0a0a);
+}
+.page-menu.settings-main-menu .settings-list-section {
+  margin: 30px 0 10px 2px;
+  color: var(--ui-muted, #6e6e73);
+}
