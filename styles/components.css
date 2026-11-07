@@ -5658,3 +5658,13 @@
   margin: 30px 0 10px 2px;
   color: var(--ui-muted, #6e6e73);
 }
+
+/* 设置页大标题（对齐设计图：36/42，左对齐） */
+.settings-page-title {
+  margin: 6px 2px 18px;
+  font-size: var(--ui-fs-display, 36px);
+  line-height: var(--ui-lh-display, 42px);
+  font-weight: 700;
+  letter-spacing: -.02em;
+  color: var(--ui-ink, #0a0a0a);
+}

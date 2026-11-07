@@ -420,12 +420,13 @@ export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
             <PageShell title={title} onBack={handleBack} rightAction={currentPage !== "main" ? subpageRightActions[currentPage] : undefined} bodyRef={pageBodyRef}>
                 {currentPage === "main" && (
                     <div className="page-menu settings-main-menu">
+                        <h1 className="settings-page-title">设置</h1>
                         {!selfHostedMode && (
                             <button type="button" className="settings-account-card" onClick={() => setAccountSheetOpen(true)}>
                                 <span className="settings-account-avatar"><GlassIcon name="account" /></span>
                                 <span className="settings-account-copy">
                                     <span className="settings-account-name">{account.displayName || account.username}</span>
-                                    <span className="settings-account-sub">账号、密码与登录</span>
+                                    <span className="settings-account-sub">虚拟账号 · 已登录</span>
                                 </span>
                                 <ChevronRight size={18} className="settings-account-chevron" />
                             </button>
