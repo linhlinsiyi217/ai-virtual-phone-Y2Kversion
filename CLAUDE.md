@@ -61,3 +61,18 @@ node --max-old-space-size=3072 node_modules/typescript/bin/tsc --noEmit
 4. 说明书里尚未开始：虚拟账号、应用假登录、好友码、二维码
 
 改任何一项之前，先确认它是否在上面这份清单里；不在就先问主人，不要顺手重排别的页面。
+
+### 生活系统（唯一未合的应用）卡点清单
+
+doremy 2026-11-06 主分支的 lib/life、components/life 已试合过一轮，缺下列接口，
+补完才能合，否则类型错误会从 16 条涨到 37 条：
+
+1. `lib/chat-storage.ts` 缺 `resolveSessionCharacterId`
+   依赖链：`resolveSessionCharacterIdentity` + `loadChatContacts`
+2. `lib/push-bailout-client.ts` 缺四个函数：
+   `armLifeSceneProactiveBailout`、`cancelLifeSceneProactiveBailouts`、
+   `reconcileIdleReconnectWithLifeScenes`、`suspendIdleReconnectForLifeScene`
+3. `lib/settings-storage.ts` 缺 `USER_IDENTITIES_UPDATED_EVENT`（一个事件名常量）
+4. 生成请求函数缺 `appId` 参数（生活系统按应用区分调用来源）
+
+补法：从 doremy origin/main 的对应文件里搬这几个声明，别整份替换 Y2K 的同名文件。
