@@ -46,6 +46,7 @@ import { CustomStatusFrame } from "@/components/chat/custom-status-frame";
 import { KeyboardAutoSendDebounceItem } from "@/components/chat/keyboard-auto-send-debounce-item";
 import { ChevronRight, Image as ImageIcon, Video, Mic, UserMinus, UserPlus, Users, Pin, MessageSquare, Search, AlertCircle, Code, Laptop, Trash2, Smile, Sparkles, X, Play, Upload, Download, Save, FolderOpen, type LucideIcon } from "lucide-react";
 import { BINDING_ACCENTS, CONTENT_APP_ACCENTS } from "@/lib/ui-accent-colors";
+import { SessionChatSoundsSection } from "@/components/chat/session-chat-sounds";
 import CSSSchemeBar from "@/components/ui/css-scheme-picker";
 import { ConfirmDialog } from "@/components/ui/modal";
 import { CHAT_SESSION_CSS_EXAMPLE } from "@/lib/css-examples";
@@ -1468,6 +1469,14 @@ export function ChatSettingsPanel({
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* 角色专属提示音 */}
+            {!session.isGroup && (
+                <>
+                    <div className="px-4 pt-3 pb-2 ts-12 font-medium text-[var(--c-text-title)] opacity-80">角色专属提示音</div>
+                    <SessionChatSoundsSection session={session} accent={BINDING_ACCENTS.voice} onUpdate={updateSession} />
+                </>
             )}
 
             {/* Modal: Screen Effects */}

@@ -39,6 +39,8 @@ export type ChatContact = {
 };
 
 export type ChatSession = {
+    /** 该会话专属的提示音配置（覆盖全局） */
+    sounds?: ChatSoundsConfig;
     /** 云端归属账号（收藏夹等跨设备功能用）；本地会话可能没有。 */
     chatAccountId?: string;
     bubbleColors?: import("./chat-bubble-colors").BubbleColors;
@@ -412,6 +414,8 @@ export type ChatMessage = {
 };
 
 export type ChatAppSettings = {
+    /** 全局聊天提示音配置 */
+    globalChatSounds?: ChatSoundsConfig;
     globalAppBackground?: string; // base64 or URL
     timeAware?: boolean; // When true, inject timestamps into prompt so AI knows message timing (default: true)
     promptViewerEnabled?: boolean; // When true, show the floating prompt viewer entry
@@ -2462,4 +2466,52 @@ export function getLatestCharacterStateValues(
         });
 
     return candidates[0]?.stateValues || [];
+}
+
+// ── 聊天提示音配置（来自 DOREMY） ──────────────────────────────
+
+export type ChatSoundKind = "newMessage" | "sendMessage" | "incomingCall" | "outgoingCall" | "hangup";
+
+export type ChatSoundConfig = {
+    enabled?: boolean;
+    sourceType?: "file" | "url";
+    value?: string;
+    muteActiveChat?: boolean;
+    notifyOncePerBurst?: boolean;
+};
+
+export type ChatSoundsConfig = {
+    newMessage?: ChatSoundConfig;
+    sendMessage?: ChatSoundConfig;
+    incomingCall?: ChatSoundConfig;
+    outgoingCall?: ChatSoundConfig;
+    hangup?: ChatSoundConfig;
+};
+
+export function resolveChatSoundConfig(
+    kind: ChatSoundKind,
+    session: Pick<ChatSession, "sounds"> | null | undefined,
+): ChatSoundConfig {
+    const merged: ChatSoundConfig = { ...(loadChatAppSettings().globalChatSounds?.[kind] ?? {}) };
+    const own = session?.sounds?.[kind];
+    if (own) {
+        for (const [key, value] of Object.entries(own)) {
+            if (value !== undefined) (merged as Record<string, unknown>)[key] = value;
+        }
+    }
+    return merged;
+}
+
+export function findChatSessionById(sessionId: string): ChatSession | null {
+    return loadChatSessions().find(s => s.id === sessionId) ?? null;
+}
+
+let _activeChatSessionId: string | null = null;
+
+export function setActiveChatSessionId(sessionId: string | null): void {
+    _activeChatSessionId = sessionId;
+}
+
+export function getActiveChatSessionId(): string | null {
+    return _activeChatSessionId;
 }

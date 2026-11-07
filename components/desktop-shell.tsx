@@ -147,6 +147,7 @@ import { WidgetRenderer } from "@/components/widgets/widget-renderer";
 import type { DIYWidgetTemplate } from "@/lib/widget-types";
 import { DebugPromptPanel } from "@/components/debug-prompt-panel";
 import { QuickActionFloat } from "@/components/quick-action-float";
+import { installChatSoundListener } from "@/lib/chat-sound";
 import { FloatingTools } from "@/components/floating-tools";
 import { CHAT_MESSAGE_PUSHED_EVENT, CHAT_REQUEST_REPLY_EVENT, hydrateChatStorage, loadChatSessions, loadChatMessages, pushChatMessage, type ChatMessage, type ChatSession } from "@/lib/chat-storage";
 import { ensureGlobalBindingDefaults, resolveUserIdentity } from "@/lib/settings-storage";
@@ -625,6 +626,9 @@ function sanitizeDesktopFolders(
 
 function StatusClock() {
   const [label, setLabel] = useState("--:--");
+
+  // 聊天提示音：监听消息落库事件，按会话/全局配置播放
+  useEffect(() => installChatSoundListener(), []);
 
   useEffect(() => {
     const update = () => {

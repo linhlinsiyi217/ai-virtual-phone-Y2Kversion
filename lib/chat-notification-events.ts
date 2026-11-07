@@ -7,6 +7,8 @@ export type ChatMessageNoticeDetail = {
   senderName?: string;
   avatar?: string | null;
   isGroup?: boolean;
+  /** 试听/测试用的通知，不产生真实未读 */
+  isTest?: boolean;
 };
 
 export function dispatchChatMessageNotice(detail: ChatMessageNoticeDetail): void {
