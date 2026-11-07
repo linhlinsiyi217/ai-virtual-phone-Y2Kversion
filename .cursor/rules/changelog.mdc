@@ -1,0 +1,51 @@
+---
+description: 更新日志规则
+alwaysApply: true
+---
+# 更新日志规则（所有 AI 必读，改任何东西之前先读）
+
+本项目每次有用户看得到的改动，都必须在**同一次提交**里完成这三件事：
+1. 在 `public/update-log.json` 最前面新增一条记录（新的 id，格式 YYYYMMDD-N；版本号升高）。
+2. 内容只能根据这次真正改了什么来写（对照 `git diff` / `git log`），用大白话，说清楚之前什么样、现在什么样，**不许写代码、文件名、样式词**，不许照抄参考图或别的项目。
+3. 运行 `npm run check:changelog`，通过后才能说“做完了”。
+
+禁止：删除或绕开更新系统（UpdateCenter、update-log.json、version.json、scripts/check-changelog.mjs、.githooks、changelog-gate）；使用 `--no-verify` 或 `SKIP_LOG`（只有主人本人可以用）。
+完整说明见 `UPDATE_POPUP_GUIDE.md`。回复主人时用大白话，最后一句写：“更新日志：已写入 v版本号”。
+
+---
+
+## 附：本仓库的协作约定（保留）
+
+## 一、仓库与分支
+
+- 唯一主仓库：`linhlinsiyi217/ai-virtual-phone-Y2Kversion`，只改 `main`
+- 不修改、不推送：`ai-virtual-phone123float`
+- 冲突时：**不要删除用户已有实现**；把冲突点列出来，给用户选项由他决定
+
+## 二、融合来源与优先级
+
+| 来源 | 提供什么 |
+|---|---|
+| `linhlinsiyi217/float-0217` | 书房（已合入） |
+| `xiaolongbao0709/ai-virtual-phone` | 功能完整基线（小卷、工坊、剧情等） |
+| `doremy1203/doremy.float.phone` | 聊天音效、剧情增强、收藏 |
+| `jianchu-in/momo.float.phone` | 剧情外观、收藏、访谈、记忆修复 |
+
+优先级：书房 > 其他已有应用 > 原本音乐应用 > Y2K 原始应用。
+冲突时以 Y2K 的结构和外观为准，不覆盖核心功能。
+
+## 四、界面规范（黑白极简）
+
+- 只用：`--ui-bg` 白、`--ui-ink` 近黑、`--ui-muted` 灰、`--ui-group` 雾灰、`--ui-line` 细线、`--ui-green` 仅表示开启/成功
+- 分组卡圆角 24px，组内 0.5px 发丝分隔线，组间距 24px
+- 列表条目 17/24 大字 + 14/21 灰字
+- 禁止彩色玻璃图标、大面积渐变与拟态阴影
+- 桌面图标可换图片，改样式不得破坏换图
+
+## 五、每次改动后
+
+```bash
+node --max-old-space-size=3072 node_modules/typescript/bin/tsc --noEmit
+```
+
+只允许存量错误（`share-destination-sheet.tsx`、`desktop-shell.tsx` 各一处），新增必须清零。

@@ -1,6 +1,16 @@
-# AGENTS.md — 项目协作准则（所有 AI 必读）
+# 更新日志规则（所有 AI 必读，改任何东西之前先读）
 
-本文件是给所有参与本仓库的 AI 看的硬性规则。动手前先读完。
+本项目每次有用户看得到的改动，都必须在**同一次提交**里完成这三件事：
+1. 在 `public/update-log.json` 最前面新增一条记录（新的 id，格式 YYYYMMDD-N；版本号升高）。
+2. 内容只能根据这次真正改了什么来写（对照 `git diff` / `git log`），用大白话，说清楚之前什么样、现在什么样，**不许写代码、文件名、样式词**，不许照抄参考图或别的项目。
+3. 运行 `npm run check:changelog`，通过后才能说“做完了”。
+
+禁止：删除或绕开更新系统（UpdateCenter、update-log.json、version.json、scripts/check-changelog.mjs、.githooks、changelog-gate）；使用 `--no-verify` 或 `SKIP_LOG`（只有主人本人可以用）。
+完整说明见 `UPDATE_POPUP_GUIDE.md`。回复主人时用大白话，最后一句写：“更新日志：已写入 v版本号”。
+
+---
+
+## 附：本仓库的协作约定（保留）
 
 ## 一、仓库与分支
 
@@ -20,37 +30,13 @@
 优先级：书房 > 其他已有应用 > 原本音乐应用 > Y2K 原始应用。
 冲突时以 Y2K 的结构和外观为准，不覆盖核心功能。
 
-## 三、每次推送必须同时更新更新日志（硬性）
-
-只要这次推送会部署到 Vercel，就必须在同一个提交里做完下面三件事，缺一不可：
-
-1. `public/update-log.json` 最前面插入一条新记录（新的 `id`、递增的 `version`、
-   当天日期、标题，以及按应用分组的改动）
-2. `package.json` 的 `version` 与日志里最新一条一致
-3. 文案要求：
-   - **更新弹窗**：每条改动是一句话标题 + 一句灰字解释
-   - **更新公告**：同上，能让人一眼知道这次改了什么、影响哪里
-   - **更新日志**：写详细的大白话，说清「以前什么样、现在什么样」；
-     **不许出现代码、文件名、样式词、英文缩写**
-
-提交前本地执行：
-
-```bash
-node scripts/check-changelog.mjs
-```
-
-不通过就不要提交。
-
 ## 四、界面规范（黑白极简）
 
-完整规范见 `docs/` 下的黑白界面说明书。要点：
-
-- 只用这些颜色：`--ui-bg` 白、`--ui-ink` 近黑、`--ui-muted` 灰、
-  `--ui-group` 雾灰、`--ui-line` 细线、`--ui-green` 仅表示开启/成功
-- 分组卡片圆角 24px，组内条目用 0.5px 发丝线分隔，组间距 24px
-- 列表条目：17/24 大标题 + 14/21 灰字说明
-- 禁止彩色玻璃图标、禁止大面积渐变与拟态阴影
-- 桌面应用图标允许用户换成图片，改样式不得破坏换图
+- 只用：`--ui-bg` 白、`--ui-ink` 近黑、`--ui-muted` 灰、`--ui-group` 雾灰、`--ui-line` 细线、`--ui-green` 仅表示开启/成功
+- 分组卡圆角 24px，组内 0.5px 发丝分隔线，组间距 24px
+- 列表条目 17/24 大字 + 14/21 灰字
+- 禁止彩色玻璃图标、大面积渐变与拟态阴影
+- 桌面图标可换图片，改样式不得破坏换图
 
 ## 五、每次改动后
 
@@ -58,5 +44,4 @@ node scripts/check-changelog.mjs
 node --max-old-space-size=3072 node_modules/typescript/bin/tsc --noEmit
 ```
 
-只允许存在已知的存量错误（`components/chat/share-destination-sheet.tsx` 与
-`components/desktop-shell.tsx` 各一处），新增错误必须清零。
+只允许存量错误（`share-destination-sheet.tsx`、`desktop-shell.tsx` 各一处），新增必须清零。

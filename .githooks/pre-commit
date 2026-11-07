@@ -1,0 +1,10 @@
+#!/bin/sh
+# 提交前自动检查更新日志。不管用哪个 AI、哪个工具提交，都会经过这里。
+# 合并提交（解决冲突时）不拦，别人的内容不需要我们补日志
+[ -f "$(git rev-parse --git-dir)/MERGE_HEAD" ] && exit 0
+node scripts/check-changelog.mjs --staged || {
+  echo ""
+  echo "提交被拦下：请先在 public/update-log.json 最前面写一条新的更新记录（大白话、不写代码、对照 git diff），再提交。"
+  echo "不要用 --no-verify 绕过，也不要设置 SKIP_LOG，这两个只有主人本人可以用。"
+  exit 1
+}
