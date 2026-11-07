@@ -89,3 +89,36 @@ doremy 2026-11-06 主分支的 lib/life、components/life 已试合过一轮，�
 
 合并顺序：新接口 → 新应用（一批）→ 滑动置顶/隐藏/删除 → AI 行为设置页 → 音乐/相册内嵌一起听。
 每个应用都要先核对 lib 依赖，缺什么补什么，不允许删现有实现。
+
+### Tutu 第一批依赖清单（实测）
+
+试合并 lysn / twitter / photos 时，需要补齐以下 lib 模块（缺一个就会连带报错）：
+
+- `lib/lysn-calendar-context`
+- `lib/lysn-celebrations`
+- `lib/lysn-engine`
+- `lib/lysn-identity`
+- `lib/lysn-message`
+- `lib/lysn-notification`
+- `lib/lysn-profile-autonomy`
+- `lib/lysn-storage`
+- `lib/media-resolver`
+- `lib/photo-library-storage`
+- `lib/photo-library-types`
+- `lib/photo-library-usage`
+- `lib/photo-library-vision`
+- `lib/photo-stack-utils`
+- `lib/photo-story-caption`
+- `lib/photo-story-data`
+- `lib/photo-url-import`
+- `lib/role-social-sources`
+- `lib/social-identity`
+- `lib/social-post-time`
+- `lib/twitter-engine`
+- `lib/twitter-metrics`
+- `lib/twitter-storage`
+- `lib/twitter-thread`
+- `lib/twitter-world-engine`
+- `lib/weverse-storage`
+
+直接整批拷入会从 16 条存量错误涨到 52 条，说明这批模块之间还有二次依赖。做法：先合 `photo-library-*` 与 `social-*` 两组底层，再合 lysn/twitter/photos 界面。
