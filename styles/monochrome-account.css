@@ -194,3 +194,16 @@
 .chat-login-saved svg{width:14px;height:14px}
 .chat-login-switch{margin:14px auto 0;background:none;border:0;font-size:13px;color:var(--ui-muted,#6e6e73);text-decoration:underline;text-underline-offset:3px}
 .chat-login-account-main:active,.chat-login-delete:active{transform:scale(.985)}
+
+/* ── 登录表单：一组两行，左标签右输入，像系统设置 ── */
+.chat-login-group{margin-top:14px;background:var(--ui-group,#f4f4f6);border-radius:22px;overflow:hidden}
+.chat-login-row{position:relative;display:flex;align-items:center;gap:12px;min-height:56px;padding:0 16px}
+.chat-login-row+.chat-login-row::before{content:"";position:absolute;top:0;left:16px;right:0;height:.5px;background:var(--ui-hair,#e6e6ea)}
+.chat-login-row-label{font-size:15px;color:var(--ui-ink,#0a0a0a);flex:none;width:44px}
+.chat-login-row input{flex:1;min-width:0;border:0;outline:0;background:transparent;text-align:right;font-size:15px;color:var(--ui-ink,#0a0a0a);font-family:inherit}
+.chat-login-row input::placeholder{color:var(--ui-faint,#aeaeb2)}
+.chat-login-eye{border:0;background:none;color:var(--ui-muted,#6e6e73);display:grid;place-items:center;width:26px;height:26px;flex:none}
+.chat-login-bubble{position:relative;width:88px;height:88px;border-radius:26px;background:var(--ui-group,#f4f4f6);display:flex;align-items:center;justify-content:center;gap:6px}
+.chat-login-success{position:absolute;right:-6px;bottom:-6px;width:26px;height:26px;border-radius:50%;background:var(--ui-green,#30d158);color:#fff;display:grid;place-items:center;box-shadow:0 0 0 3px var(--ui-bg,#fff)}
+.chat-login-message{min-height:18px;margin:8px 4px 0;font-size:12px;line-height:18px;color:var(--ui-muted,#6e6e73);text-align:center}
+.chat-login-message.is-visible{color:var(--ui-ink,#0a0a0a)}

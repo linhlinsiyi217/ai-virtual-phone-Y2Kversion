@@ -30,10 +30,13 @@ import "@/lib/qa-error-log";
 import { RealityBridgeApp } from "@/components/reality-bridge-app";
 import { REALITY_BRIDGE_APP_EVENT_NAME, REALITY_BRIDGE_DATA_EVENT } from "@/lib/reality-bridge/types";
 import { DiaryApp } from "@/components/diary/diary-app";
-import { FavoritesApp } from "@/components/favorites/favorites-app";
-import { ArchiveRoomApp } from "@/components/archive-room-app";
-import { PhotoWallApp } from "@/components/photo-wall-app";
-import { WatchTogetherApp } from "@/components/watch-together-app";
+import dynamic from "next/dynamic";
+
+// 体积大的应用按需加载：不进首屏包，点开时才拉，启动更快
+const FavoritesApp = dynamic(() => import("@/components/favorites/favorites-app").then(m => m.FavoritesApp), { ssr: false });
+const ArchiveRoomApp = dynamic(() => import("@/components/archive-room-app").then(m => m.ArchiveRoomApp), { ssr: false });
+const PhotoWallApp = dynamic(() => import("@/components/photo-wall-app").then(m => m.PhotoWallApp), { ssr: false });
+const WatchTogetherApp = dynamic(() => import("@/components/watch-together-app").then(m => m.WatchTogetherApp), { ssr: false });
 import { XiaohongshuApp } from "@/components/xiaohongshu/xiaohongshu-app";
 import { StoryApp } from "@/components/story/story-app";
 import { VnApp } from "@/components/vn/vn-app";

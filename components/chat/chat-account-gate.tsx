@@ -137,23 +137,25 @@ export function ChatAccountGate({ onClose, onAuthenticated, manage = false }: {
         <section className="chat-login-hero">
           <h1 className="chat-login-title">{heading}</h1>
           <p className="chat-login-subtitle">{subheading}</p>
-          <span className="chat-login-bubble" aria-hidden="true"><i /><i /><i /></span>
-          {phase === "success" ? <span className="chat-login-success"><Check /></span> : null}
+          <span className="chat-login-bubble" aria-hidden="true">
+            <i /><i /><i />
+            {phase === "success" ? <span className="chat-login-success"><Check size={15} /></span> : null}
+          </span>
         </section>
 
-        <section className={`chat-login-form ${phase === "error" ? "is-shaking" : ""}`}>
-          <label className={handle ? "has-value" : ""}>
-            <span>账号</span>
-            <input value={handle} onChange={event => { setHandle(event.target.value.replace(/^@/, "")); setPhase("idle"); }} autoCapitalize="none" autoComplete="username" placeholder="@tianzhenlei_0217" />
-          </label>
-          <label className={password ? "has-value" : ""}>
-            <span>密码</span>
-            <input value={password} onChange={event => { setPassword(event.target.value); setPhase("idle"); }} type={showPassword ? "text" : "password"} autoComplete={mode === "login" ? "current-password" : "new-password"} placeholder="登录密码只保存在本机" />
-            <button type="button" onClick={() => setShowPassword(value => !value)} aria-label={showPassword ? "隐藏密码" : "显示密码"}>{showPassword ? <EyeOff /> : <Eye />}</button>
-          </label>
-          {selected ? <p className="chat-login-saved"><Check /> 使用已保存账号 @{selected.handle}</p> : null}
-          <div className={`chat-login-message ${message ? "is-visible" : ""}`}>{message || "模拟登录 · 不连接真实服务器"}</div>
+        <section className={`chat-login-group ${phase === "error" ? "is-shaking" : ""}`}>
+          <div className="chat-login-row">
+            <span className="chat-login-row-label">账号</span>
+            <input value={handle} onChange={event => { setHandle(event.target.value.replace(/^@/, "")); setPhase("idle"); }} autoCapitalize="none" autoComplete="username" placeholder="未填写" />
+          </div>
+          <div className="chat-login-row">
+            <span className="chat-login-row-label">密码</span>
+            <input value={password} onChange={event => { setPassword(event.target.value); setPhase("idle"); }} type={showPassword ? "text" : "password"} autoComplete={mode === "login" ? "current-password" : "new-password"} placeholder="未填写" />
+            <button type="button" className="chat-login-eye" onClick={() => setShowPassword(value => !value)} aria-label={showPassword ? "隐藏密码" : "显示密码"}>{showPassword ? <EyeOff size={17} /> : <Eye size={17} />}</button>
+          </div>
         </section>
+        {selected ? <p className="chat-login-saved"><Check size={14} /> 使用已保存账号 @{selected.handle}</p> : null}
+        <div className={`chat-login-message ${message ? "is-visible" : ""}`}>{message || ""}</div>
 
         <button className="chat-login-submit" onClick={() => void submit()} disabled={!handle || !password || phase === "busy"}>
           <span>{phase === "busy" ? "正在验证" : phase === "success" ? "已登录" : mode === "login" ? "登录" : "创建并登录"}</span>
