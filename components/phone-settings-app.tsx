@@ -15,6 +15,7 @@ import { RegexManager } from "./settings/regex-manager";
 import { DataManagement } from "./settings/data-management";
 import { UserIdentitySettings } from "./settings/user-identity";
 import { AccountCenter } from "./settings/account-center";
+import { AppAccountsSettings } from "./settings/app-accounts";
 import { ChangelogPage } from "./update-log/changelog-page";
 import { BindingManager } from "./settings/binding-manager";
 import { WeixinSettings } from "./settings/weixin-settings";
@@ -217,7 +218,7 @@ export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
         : currentPage === "accountCenter"
             ? "账号与登录"
         : currentPage === "appAccounts"
-            ? "登录到聊天"
+            ? "应用账号"
         : currentPage === "identity"
             ? "我的资料"
         : currentPage === "api" || currentPage === "voice" || currentPage === "imageGeneration" || currentPage === "presets" || currentPage === "worldbook" || currentPage === "regex"
@@ -358,7 +359,7 @@ export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
             case "accountCenter":
                 return <AccountCenter onNotice={onNotice} />;
             case "appAccounts":
-                return <AccountCenter initialView="chat-login" onNotice={onNotice} />;
+                return <AppAccountsSettings onNotice={onNotice} />;
             case "cloud":
                 return <CloudServicesPage />;
             case "weixin":
@@ -447,7 +448,7 @@ export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
             <PageShell className={currentPage === "main" ? "settings-shell settings-shell-main" : "settings-shell"} title={currentPage === "main" ? "" : title} onBack={handleBack} rightAction={currentPage !== "main" ? subpageRightActions[currentPage] : undefined} bodyRef={pageBodyRef}>
                 {currentPage === "main" && (
                     <div className="settings-overview">
-                        <h1 className="settings-page-title">设置</h1>
+                        <button type="button" className="settings-page-title settings-title-back" onClick={onClose} aria-label="退出设置">设置</button>
                         <button type="button" className="settings-profile-card jelly-button" onClick={() => setCurrentPage("identity")}>
                             <span className="settings-profile-avatar">
                                 {virtualAccount?.avatarUrl ? <img src={virtualAccount.avatarUrl} alt="" /> : <UserCircle size={32} strokeWidth={1.55} />}

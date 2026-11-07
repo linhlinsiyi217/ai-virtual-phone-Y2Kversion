@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { Camera, Check, ChevronRight, Copy, KeyRound, LogIn, QrCode, RefreshCw, ScanLine, Shuffle, Sparkles, UserRound, X } from "lucide-react";
+import { Camera, Check, ChevronRight, Copy, KeyRound, QrCode, RefreshCw, ScanLine, Shuffle, Trash2, UserRound, X } from "lucide-react";
 import { SettingsContext } from "../phone-settings-app";
 import { loadCharacters } from "@/lib/character-storage";
 import { resolveUserIdentity } from "@/lib/settings-storage";
@@ -10,9 +10,9 @@ import { formatFriendCode, parseFriendCodePayload } from "@/lib/friend-code";
 import { renderFriendCodeDataUrl } from "@/lib/friend-code-qr";
 import { SOCIAL_DATA_UPDATED_EVENT, socialDb } from "@/lib/social-db";
 import type { FriendIdentity, VirtualAccount } from "@/lib/social-types";
-import { createCustomVirtualAccount, createGeneratedVirtualAccount, ensureVirtualAccount, getAppVirtualLogin, listVirtualAccounts, logoutAppVirtualLogin, saveAppVirtualLogin, setActiveVirtualAccountId, updateVirtualAccount, verifyVirtualPassword } from "@/lib/virtual-account-service";
+import { createCustomVirtualAccount, createGeneratedVirtualAccount, deleteVirtualAccount, getActiveVirtualAccount, listVirtualAccounts, setActiveVirtualAccountId, updateVirtualAccount } from "@/lib/virtual-account-service";
 
-type View = "home" | "friend-code" | "add-friend" | "chat-login";
+type View = "home" | "friend-code" | "add-friend";
 type Notice = { tone: "ok" | "error"; text: string } | null;
 
 type BarcodeDetectorLike = { detect(source: ImageBitmapSource): Promise<Array<{ rawValue: string }>> };
@@ -31,16 +31,17 @@ export function AccountCenter({ onNotice, initialView = "home" }: { onNotice: (m
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<Notice>(null);
   const [friendCount, setFriendCount] = useState(0);
+  const [loaded, setLoaded] = useState(false);
 
   const identity = useMemo(() => resolveUserIdentity(), []);
 
   const reload = useCallback(async () => {
-    const ensured = await ensureVirtualAccount(identity ? { id: identity.id, name: identity.name, avatarUrl: identity.avatarUrl } : undefined);
-    setAccount(ensured.account);
-    if (ensured.password) setRevealedPassword(ensured.password);
-    setAccounts(await listVirtualAccounts());
-    setFriendCount((await listFriends(ensured.account.friendIdentityId)).length);
-  }, [identity]);
+    const [active, rows] = await Promise.all([getActiveVirtualAccount(), listVirtualAccounts()]);
+    setAccount(active);
+    setAccounts(rows);
+    setFriendCount(active ? (await listFriends(active.friendIdentityId)).length : 0);
+    setLoaded(true);
+  }, []);
 
   useEffect(() => {
     void reload();
@@ -50,7 +51,7 @@ export function AccountCenter({ onNotice, initialView = "home" }: { onNotice: (m
   }, [reload]);
 
   useEffect(() => {
-    const titles: Record<View, string> = { home: "账号与登录", "friend-code": "我的好友码", "add-friend": "添加好友", "chat-login": "登录到聊天" };
+    const titles: Record<View, string> = { home: "账号与登录", "friend-code": "我的好友码", "add-friend": "添加好友" };
     setSubpageTitle(titles[view]);
     setOverrideBack(view === initialView ? null : () => setView(initialView));
     return () => {
@@ -75,7 +76,8 @@ export function AccountCenter({ onNotice, initialView = "home" }: { onNotice: (m
     }
   };
 
-  if (!account) return <div className="account-loading"><span className="account-spinner" />正在准备本机账号…</div>;
+  if (!loaded) return <div className="account-loading"><span className="account-spinner" />正在读取本机账号…</div>;
+  if (!account) return <div className="account-empty-state"><span><UserRound /></span><h2>还没有虚拟账号</h2><p>随机生成一套账号、密码和好友码，或生成后再修改个人资料。</p><button onClick={() => void generateAccount()} disabled={busy}><Shuffle />{busy ? "正在生成…" : "随机生成账号"}</button></div>;
 
   return (
     <div className="account-center">
@@ -88,6 +90,7 @@ export function AccountCenter({ onNotice, initialView = "home" }: { onNotice: (m
           friendCount={friendCount}
           busy={busy}
           onSelect={item => void setActiveVirtualAccountId(item.id)}
+          onDelete={async item => { await deleteVirtualAccount(item.id); setNotice({ tone: "ok", text: "账号已从本机删除" }); await reload(); }}
           onGenerate={generateAccount}
           onOpen={setView}
           onCopyNotice={text => setNotice({ tone: "ok", text })}
@@ -99,14 +102,13 @@ export function AccountCenter({ onNotice, initialView = "home" }: { onNotice: (m
       ) : null}
       {view === "friend-code" ? <FriendCodeView account={account} onNotice={setNotice} /> : null}
       {view === "add-friend" ? <AddFriendView account={account} onNotice={setNotice} onAdded={reload} /> : null}
-      {view === "chat-login" ? <ChatLoginView account={account} accounts={accounts} onGenerated={reload} onNotice={setNotice} /> : null}
     </div>
   );
 }
 
-function AccountHome({ account, accounts, revealedPassword, friendCount, busy, onGenerate, onSelect, onOpen, onSave, onCopyNotice }: {
+function AccountHome({ account, accounts, revealedPassword, friendCount, busy, onGenerate, onSelect, onDelete, onOpen, onSave, onCopyNotice }: {
   account: VirtualAccount; accounts: VirtualAccount[]; revealedPassword: string | null; friendCount: number; busy: boolean;
-  onGenerate: () => void; onSelect: (account: VirtualAccount) => void; onOpen: (view: View) => void; onSave: (name: string) => Promise<void>;
+  onGenerate: () => void; onSelect: (account: VirtualAccount) => void; onDelete: (account: VirtualAccount) => Promise<void>; onOpen: (view: View) => void; onSave: (name: string) => Promise<void>;
   onCopyNotice: (message: string) => void;
 }) {
   const [name, setName] = useState(account.displayName);
@@ -117,6 +119,7 @@ function AccountHome({ account, accounts, revealedPassword, friendCount, busy, o
   const [customHandle, setCustomHandle] = useState("");
   const [customPassword, setCustomPassword] = useState("");
   const [customBusy, setCustomBusy] = useState(false);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
   useEffect(() => {
     setName(account.displayName);
     void Promise.all([getActiveFriendCode(account.friendIdentityId), socialDb.friendIdentities.get(account.friendIdentityId)]).then(([code, identity]) => {
@@ -193,8 +196,10 @@ function AccountHome({ account, accounts, revealedPassword, friendCount, busy, o
         <div className="account-section-head"><span>应用与好友</span><small>{accounts.length} 个账号</small></div>
         <div className="account-panel account-panel-rows">
           <button className="account-row" onClick={() => onOpen("add-friend")}><span className="account-row-icon"><ScanLine /></span><span><b>添加好友</b><small>扫一扫或输入好友码</small></span><ChevronRight /></button>
-          <button className="account-row" onClick={() => onOpen("chat-login")}><span className="account-row-icon"><LogIn /></span><span><b>登录到聊天</b><small>使用虚拟账号模拟登录</small></span><ChevronRight /></button>
-          {accounts.map(item => <button key={item.id} className={`account-row account-switch ${item.id === account.id ? "is-active" : ""}`} onClick={() => onSelect(item)}><span className="account-mini-avatar">{item.avatarUrl ? <img src={item.avatarUrl} alt="" /> : initials(item.displayName)}</span><span><b>{item.displayName}</b><small>@{item.handle}</small></span>{item.id === account.id ? <Check /> : <ChevronRight />}</button>)}
+          {accounts.map(item => <div key={item.id} className={`account-row account-switch account-manage-row ${item.id === account.id ? "is-active" : ""} ${deleteId === item.id ? "is-confirming" : ""}`}>
+            <button className="account-manage-main" onClick={() => onSelect(item)}><span className="account-mini-avatar">{item.avatarUrl ? <img src={item.avatarUrl} alt="" /> : initials(item.displayName)}</span><span><b>{item.displayName}</b><small>@{item.handle}</small></span>{item.id === account.id ? <Check /> : <ChevronRight />}</button>
+            <button className="account-delete-inline" onClick={() => deleteId === item.id ? void onDelete(item) : setDeleteId(item.id)}>{deleteId === item.id ? "确认删除" : <Trash2 />}</button>
+          </div>)}
         </div>
       </section>
       <p className="account-footnote">这些账号只用于虚拟手机内的假登录，不会连接真实服务。</p>
@@ -335,43 +340,3 @@ function AddFriendView({ account, onNotice, onAdded }: { account: VirtualAccount
   </>;
 }
 
-function ChatLoginView({ account, accounts, onGenerated, onNotice }: { account: VirtualAccount; accounts: VirtualAccount[]; onGenerated: () => Promise<void>; onNotice: (notice: Notice) => void }) {
-  const [handle, setHandle] = useState(account.handle);
-  const [password, setPassword] = useState("");
-  const [current, setCurrent] = useState<VirtualAccount | null>(null);
-  const [busy, setBusy] = useState(false);
-  useEffect(() => { void getAppVirtualLogin("chat").then(result => setCurrent(result?.account ?? null)); }, []);
-  const login = async () => {
-    setBusy(true);
-    const verified = await verifyVirtualPassword(handle, password);
-    if (!verified) onNotice({ tone: "error", text: "账号或密码不正确。随机账号的密码只会在生成时显示一次。" });
-    else { await saveAppVirtualLogin("chat", verified.id); setCurrent(verified); setPassword(""); onNotice({ tone: "ok", text: "聊天应用登录成功" }); }
-    setBusy(false);
-  };
-  const generate = async () => {
-    const result = await createGeneratedVirtualAccount({ id: `chat:${Date.now()}`, name: "新用户" });
-    setHandle(result.account.handle); setPassword(result.password); await onGenerated();
-    onNotice({ tone: "ok", text: "已生成账号并自动填入。请先保存密码，再点击登录。" });
-  };
-  const createCustom = async () => {
-    try {
-      const created = await createCustomVirtualAccount({ handle, password, displayName: handle });
-      await saveAppVirtualLogin("chat", created.id); setCurrent(created); setPassword(""); await onGenerated();
-      onNotice({ tone: "ok", text: "自定义虚拟账号已创建并登录" });
-    } catch (error) { onNotice({ tone: "error", text: error instanceof Error ? error.message : "创建失败" }); }
-  };
-  if (current) return <section className="login-success"><span className="success-orbit"><Check /></span><span className="account-eyebrow">CHAT ACCOUNT</span><h2>已登录</h2><p>{current.displayName}<br />@{current.handle}</p><button onClick={async () => { await logoutAppVirtualLogin("chat"); setCurrent(null); }}>退出聊天账号</button></section>;
-  return <>
-    <section className="login-intro"><span><Sparkles /></span><div><h2>登录聊天应用</h2><p>这是虚拟手机内部的模拟账号，不会把资料上传到真实社交平台。</p></div></section>
-    <section className="account-panel login-form">
-      <label><span>账号</span><input value={handle} onChange={event => setHandle(event.target.value.replace(/^@/, ""))} autoCapitalize="none" placeholder="例如 luna.2688" /></label>
-      <label><span>密码</span><input value={password} onChange={event => setPassword(event.target.value)} type="password" placeholder="输入本机虚拟密码" /></label>
-      <button className="login-primary" onClick={() => void login()} disabled={busy || !handle || !password}>{busy ? "正在验证…" : "登录"}</button>
-      <button className="login-random" onClick={() => void generate()}><Shuffle />随机生成账号和密码</button>
-      <button className="login-random" onClick={() => void createCustom()} disabled={!handle || !password}><UserRound />用当前账号和密码新建</button>
-    </section>
-    <section className="account-section"><div className="account-section-head"><span>选择已有账号</span><small>{accounts.length} 个</small></div><div className="account-panel account-panel-rows">
-      {accounts.map(item => <button className="account-row" key={item.id} onClick={() => setHandle(item.handle)}><span className="account-mini-avatar">{initials(item.displayName)}</span><span><b>{item.displayName}</b><small>@{item.handle}</small></span><ChevronRight /></button>)}
-    </div></section>
-  </>;
-}

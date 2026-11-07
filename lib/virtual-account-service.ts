@@ -145,6 +145,31 @@ export async function updateVirtualAccount(accountId: string, updates: Pick<Virt
   announceSocialDataUpdated({ kind: "virtual-account-updated", accountId });
 }
 
+export async function deleteVirtualAccount(accountId: string): Promise<void> {
+  const account = await socialDb.virtualAccounts.get(accountId);
+  if (!account) return;
+  await socialDb.transaction(
+    "rw",
+    [socialDb.virtualAccounts, socialDb.appLogins, socialDb.friendIdentities, socialDb.friendCodes, socialDb.relationships],
+    async () => {
+      const relationships = await socialDb.relationships
+        .filter(row => row.fromFriendId === account.friendIdentityId || row.toFriendId === account.friendIdentityId)
+        .primaryKeys();
+      await socialDb.relationships.bulkDelete(relationships);
+      await socialDb.friendCodes.where("friendIdentityId").equals(account.friendIdentityId).delete();
+      await socialDb.appLogins.where("virtualAccountId").equals(accountId).delete();
+      await socialDb.friendIdentities.delete(account.friendIdentityId);
+      await socialDb.virtualAccounts.delete(accountId);
+    },
+  );
+  if (typeof window !== "undefined" && localStorage.getItem(ACTIVE_ACCOUNT_KEY) === accountId) {
+    const replacement = await socialDb.virtualAccounts.orderBy("updatedAt").last();
+    if (replacement) localStorage.setItem(ACTIVE_ACCOUNT_KEY, replacement.id);
+    else localStorage.removeItem(ACTIVE_ACCOUNT_KEY);
+  }
+  announceSocialDataUpdated({ kind: "virtual-account-deleted", accountId });
+}
+
 export async function verifyVirtualPassword(handle: string, password: string): Promise<VirtualAccount | null> {
   const account = await socialDb.virtualAccounts.where("handle").equals(handle.trim().replace(/^@/, "")).first();
   if (!account) return null;

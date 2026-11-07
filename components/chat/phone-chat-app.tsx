@@ -20,6 +20,9 @@ import { CHAT_SESSIONS_MERGED_EVENT, type ChatSessionsMergedDetail } from "@/lib
 import { getMascotSettingsSnapshot } from "@/lib/mascot-settings";
 import { CHAT_BEAUTY_SCOPES, CHAT_BEAUTY_UPDATED_EVENT, loadChatBeauty, type ChatBeautyScope } from "@/lib/chat-beauty";
 import { ChatBeautyDecoration } from "./chat-beauty-decoration";
+import { ChatAccountGate } from "./chat-account-gate";
+import { getAppVirtualLogin } from "@/lib/virtual-account-service";
+import type { VirtualAccount } from "@/lib/social-types";
 
 type TabKey = "messages" | "contacts" | "feeds" | "me";
 
@@ -49,6 +52,9 @@ export const PhoneChatApp = memo(function PhoneChatApp({ onClose, initialSession
     // Cache all visited sessions so their ChatRoom stays mounted (hidden)
     const [visitedSessions, setVisitedSessions] = useState<Map<string, ChatSession>>(new Map());
     const [dbReady, setDbReady] = useState(false);
+    const [accountReady, setAccountReady] = useState(false);
+    const [chatAccount, setChatAccount] = useState<VirtualAccount | null>(null);
+    const [accountGateOpen, setAccountGateOpen] = useState(false);
     const [hideTabBar, setHideTabBar] = useState(false);
     const [dockOpen, setDockOpen] = useState(false);
     const [beautyOpenRequest, setBeautyOpenRequest] = useState(0);
@@ -74,6 +80,16 @@ export const PhoneChatApp = memo(function PhoneChatApp({ onClose, initialSession
             }
         });
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+    useEffect(() => {
+        void getAppVirtualLogin("chat").then(result => {
+            setChatAccount(result?.account ?? null);
+            setAccountReady(true);
+        });
+        const openManager = () => setAccountGateOpen(true);
+        window.addEventListener("chat-open-account-gate", openManager);
+        return () => window.removeEventListener("chat-open-account-gate", openManager);
+    }, []);
 
     // React to external session navigation (e.g., incoming call acceptance)
     // Only fires when initialSessionId CHANGES after mount (mount case handled by hydration above)
@@ -274,7 +290,18 @@ export const PhoneChatApp = memo(function PhoneChatApp({ onClose, initialSession
     }, []);
 
     // Wait for IndexedDB hydration before rendering
-    if (!dbReady) return null;
+    if (!dbReady || !accountReady) return null;
+
+    if (!chatAccount || accountGateOpen) {
+        return <ChatAccountGate
+            manage={Boolean(chatAccount)}
+            onClose={chatAccount ? () => setAccountGateOpen(false) : onClose}
+            onAuthenticated={account => {
+                setChatAccount(account);
+                setAccountGateOpen(false);
+            }}
+        />;
+    }
 
     return (
         <div
