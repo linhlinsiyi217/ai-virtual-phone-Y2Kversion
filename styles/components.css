@@ -5588,9 +5588,21 @@
 }
 .settings-list-row + .settings-list-row {
   border-top: .5px solid var(--ui-line, #d9d9de);
-  margin-left: var(--ui-space-page, 16px);
-  padding-left: 0;
 }
+/* 分隔线从文字起点开始，但整行内边距保持不变，避免图标列左右跳动 */
+.settings-list-row + .settings-list-row {
+  position: relative;
+}
+.settings-list-row + .settings-list-row::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: calc(var(--ui-space-page, 16px) + 30px + 14px);
+  right: 0;
+  height: .5px;
+  background: var(--ui-line, #d9d9de);
+}
+.settings-list-row + .settings-list-row { border-top: 0; }
 .settings-list-row:active {
   background: var(--ui-group, #f2f2f4);
   transform: scale(.994);
