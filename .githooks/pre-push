@@ -1,0 +1,21 @@
+#!/bin/sh
+# 推送前检查：这次推上去的提交里如果有功能改动却没写更新日志，就拦下来。
+# 就算有人用 --no-verify 绕过了提交钩子，这里还能兜住。
+while read local_ref local_sha remote_ref remote_sha; do
+  case "$local_sha" in 0000000000000000000000000000000000000000) continue;; esac
+  if [ "$remote_sha" = "0000000000000000000000000000000000000000" ]; then
+    base=$(git rev-list --max-count=1 --not --remotes "$local_sha" 2>/dev/null)
+    [ -n "$base" ] && base=$(git rev-parse "$base^" 2>/dev/null)
+    [ -z "$base" ] && continue
+    range="$base..$local_sha"
+  else
+    range="$remote_sha..$local_sha"
+  fi
+  node scripts/check-changelog.mjs --range "$range" || {
+    echo ""
+    echo "推送被拦下：这次推送包含功能改动，但没有对应的更新日志。"
+    echo "请先在 public/update-log.json 最前面写一条新记录再推。"
+    exit 1
+  }
+done
+exit 0
