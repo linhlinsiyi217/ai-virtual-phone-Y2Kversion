@@ -307,7 +307,7 @@ export function PhoneThemeApp({
                     }}
                   >
                     <span className="card-icon card-icon-glass">
-                      {item.icon()}
+                      <GlassIcon name={item.glass} />
                     </span>
                     <span className="card-card-body">
                       <span className="card-label">{item.label}</span>
@@ -326,7 +326,7 @@ export function PhoneThemeApp({
                 type="button"
                 onClick={() => setSection("interface")}
               >
-                <span className="card-icon card-icon-glass">{MENU_ITEMS.find(m => m.section === "palette")!.icon()}</span>
+                <span className="card-icon card-icon-glass"><GlassIcon name="palette" /></span>
                 <div className="card-featured-body">
                   <div className="card-featured-label">界面与动效</div>
                   <div className="card-featured-desc">黑白主体、按钮回弹与悬浮底栏</div>
@@ -344,7 +344,7 @@ export function PhoneThemeApp({
                   const caseItem = MENU_ITEMS.find(i => i.section === "case")!;
                   return (
                     <div className="menu-item cursor-pointer" onClick={() => setShowStatusBarAdjust(true)}>
-                      <span className="card-icon card-icon-glass">{caseItem.icon()}</span>
+                      <span className="card-icon card-icon-glass"><GlassIcon name={caseItem.glass} /></span>
                       <span className="menu-label appearance-menu-item-label">{caseItem.label}</span>
                       <label
                         className="block w-10 h-[22px] cursor-pointer relative shrink-0 ml-auto"
@@ -378,7 +378,7 @@ export function PhoneThemeApp({
                     onClick={() => setShowTextAdjust(true)}
                   >
                     <span className="card-icon card-icon-glass">
-                      {item.icon()}
+                      <GlassIcon name={item.glass} />
                     </span>
                     <span className="menu-label appearance-menu-item-label">{item.label}</span>
                     <span className="menu-right">
@@ -401,7 +401,7 @@ export function PhoneThemeApp({
                     onClick={() => setSection("css")}
                   >
                     <span className="card-icon card-icon-glass">
-                      {cssItem.icon()}
+                      <GlassIcon name={cssItem.glass} />
                     </span>
                     <div className="card-featured-body">
                       <div className="card-featured-label">{cssItem.label}</div>
@@ -431,7 +431,7 @@ export function PhoneThemeApp({
                     }}
                   >
                     <span className="card-icon card-icon-glass">
-                      {item.icon()}
+                      <GlassIcon name={item.glass} />
                     </span>
                     <span className="card-card-body">
                       <span className="card-label">{item.label}</span>

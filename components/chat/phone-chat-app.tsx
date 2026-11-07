@@ -292,7 +292,8 @@ export const PhoneChatApp = memo(function PhoneChatApp({ onClose, initialSession
     // Wait for IndexedDB hydration before rendering
     if (!dbReady || !accountReady) return null;
 
-    if (!chatAccount || accountGateOpen) {
+    // 登录门控暂时关闭：直接进聊天，账号页仍可从设置进入
+    if (accountGateOpen) {
         return <ChatAccountGate
             manage={Boolean(chatAccount)}
             onClose={chatAccount ? () => setAccountGateOpen(false) : onClose}
