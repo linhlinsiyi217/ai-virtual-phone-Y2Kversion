@@ -32,6 +32,7 @@ import { REALITY_BRIDGE_APP_EVENT_NAME, REALITY_BRIDGE_DATA_EVENT } from "@/lib/
 import { DiaryApp } from "@/components/diary/diary-app";
 import { FavoritesApp } from "@/components/favorites/favorites-app";
 import { ArchiveRoomApp } from "@/components/archive-room-app";
+import { PhotoWallApp } from "@/components/photo-wall-app";
 import { XiaohongshuApp } from "@/components/xiaohongshu/xiaohongshu-app";
 import { StoryApp } from "@/components/story/story-app";
 import { VnApp } from "@/components/vn/vn-app";
@@ -4127,6 +4128,9 @@ html,body{margin:0;padding:0;width:100%;height:100%;background:#121110;color:rgb
       return <ResourceHubApp onClose={() => setActiveApp(null)} onNotice={setNotice} />;
     }
 
+    if (activeApp === "photowall") {
+      return <PhotoWallApp onClose={() => setActiveApp(null)} />;
+    }
     if (activeApp === "archiveroom") {
       return <ArchiveRoomApp onClose={() => setActiveApp(null)} />;
     }

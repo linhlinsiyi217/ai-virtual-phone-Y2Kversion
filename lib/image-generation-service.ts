@@ -651,6 +651,10 @@ export async function generateImageFromConfiguredApi(params: {
   referenceImageDataUrl?: string;
   referenceImageDataUrls?: string[];
   persistResult?: boolean;
+  /** 调用方应用标识（照片墙等按应用区分绑定配置） */
+  appId?: string;
+  /** 多人合照时参与的角�� id */
+  participantIds?: string[];
   settings?: ImageGenerationSettings;
   signal?: AbortSignal;
 }): Promise<ImageGenerationResult | null> {

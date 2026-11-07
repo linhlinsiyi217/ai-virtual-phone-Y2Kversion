@@ -10,6 +10,8 @@ interface MediaCacheEntry {
     mimeType: string;
     mediaCategory: "audio" | "image" | "video" | "file";
     createdAt: number;
+    /** 被哪些功能引用（引用期间清理时保留） */
+    retainedBy?: string[];
 }
 
 class MediaCacheDatabase extends Dexie {
@@ -168,4 +170,29 @@ export function extractBase64Blocks(text: string): Array<{ fullMatch: string; de
         });
     }
     return results;
+}
+
+/** 引用保护：被持续引用的媒体不参与自动清理。 */
+export async function retainMediaRef(ref: string | undefined, owner: string): Promise<void> {
+    if (!ref || !ref.startsWith(MEDIA_STORE_PROTOCOL) || !owner.trim()) return;
+    const table = getDb().entries;
+    const id = ref.slice(MEDIA_STORE_PROTOCOL.length);
+    const entry = await table.get(id);
+    if (!entry) throw new Error("媒体文件不存在，无法建立引用保护");
+    await table.update(id, { retainedBy: Array.from(new Set([...(entry.retainedBy ?? []), owner.trim()])) });
+}
+
+export async function releaseMediaRef(ref: string | undefined, owner: string): Promise<void> {
+    if (!ref || !ref.startsWith(MEDIA_STORE_PROTOCOL) || !owner.trim()) return;
+    const table = getDb().entries;
+    const id = ref.slice(MEDIA_STORE_PROTOCOL.length);
+    const entry = await table.get(id);
+    if (!entry) return;
+    await table.update(id, { retainedBy: (entry.retainedBy ?? []).filter(value => value !== owner.trim()) });
+}
+
+export async function isMediaRefRetained(ref: string | undefined): Promise<boolean> {
+    if (!ref || !ref.startsWith(MEDIA_STORE_PROTOCOL)) return false;
+    const entry = await getDb().entries.get(ref.slice(MEDIA_STORE_PROTOCOL.length));
+    return Boolean(entry?.retainedBy?.length);
 }
