@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useLayoutEffect, useCallback, useRef, createContext, type CSSProperties, type ReactNode } from "react";
-import { Activity, CalendarDays, Camera, Check, ChevronRight, Database, Fingerprint, Globe, HardDrive, Image, Info, KeyRound, Laptop, Layers, LayoutTemplate, Link2, Loader2, LogOut, MessageSquare, Mic, PhoneCall, ShieldCheck, UserCircle, Wrench, X, CloudUpload, Zap } from "lucide-react";
+import { Activity, CalendarDays, Camera, Check, ChevronRight, Clock, Database, FileText, Fingerprint, Globe, HardDrive, Image, Info, KeyRound, Laptop, Layers, LayoutTemplate, Link2, Loader2, LogOut, MessageSquare, Mic, PhoneCall, SlidersHorizontal, UserCircle, Wrench, X, CloudUpload, Zap } from "lucide-react";
 import { ConfirmDialog } from "./ui/modal";
 import { useAccount } from "@/lib/account-context";
 import { isSelfHostedModeEnabled } from "@/lib/self-hosting";
@@ -14,8 +14,6 @@ import { WorldBookManager } from "./settings/worldbook-manager";
 import { RegexManager } from "./settings/regex-manager";
 import { DataManagement } from "./settings/data-management";
 import { UserIdentitySettings } from "./settings/user-identity";
-import { AccountCenter } from "./settings/account-center";
-import { AppAccountsSettings } from "./settings/app-accounts";
 import { ChangelogPage } from "./update-log/changelog-page";
 import { BindingManager } from "./settings/binding-manager";
 import { WeixinSettings } from "./settings/weixin-settings";
@@ -39,9 +37,6 @@ import { loadKeepAlive, saveKeepAlive } from "@/lib/weixin-storage";
 import { BINDING_ACCENTS, CONTENT_APP_ACCENTS } from "@/lib/ui-accent-colors";
 import { changeFloatingTool } from "@/lib/floating-tools";
 import { CHAT_APP_SETTINGS_UPDATED_EVENT } from "@/lib/chat-storage";
-import { getActiveVirtualAccount } from "@/lib/virtual-account-service";
-import { SOCIAL_DATA_UPDATED_EVENT } from "@/lib/social-db";
-import type { VirtualAccount } from "@/lib/social-types";
 
 export const SettingsContext = createContext<{
     setSubpageTitle: (title: string | null) => void;
@@ -64,8 +59,6 @@ type SubPage =
     | "regex"
     | "data"
     | "binding"
-    | "accountCenter"
-    | "appAccounts"
     | "identity"
     | "cloud"
     | "weixin"
@@ -155,17 +148,6 @@ export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
     const [pwdError, setPwdError] = useState("");
     const [confirmLogout, setConfirmLogout] = useState(false);
     const [accountSheetOpen, setAccountSheetOpen] = useState(false);
-    const [virtualAccount, setVirtualAccount] = useState<VirtualAccount | null>(null);
-
-    useEffect(() => {
-        const loadLocalAccount = async () => {
-            setVirtualAccount(await getActiveVirtualAccount());
-        };
-        void loadLocalAccount();
-        const sync = () => void loadLocalAccount();
-        window.addEventListener(SOCIAL_DATA_UPDATED_EVENT, sync);
-        return () => window.removeEventListener(SOCIAL_DATA_UPDATED_EVENT, sync);
-    }, []);
 
     // ── 管理中心入口：仅 role=admin 的账号可见 ──
     const [isAdmin, setIsAdmin] = useState(false);
@@ -215,13 +197,7 @@ export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
 
     const defaultTitle = currentPage === "main"
         ? "设置"
-        : currentPage === "accountCenter"
-            ? "账号与登录"
-        : currentPage === "appAccounts"
-            ? "应用账号"
-        : currentPage === "identity"
-            ? "我的资料"
-        : currentPage === "api" || currentPage === "voice" || currentPage === "imageGeneration" || currentPage === "presets" || currentPage === "worldbook" || currentPage === "regex"
+        : currentPage === "api" || currentPage === "voice" || currentPage === "imageGeneration" || currentPage === "presets" || currentPage === "worldbook" || currentPage === "regex" || currentPage === "identity"
             ? ""
             : currentPage === "moderation"
                 ? "管理中心"
@@ -356,10 +332,6 @@ export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
                 return <DataManagement onNotice={onNotice} />;
             case "binding":
                 return <BindingManager />;
-            case "accountCenter":
-                return <AccountCenter onNotice={onNotice} />;
-            case "appAccounts":
-                return <AppAccountsSettings onNotice={onNotice} />;
             case "cloud":
                 return <CloudServicesPage />;
             case "weixin":
@@ -400,7 +372,7 @@ export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
         const pending = sessionStorage.getItem("mascot-settings-mode");
         if (pending) {
             sessionStorage.removeItem("mascot-settings-mode");
-            if (pending === "accountCenter" || SETTINGS_MENU.some(m => m.id === pending)) {
+            if (SETTINGS_MENU.some(m => m.id === pending)) {
                 setCurrentPage(pending as SubPage);
             }
         }
@@ -425,7 +397,7 @@ export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
     useEffect(() => {
         const onMode = (e: Event) => {
             const { mode } = (e as CustomEvent).detail ?? {};
-            if (mode && (mode === "accountCenter" || SETTINGS_MENU.some(m => m.id === mode))) {
+            if (mode && SETTINGS_MENU.some(m => m.id === mode)) {
                 setCurrentPage(mode as SubPage);
             }
         };
@@ -445,78 +417,126 @@ export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
 
     return (
         <SettingsContext.Provider value={{ setSubpageTitle, setOverrideBack, setSubpageRightAction }}>
-            <PageShell className={currentPage === "main" ? "settings-shell settings-shell-main" : "settings-shell"} title={currentPage === "main" ? "" : title} onBack={handleBack} rightAction={currentPage !== "main" ? subpageRightActions[currentPage] : undefined} bodyRef={pageBodyRef}>
+            <PageShell title={title} onBack={handleBack} rightAction={currentPage !== "main" ? subpageRightActions[currentPage] : undefined} bodyRef={pageBodyRef}>
                 {currentPage === "main" && (
-                    <div className="settings-overview">
-                        <button type="button" className="settings-page-title settings-title-back" onClick={onClose} aria-label="退出设置">设置</button>
-                        <button type="button" className="settings-profile-card jelly-button" onClick={() => setCurrentPage("identity")}>
-                            <span className="settings-profile-avatar">
-                                {virtualAccount?.avatarUrl ? <img src={virtualAccount.avatarUrl} alt="" /> : <UserCircle size={32} strokeWidth={1.55} />}
-                            </span>
-                            <span className="settings-profile-copy">
-                                <b>{virtualAccount?.displayName || "设置本机资料"}</b>
-                                <small>{virtualAccount ? `虚拟账号 · @${virtualAccount.handle}` : "添加头像、名称与个人资料"}</small>
-                            </span>
-                            <ChevronRight size={20} />
-                        </button>
-
-                        <div className="settings-overview-group settings-overview-account">
-                            <button className="settings-overview-row jelly-button" onClick={() => setCurrentPage("accountCenter")}>
-                                <span className="settings-overview-icon"><KeyRound size={21} /></span>
-                                <span className="settings-overview-copy"><b>账号与登录</b><small>虚拟账号、密码与好友码</small></span>
-                                <i className="settings-online-dot" aria-label="本机账号可用" />
-                                <ChevronRight size={19} />
+                    <div className="page-menu settings-main-menu">
+                        <h1 className="settings-page-title">设置</h1>
+                        {!selfHostedMode && (
+                            <button type="button" className="settings-account-card" onClick={() => setAccountSheetOpen(true)}>
+                                <span className="settings-account-avatar"><GlassIcon name="account" /></span>
+                                <span className="settings-account-copy">
+                                    <span className="settings-account-name">{account.displayName || account.username}</span>
+                                    <span className="settings-account-sub">虚拟账号 · 已登录</span>
+                                </span>
+                                <ChevronRight size={18} className="settings-account-chevron" />
                             </button>
-                        </div>
-
-                        <div className="settings-overview-group">
-                            {[
-                                { id: "identity", icon: UserCircle, label: "个人资料", desc: "头像、称呼与对外资料" },
-                                { id: "appAccounts", icon: Layers, label: "应用账号", desc: "管理各应用的虚拟登录" },
-                                { id: "data", icon: ShieldCheck, label: "隐私与安全", desc: "本机数据与导入导出" },
-                                { id: "cloud", icon: CloudUpload, label: "数据与备份", desc: "备份、恢复与云端服务" },
-                                { id: "about", icon: Info, label: "关于", desc: "版本、更新日志与说明" },
-                            ].map(item => {
-                                const Icon = item.icon;
-                                return <button key={item.label} className="settings-overview-row jelly-button" onClick={() => setCurrentPage(item.id as SubPage)}>
-                                    <span className="settings-overview-icon"><Icon size={21} strokeWidth={1.7} /></span>
-                                    <span className="settings-overview-copy"><b>{item.label}</b><small>{item.desc}</small></span>
-                                    <ChevronRight size={19} />
-                                </button>;
-                            })}
-                        </div>
-
-                        <section className="settings-advanced">
-                            <h2>高级设置</h2>
-                            {[
-                                ["接口", ["api", "voice", "imageGeneration"]],
-                                ["数据与规则", ["presets", "worldbook", "regex", "data", "binding"]],
-                                ["连接与工具", ["weixin", "toolbox", "agentComputer", "callOverlay", "perception", "deviceAction", "systemCalendar", "screenshot", "widget"]],
-                            ].map(([label, ids]) => <div className="settings-advanced-section" key={label as string}>
-                                <h3>{label as string}</h3>
-                                <div className="settings-overview-group">
-                                    {SETTINGS_MENU.filter(item => (ids as string[]).includes(item.id)).map(item => {
-                                        const Icon = item.icon;
-                                        return <button key={item.id} className="settings-overview-row jelly-button" onClick={() => setCurrentPage(item.id as SubPage)}>
-                                            <span className="settings-overview-icon"><Icon size={20} strokeWidth={1.7} /></span>
-                                            <span className="settings-overview-copy"><b>{item.label}</b><small>{item.desc}</small></span>
-                                            <ChevronRight size={18} />
-                                        </button>;
-                                    })}
+                        )}
+                        <CardGrid
+                            variant="list"
+                            label="接口"
+                            items={SETTINGS_MENU.filter(item => ["api", "voice", "imageGeneration"].includes(item.id)).map(makeCardItem)}
+                        />
+                        <CardGrid
+                            variant="list"
+                            label="数据与规则"
+                            items={SETTINGS_MENU.filter(item => ["presets", "worldbook", "regex", "data", "binding"].includes(item.id)).map(makeCardItem)}
+                        />
+                        <CardGrid
+                            variant="list"
+                            label="连接"
+                            items={SETTINGS_MENU.filter(item => ["cloud", "weixin", "toolbox", "agentComputer"].includes(item.id)).map(makeCardItem)}
+                        />
+                        <CardGrid
+                            variant="list"
+                            label="运行"
+                            items={SETTINGS_MENU.filter(item => ["callOverlay", "perception", "deviceAction", "systemCalendar", "screenshot", "widget"].includes(item.id)).map(makeCardItem)}
+                        />
+                        <div className="settings-realtime-section">
+                            <h3 className="settings-menu-section-title">Runtime</h3>
+                            <div className="app-card card-featured settings-toggle-card">
+                                <span className="card-icon card-icon-glass">
+                                    <GlassIcon name="time-aware" />
+                                </span>
+                                <div className="card-featured-body">
+                                    <div className="card-featured-label">真实时间感知</div>
+                                    <div className="card-featured-desc">控制全局历史事件流中是否注入时间戳</div>
                                 </div>
-                            </div>)}
-
-                            <div className="settings-advanced-section">
-                                <h3>运行</h3>
-                                <div className="settings-overview-group">
-                                    <div className="settings-overview-row"><span className="settings-overview-icon"><Activity size={20} /></span><span className="settings-overview-copy"><b>真实时间感知</b><small>在历史事件中注入时间</small></span><Toggle checked={timeAware} onChange={handleTimeAwareChange} /></div>
-                                    <div className="settings-overview-row"><span className="settings-overview-icon"><CloudUpload size={20} /></span><span className="settings-overview-copy"><b>后台保活</b><small>保持消息与轮询不中断</small></span><Toggle checked={keepAlive} onChange={handleKeepAliveChange} /></div>
-                                    <div className="settings-overview-row"><span className="settings-overview-icon"><Wrench size={20} /></span><span className="settings-overview-copy"><b>悬浮工具</b><small>提示词与快捷操作</small></span><Toggle checked={floatingToolsEnabled} onChange={handleFloatingToolsChange} /></div>
+                                <Toggle checked={timeAware} onChange={handleTimeAwareChange} className="settings-toggle-control" />
+                            </div>
+                            <div className="app-card card-featured settings-toggle-card">
+                                <span className="card-icon card-icon-glass">
+                                    <GlassIcon name="keep-alive" />
+                                </span>
+                                <div className="card-featured-body">
+                                    <div className="card-featured-label">后台保活</div>
+                                    <div className="card-featured-desc">切到后台时尽量保持网页运行，主动消息与轮询不中断</div>
+                                </div>
+                                <Toggle checked={keepAlive} onChange={handleKeepAliveChange} className="settings-toggle-control" />
+                            </div>
+                        </div>
+                        {isAdmin ? (
+                            <div className="settings-moderation-section">
+                                <h3 className="settings-menu-section-title">Moderation</h3>
+                                <div className="app-card card-featured settings-toggle-card" role="button" tabIndex={0} style={{ cursor: "pointer" }} onClick={() => setCurrentPage("moderation")}>
+                                    <span className="card-icon card-icon-glass">
+                                        <GlassIcon name="moderation" />
+                                    </span>
+                                    <div className="card-featured-body">
+                                        <div className="card-featured-label">管理中心</div>
+                                        <div className="card-featured-desc">举报队列、应用审核与用户封禁</div>
+                                    </div>
+                                    <ChevronRight size={18} className="settings-account-chevron" />
                                 </div>
                             </div>
-                            {isAdmin ? <button className="settings-overview-row settings-admin-row jelly-button" onClick={() => setCurrentPage("moderation")}><span className="settings-overview-icon"><ShieldCheck size={20} /></span><span className="settings-overview-copy"><b>管理中心</b><small>举报、审核与封禁</small></span><ChevronRight size={18} /></button> : null}
-                            {!selfHostedMode ? <button className="settings-overview-row settings-admin-row jelly-button" onClick={() => setAccountSheetOpen(true)}><span className="settings-overview-icon"><UserCircle size={20} /></span><span className="settings-overview-copy"><b>站点账号</b><small>@{account.username} · 修改密码与退出</small></span><ChevronRight size={18} /></button> : null}
-                        </section>
+                        ) : null}
+                        <div className="settings-tools-section">
+                            <h3 className="settings-menu-section-title">Tools</h3>
+                            <div className="menu-group settings-tools-menu">
+                                <div className="menu-item settings-tools-menu-item">
+                                    <span className="card-icon card-icon-glass">
+                                        <GlassIcon name="prompt-viewer" />
+                                    </span>
+                                    <span className="settings-tools-menu-copy">
+                                        <span className="menu-label appearance-menu-item-label">提示词查看器</span>
+                                        <span className="menu-desc settings-tools-menu-desc">开启后显示悬浮按钮，可查看当前提示词</span>
+                                    </span>
+                                    <span className="menu-right settings-tools-menu-toggle">
+                                        <Toggle checked={promptViewerEnabled} ariaLabel="提示词查看器" onChange={handlePromptViewerChange} className="settings-toggle-control" />
+                                    </span>
+                                </div>
+                                <div className="menu-item settings-tools-menu-item">
+                                    <span className="card-icon card-icon-glass">
+                                        <GlassIcon name="quick-action" />
+                                    </span>
+                                    <span className="settings-tools-menu-copy">
+                                        <span className="menu-label appearance-menu-item-label">快捷操作</span>
+                                        <span className="menu-desc settings-tools-menu-desc">快速切换 API 与世界书</span>
+                                    </span>
+                                    <span className="menu-right settings-tools-menu-toggle">
+                                        <Toggle checked={quickActionEnabled} ariaLabel="快捷操作" onChange={handleQuickActionChange} className="settings-toggle-control" />
+                                    </span>
+                                </div>
+                                <div className="menu-item settings-tools-menu-item">
+                                    <span className="card-icon card-icon-glass" style={quickActionIconStyle}>
+                                        <span aria-hidden="true" style={{ display: "grid", placeItems: "center", width: 30, height: 30, borderRadius: 10, background: "linear-gradient(145deg, #a6adba, #555f71)", boxShadow: "inset 0 1px 0 #ffffff80" }}>
+                                            <span style={{ width: 19, height: 19, borderRadius: "50%", border: "3px solid #ffffff55", background: "#ffffffe0", backgroundClip: "padding-box" }} />
+                                        </span>
+                                    </span>
+                                    <span className="settings-tools-menu-copy">
+                                        <span className="menu-label appearance-menu-item-label">悬浮工具</span>
+                                        <span className="menu-desc settings-tools-menu-desc">合并提示词与快捷操作，可拖动贴边</span>
+                                    </span>
+                                    <span className="menu-right settings-tools-menu-toggle">
+                                        <Toggle checked={floatingToolsEnabled} ariaLabel="悬浮工具" onChange={handleFloatingToolsChange} className="settings-toggle-control" />
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        <CardGrid
+                            variant="list"
+                            label="账号"
+                            items={SETTINGS_MENU.filter(item => ["identity", "about"].includes(item.id)).map(makeCardItem)}
+                        />
                         {accountSheetOpen && (
                             <div className="modal-overlay modal-overlay-bottom" data-ui="modal" onClick={() => setAccountSheetOpen(false)}>
                                 <div className="modal-sheet" data-ui="modal-sheet" onClick={event => event.stopPropagation()}>
