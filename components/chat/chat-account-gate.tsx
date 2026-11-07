@@ -127,41 +127,50 @@ export function ChatAccountGate({ onClose, onAuthenticated, manage = false }: {
 
   return (
     <div className={`chat-account-gate is-${phase}`}>
-      <header className="chat-login-header">
-        <button type="button" onClick={onClose} aria-label="返回"><ChevronLeft /></button>
-        <div><b>{heading}</b><span>{subheading}</span></div>
-        <span className="chat-login-header-spacer" />
+      <header className="chat-login-topbar">
+        <button type="button" className="chat-login-back" onClick={onClose} aria-label="返回">
+          <ChevronLeft />
+        </button>
       </header>
 
       <main className="chat-login-scroll">
-        <section className="chat-login-mark" aria-hidden="true">
-          <span className="chat-login-bubble"><i /><i /><i /></span>
+        <section className="chat-login-hero">
+          <h1 className="chat-login-title">{heading}</h1>
+          <p className="chat-login-subtitle">{subheading}</p>
+          <span className="chat-login-bubble" aria-hidden="true"><i /><i /><i /></span>
           {phase === "success" ? <span className="chat-login-success"><Check /></span> : null}
         </section>
-
-        <div className="chat-login-jelly-tabs" role="tablist">
-          <button className={mode === "login" ? "is-active" : ""} onClick={() => { setMode("login"); setPhase("idle"); }}>已有账号</button>
-          <button className={mode === "create" ? "is-active" : ""} onClick={() => { setMode("create"); setHandle(""); setPassword(""); setPhase("idle"); }}>新建账号</button>
-        </div>
 
         <section className={`chat-login-form ${phase === "error" ? "is-shaking" : ""}`}>
           <label className={handle ? "has-value" : ""}>
             <span>账号</span>
-            <input value={handle} onChange={event => { setHandle(event.target.value.replace(/^@/, "")); setPhase("idle"); }} autoCapitalize="none" autoComplete="username" />
+            <input value={handle} onChange={event => { setHandle(event.target.value.replace(/^@/, "")); setPhase("idle"); }} autoCapitalize="none" autoComplete="username" placeholder="@tianzhenlei_0217" />
           </label>
           <label className={password ? "has-value" : ""}>
             <span>密码</span>
-            <input value={password} onChange={event => { setPassword(event.target.value); setPhase("idle"); }} type={showPassword ? "text" : "password"} autoComplete={mode === "login" ? "current-password" : "new-password"} />
+            <input value={password} onChange={event => { setPassword(event.target.value); setPhase("idle"); }} type={showPassword ? "text" : "password"} autoComplete={mode === "login" ? "current-password" : "new-password"} placeholder="登录密码只保存在本机" />
             <button type="button" onClick={() => setShowPassword(value => !value)} aria-label={showPassword ? "隐藏密码" : "显示密码"}>{showPassword ? <EyeOff /> : <Eye />}</button>
           </label>
-          <div className={`chat-login-message ${message ? "is-visible" : ""}`}>{message || "虚拟登录只保存在本机"}</div>
+          {selected ? <p className="chat-login-saved"><Check /> 使用已保存账号 @{selected.handle}</p> : null}
+          <div className={`chat-login-message ${message ? "is-visible" : ""}`}>{message || "模拟登录 · 不连接真实服务器"}</div>
         </section>
 
         <button className="chat-login-submit" onClick={() => void submit()} disabled={!handle || !password || phase === "busy"}>
           <span>{phase === "busy" ? "正在验证" : phase === "success" ? "已登录" : mode === "login" ? "登录" : "创建并登录"}</span>
           {phase === "busy" ? <i className="chat-login-loader"><b /><b /><b /></i> : null}
         </button>
-        <button className="chat-login-generate" onClick={() => void generate()} disabled={phase === "busy"}><Shuffle />随机生成账号和密码</button>
+
+        <button className="chat-login-generate" onClick={() => void generate()} disabled={phase === "busy"}>
+          <Shuffle />换一个随机账号
+        </button>
+
+        <button
+          type="button"
+          className="chat-login-switch"
+          onClick={() => { setMode(mode === "login" ? "create" : "login"); setHandle(""); setPassword(""); setPhase("idle"); }}
+        >
+          {mode === "login" ? "没有账号？新建一个" : "已有账号？返回登录"}
+        </button>
 
         {current && manage ? (
           <button className="chat-login-logout" onClick={async () => { await logoutAppVirtualLogin("chat"); setCurrent(null); setMessage("已退出聊天账号"); }}><LogOut />退出当前账号</button>
@@ -182,7 +191,7 @@ export function ChatAccountGate({ onClose, onAuthenticated, manage = false }: {
             </div>
           )) : <div className="chat-login-empty"><UserPlus /><b>还没有虚拟账号</b><span>可以随机生成，也可以自己填写账号和密码。</span></div>}
         </section>
-        <p className="chat-login-privacy">模拟登录 · 不连接真实服务器 · 所有账号只保存在当前设备</p>
+        <p className="chat-login-privacy">所有账号只保存在当前设备，不会上传</p>
       </main>
     </div>
   );
