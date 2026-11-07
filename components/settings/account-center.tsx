@@ -22,9 +22,9 @@ function initials(name: string): string {
   return name.trim().slice(0, 1).toUpperCase() || "我";
 }
 
-export function AccountCenter({ onNotice }: { onNotice: (message: string) => void }) {
+export function AccountCenter({ onNotice, initialView = "home" }: { onNotice: (message: string) => void; initialView?: View }) {
   const { setSubpageTitle, setOverrideBack } = useContext(SettingsContext);
-  const [view, setView] = useState<View>("home");
+  const [view, setView] = useState<View>(initialView);
   const [account, setAccount] = useState<VirtualAccount | null>(null);
   const [accounts, setAccounts] = useState<VirtualAccount[]>([]);
   const [revealedPassword, setRevealedPassword] = useState<string | null>(null);
@@ -50,14 +50,14 @@ export function AccountCenter({ onNotice }: { onNotice: (message: string) => voi
   }, [reload]);
 
   useEffect(() => {
-    const titles: Record<View, string> = { home: "账号与登录", "friend-code": "我的好友码", "add-friend": "添加好友", "chat-login": "聊天账号登录" };
+    const titles: Record<View, string> = { home: "账号与登录", "friend-code": "我的好友码", "add-friend": "添加好友", "chat-login": "登录到聊天" };
     setSubpageTitle(titles[view]);
-    setOverrideBack(view === "home" ? null : () => setView("home"));
+    setOverrideBack(view === initialView ? null : () => setView(initialView));
     return () => {
       setSubpageTitle(null);
       setOverrideBack(null);
     };
-  }, [setOverrideBack, setSubpageTitle, view]);
+  }, [initialView, setOverrideBack, setSubpageTitle, view]);
 
   const generateAccount = async () => {
     setBusy(true);
@@ -110,53 +110,94 @@ function AccountHome({ account, accounts, revealedPassword, friendCount, busy, o
   onCopyNotice: (message: string) => void;
 }) {
   const [name, setName] = useState(account.displayName);
-  useEffect(() => setName(account.displayName), [account]);
+  const [friendCode, setFriendCode] = useState("");
+  const [allowCodeAdd, setAllowCodeAdd] = useState(true);
+  const [autoFill, setAutoFill] = useState(Boolean(revealedPassword));
+  const [mode, setMode] = useState<"random" | "custom">("random");
+  const [customHandle, setCustomHandle] = useState("");
+  const [customPassword, setCustomPassword] = useState("");
+  const [customBusy, setCustomBusy] = useState(false);
+  useEffect(() => {
+    setName(account.displayName);
+    void Promise.all([getActiveFriendCode(account.friendIdentityId), socialDb.friendIdentities.get(account.friendIdentityId)]).then(([code, identity]) => {
+      setFriendCode(formatFriendCode(code.code));
+      setAllowCodeAdd(identity?.allowCodeAdd !== false);
+    });
+  }, [account]);
+  useEffect(() => setAutoFill(Boolean(revealedPassword)), [revealedPassword]);
   const copy = (value: string, label: string) => {
     if (!navigator.clipboard?.writeText) { onCopyNotice(`${label}：${value}`); return; }
     void navigator.clipboard.writeText(value).then(() => onCopyNotice(`${label}已复制`), () => onCopyNotice(`${label}：${value}`));
+  };
+  const setAllow = async (next: boolean) => {
+    setAllowCodeAdd(next);
+    await socialDb.friendIdentities.update(account.friendIdentityId, { allowCodeAdd: next, updatedAt: Date.now() });
+  };
+  const createCustom = async () => {
+    setCustomBusy(true);
+    try {
+      const created = await createCustomVirtualAccount({ handle: customHandle, password: customPassword, displayName: name || customHandle, avatarUrl: account.avatarUrl });
+      await setActiveVirtualAccountId(created.id);
+      onCopyNotice("自定义虚拟账号已创建");
+      setCustomHandle("");
+      setCustomPassword("");
+    } catch (error) {
+      onCopyNotice(error instanceof Error ? error.message : "创建失败");
+    } finally {
+      setCustomBusy(false);
+    }
   };
   return (
     <>
       <section className="account-hero">
         <div className="account-avatar">{account.avatarUrl ? <img src={account.avatarUrl} alt="" /> : initials(account.displayName)}</div>
         <div className="account-hero-copy">
-          <span className="account-eyebrow">LOCAL IDENTITY</span>
           <h2>{account.displayName}</h2>
           <p>@{account.handle}</p>
         </div>
-        <span className="account-status"><i />本机有效</span>
+        <span className="account-status"><i />本机账号</span>
       </section>
 
       <section className="account-section">
-        <div className="account-section-head"><span>账号资料</span><small>仅保存在本机</small></div>
-        <div className="account-panel">
-          <label className="account-field"><span>显示名称</span><input value={name} onChange={event => setName(event.target.value)} maxLength={24} /></label>
-          <button className="account-row" onClick={() => copy(account.handle, "账号")}><span><b>登录账号</b><small>@{account.handle}</small></span><Copy size={18} /></button>
+        <div className="account-section-head"><span>登录凭据</span></div>
+        <div className="account-panel account-panel-rows">
+          <button className="account-row" onClick={() => copy(account.handle, "账号")}><span><b>账号</b></span><em>@{account.handle}</em><ChevronRight size={18} /></button>
           <button className="account-row" onClick={() => revealedPassword && copy(revealedPassword, "密码")} disabled={!revealedPassword}>
-            <span><b>登录密码</b><small>{revealedPassword || account.passwordHint} {revealedPassword ? "· 仅本次可见" : "· 已安全加密"}</small></span><KeyRound size={18} />
+            <span><b>密码</b></span><em className="account-password-value">{revealedPassword ? "••••••••" : account.passwordHint}</em><ChevronRight size={18} />
           </button>
-          <button className="account-save" onClick={() => void onSave(name.trim() || account.displayName)}>保存资料</button>
+          <div className="account-row"><span><b>自动填充到应用</b></span><button type="button" className={`account-switch-toggle ${autoFill ? "is-on" : ""}`} onClick={() => setAutoFill(value => !value)} aria-pressed={autoFill}><i /></button></div>
         </div>
       </section>
 
       <section className="account-section">
-        <div className="account-section-head"><span>好友与登录</span><small>{friendCount} 位好友</small></div>
+        <div className="account-section-head"><span>好友身份</span><small>{friendCount} 位好友</small></div>
         <div className="account-panel account-panel-rows">
-          <button className="account-row" onClick={() => onOpen("friend-code")}><span className="account-row-icon"><QrCode /></span><span><b>我的好友码</b><small>用户和 AI 都能拥有独立好友码</small></span><ChevronRight /></button>
-          <button className="account-row" onClick={() => onOpen("add-friend")}><span className="account-row-icon"><ScanLine /></span><span><b>扫一扫 / 输入好友码</b><small>扫描图片、相机或手动输入</small></span><ChevronRight /></button>
-          <button className="account-row" onClick={() => onOpen("chat-login")}><span className="account-row-icon"><LogIn /></span><span><b>聊天应用登录</b><small>使用本机虚拟账号模拟登录</small></span><ChevronRight /></button>
+          <button className="account-row" onClick={() => copy(friendCode, "好友码")}><span className="account-row-icon"><KeyRound /></span><span><b>好友码</b></span><em>{friendCode}</em></button>
+          <button className="account-row" onClick={() => onOpen("friend-code")}><span className="account-row-icon"><QrCode /></span><span><b>我的好友码</b></span><ChevronRight /></button>
+          <div className="account-row"><span className="account-row-icon"><UserRound /></span><span><b>允许通过好友码添加</b></span><button type="button" className={`account-switch-toggle ${allowCodeAdd ? "is-on" : ""}`} onClick={() => void setAllow(!allowCodeAdd)} aria-pressed={allowCodeAdd}><i /></button></div>
         </div>
       </section>
 
       <section className="account-section">
-        <div className="account-section-head"><span>本机账号</span><small>{accounts.length} 个</small></div>
+        <div className="account-section-head"><span>生成方式</span></div>
+        <div className="account-segment account-generation-segment"><button className={mode === "random" ? "is-active" : ""} onClick={() => setMode("random")}>随机生成</button><button className={mode === "custom" ? "is-active" : ""} onClick={() => setMode("custom")}>自己填写</button></div>
+        {mode === "custom" ? <div className="account-panel account-custom-fields">
+          <label><span>账号</span><input value={customHandle} onChange={event => setCustomHandle(event.target.value.replace(/^@/, ""))} placeholder="4–24 位字母、数字或下划线" /></label>
+          <label><span>密码</span><input type="password" value={customPassword} onChange={event => setCustomPassword(event.target.value)} placeholder="至少 6 位" /></label>
+        </div> : null}
+        <button className="account-generate account-generate-primary" onClick={mode === "random" ? onGenerate : () => void createCustom()} disabled={busy || customBusy || (mode === "custom" && (!customHandle || !customPassword))}><Shuffle size={18} />{busy || customBusy ? "正在生成…" : mode === "random" ? "随机生成账号与好友码" : "创建自定义账号"}</button>
+        <button className="account-save" onClick={() => void onSave(name.trim() || account.displayName)}>保存更改</button>
+      </section>
+
+      <section className="account-section account-more-section">
+        <div className="account-section-head"><span>应用与好友</span><small>{accounts.length} 个账号</small></div>
         <div className="account-panel account-panel-rows">
-          {accounts.map(item => <button key={item.id} className={`account-row account-switch ${item.id === account.id ? "is-active" : ""}`} onClick={() => onSelect(item)}>
-            <span className="account-mini-avatar">{initials(item.displayName)}</span><span><b>{item.displayName}</b><small>@{item.handle}</small></span>{item.id === account.id ? <Check /> : <ChevronRight />}
-          </button>)}
-          <button className="account-generate" onClick={onGenerate} disabled={busy}><Shuffle size={18} />{busy ? "正在生成…" : "随机生成新账号与密码"}</button>
+          <button className="account-row" onClick={() => onOpen("add-friend")}><span className="account-row-icon"><ScanLine /></span><span><b>添加好友</b><small>扫一扫或输入好友码</small></span><ChevronRight /></button>
+          <button className="account-row" onClick={() => onOpen("chat-login")}><span className="account-row-icon"><LogIn /></span><span><b>登录到聊天</b><small>使用虚拟账号模拟登录</small></span><ChevronRight /></button>
+          {accounts.map(item => <button key={item.id} className={`account-row account-switch ${item.id === account.id ? "is-active" : ""}`} onClick={() => onSelect(item)}><span className="account-mini-avatar">{item.avatarUrl ? <img src={item.avatarUrl} alt="" /> : initials(item.displayName)}</span><span><b>{item.displayName}</b><small>@{item.handle}</small></span>{item.id === account.id ? <Check /> : <ChevronRight />}</button>)}
         </div>
       </section>
+      <p className="account-footnote">这些账号只用于虚拟手机内的假登录，不会连接真实服务。</p>
     </>
   );
 }
@@ -174,14 +215,14 @@ function FriendCodeView({ account, onNotice }: { account: VirtualAccount; onNoti
     const identity = subject.kind === "user" ? await socialDb.friendIdentities.get(account.friendIdentityId) : await ensureFriendIdentity("ai", subject.localId, subject.name, subject.avatar);
     if (!identity) return;
     const active = await getActiveFriendCode(identity.id);
-    setFriend(identity); setCode(active.code); setQr(await renderFriendCodeDataUrl(active.code, identity.ownerType));
+    setFriend(identity); setCode(active.code); setQr(await renderFriendCodeDataUrl(active.code, identity.ownerType, subject.avatar));
   }, [account.friendIdentityId, subject]);
   useEffect(() => { void loadCode(); }, [loadCode]);
 
   const refresh = async () => {
     if (!friend) return;
     const next = await refreshFriendCode(friend.id);
-    setCode(next.code); setQr(await renderFriendCodeDataUrl(next.code, friend.ownerType));
+    setCode(next.code); setQr(await renderFriendCodeDataUrl(next.code, friend.ownerType, subject.avatar));
     onNotice({ tone: "ok", text: "已换新好友码，旧码失效；已有好友关系不会改变。" });
   };
   return <>
@@ -263,6 +304,21 @@ function AddFriendView({ account, onNotice, onAdded }: { account: VirtualAccount
     catch (error) { onNotice({ tone: "error", text: error instanceof Error ? error.message : "添加失败" }); }
   };
 
+  if (target) return <section className="friend-profile-view">
+    <span className="friend-profile-avatar">{target.avatarUrl ? <img src={target.avatarUrl} alt="" /> : initials(target.displayName)}</span>
+    <h2>{target.displayName}</h2>
+    <span className="friend-profile-kind"><i />{target.ownerType === "ai" ? "AI 角色" : "用户"}</span>
+    <span className="friend-profile-code">{formatFriendCode(resolvedCode)}</span>
+    <div className="friend-profile-info">
+      <div><b>简介</b><span>{target.ownerType === "ai" ? "温柔、擅长整理与陪伴" : "本机虚拟用户"}</span><ChevronRight /></div>
+      <div><b>来源</b><span>{target.ownerType === "ai" ? "AI 好友码" : "用户好友码"}</span><ChevronRight /></div>
+      <div><b>未来联机</b><span>可迁移</span><ChevronRight /></div>
+    </div>
+    <button className="friend-profile-add" onClick={() => void add()}>添加好友</button>
+    <button className="friend-profile-cancel" onClick={() => { setTarget(null); setValue(""); }}>取消</button>
+    <p className="friend-profile-note"><Check size={17} />添加后可在聊天、联系人和动态中找到她。</p>
+  </section>;
+
   return <>
     <section className="account-section">
       <div className="account-section-head"><span>由谁添加</span><small>AI 也能扫描你的好友码</small></div>
@@ -276,7 +332,6 @@ function AddFriendView({ account, onNotice, onAdded }: { account: VirtualAccount
       <div className="account-section-head"><span>手动输入</span><small>支持 XXXX-XXXX</small></div>
       <div className="friend-input"><input value={value} onChange={event => setValue(formatFriendCode(event.target.value))} placeholder="输入 8 位好友码" maxLength={9} /><button onClick={() => void resolve(value)}>查找</button></div>
     </section>
-    {target ? <section className="friend-confirm"><span className="account-mini-avatar large">{target.avatarUrl ? <img src={target.avatarUrl} alt="" /> : initials(target.displayName)}</span><div><b>{target.displayName}</b><small>{target.ownerType === "ai" ? "AI 角色" : "用户"}</small></div><button onClick={() => void add()}>添加好友</button></section> : null}
   </>;
 }
 

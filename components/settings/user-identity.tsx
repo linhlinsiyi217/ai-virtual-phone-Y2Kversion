@@ -1,18 +1,19 @@
 "use client";
 
-import { useState, useEffect, useCallback, useContext } from "react";
-import { Plus, User, Trash2, FileEdit, AlertCircle } from "lucide-react";
-import { SettingsContext } from "../phone-settings-app";
+import { useEffect, useState } from "react";
+import { Camera, Check, ChevronRight, Link2, Plus, Trash2, User } from "lucide-react";
 import { loadUserIdentities, saveUserIdentities } from "@/lib/settings-storage";
-import { UserPortraitSettings } from "./user-portrait-settings";
-import { UserIdentityEditorSheet } from "./user-identity-editor-sheet";
-import { ConfirmDialog } from "@/components/ui/modal";
-import { deletePhoneIdentity } from "@/lib/identity-lifecycle";
 import { createIdentityId } from "@/lib/identity-space";
+import { deletePhoneIdentity } from "@/lib/identity-lifecycle";
+import { UserPortraitSettings } from "./user-portrait-settings";
 
 export type UserIdentity = {
     id: string;
     name: string;
+    nickname?: string;
+    realName?: string;
+    signature?: string;
+    suffix?: string;
     previousNames?: string[];
     avatarUrl?: string;
     chatAvatarUrl?: string;
@@ -26,209 +27,151 @@ export type UserIdentity = {
     customSettings: string;
 };
 
-const DEFAULT_IDENTITIES: UserIdentity[] = [
-    {
-        id: "identity-1",
-        name: "李斯特",
-        bio: "一个普通的上班族，喜欢在周末去咖啡馆看书。",
-        gender: "男",
-        age: "26",
-        occupation: "程序员",
-        customSettings: "性格温和，说话带有一点理性逻辑。",
-    },
-    {
-        id: "identity-2",
-        name: "匿名用户",
-        bio: "神秘的过客。",
+function createIdentity(): UserIdentity {
+    return {
+        id: `identity-${createIdentityId()}`,
+        name: "本机用户",
+        nickname: "本机用户",
+        realName: "",
+        signature: "请让我继续感知快乐",
+        suffix: "",
+        bio: "",
         gender: "保密",
-        age: "未知",
-        occupation: "自由职业者",
-        customSettings: "说话简短，带有神秘色彩。",
-    }
-];
+        age: "",
+        occupation: "",
+        customSettings: "",
+    };
+}
+
+function fileToDataUrl(file: File, maxSize = 640, quality = .86): Promise<string> {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+            const image = new Image();
+            image.onload = () => {
+                const scale = Math.min(maxSize / image.width, maxSize / image.height, 1);
+                const canvas = document.createElement("canvas");
+                canvas.width = Math.max(1, Math.round(image.width * scale));
+                canvas.height = Math.max(1, Math.round(image.height * scale));
+                const context = canvas.getContext("2d");
+                if (!context) return reject(new Error("无法处理头像"));
+                context.drawImage(image, 0, 0, canvas.width, canvas.height);
+                resolve(canvas.toDataURL("image/webp", quality));
+            };
+            image.onerror = reject;
+            image.src = String(reader.result || "");
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
+}
 
 export function UserIdentitySettings() {
-    const { setSubpageRightAction } = useContext(SettingsContext);
-    const [identities, setIdentitiesRaw] = useState<UserIdentity[]>([]);
-    const [editingId, setEditingId] = useState<string | null>(null);
-    const [isNewIdentity, setIsNewIdentity] = useState(false);
-    const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
-    const [deleteBusy, setDeleteBusy] = useState(false);
-    const [deleteError, setDeleteError] = useState("");
+    const [identities, setIdentities] = useState<UserIdentity[]>([]);
+    const [activeId, setActiveId] = useState("");
 
     useEffect(() => {
         const saved = loadUserIdentities();
-        if (saved.length > 0) {
-            setIdentitiesRaw(saved);
-        } else {
-            setIdentitiesRaw([]);
+        if (saved.length) {
+            setIdentities(saved);
+            setActiveId(saved[0].id);
+            return;
         }
+        const first = createIdentity();
+        setIdentities([first]);
+        setActiveId(first.id);
+        saveUserIdentities([first]);
     }, []);
 
-    const setIdentities = useCallback((next: UserIdentity[]) => {
-        setIdentitiesRaw(next);
+    const active = identities.find(item => item.id === activeId) || identities[0];
+    const persist = (next: UserIdentity[]) => {
+        setIdentities(next);
         saveUserIdentities(next);
-    }, []);
-
-    const addIdentity = useCallback(() => {
-        const newIdentity: UserIdentity = {
-            id: `identity-${createIdentityId()}`,
-            name: "新身份",
-            bio: "",
-            gender: "保密",
-            age: "",
-            occupation: "",
-            customSettings: "",
+    };
+    const update = (updates: Partial<UserIdentity>) => {
+        if (!active) return;
+        persist(identities.map(item => item.id === active.id ? { ...item, ...updates } : item));
+    };
+    const uploadAvatar = () => {
+        const input = document.createElement("input");
+        input.type = "file";
+        input.accept = "image/*";
+        input.onchange = async () => {
+            const file = input.files?.[0];
+            if (file) update({ avatarUrl: await fileToDataUrl(file) });
         };
-        const next = [newIdentity, ...identities];
+        input.click();
+    };
+    const add = () => {
+        const next = createIdentity();
+        persist([next, ...identities]);
+        setActiveId(next.id);
+    };
+    const remove = async (id: string) => {
+        if (identities.length <= 1) return;
+        await deletePhoneIdentity(id);
+        const next = loadUserIdentities();
         setIdentities(next);
-        setIsNewIdentity(true);
-        setEditingId(newIdentity.id);
-    }, [identities, setIdentities]);
-
-    useEffect(() => {
-        setSubpageRightAction("identity",
-            <button
-                onClick={addIdentity}
-                className="inline-flex h-10 items-center justify-center gap-1.5 whitespace-nowrap rounded-[20px] bg-black px-4 text-xs font-bold text-white shadow-sm transition-all hover:bg-gray-800 hover:shadow-md active:scale-95 focus:outline-none"
-            >
-                <Plus size={15} strokeWidth={1.8} />
-                <span>新增身份</span>
-            </button>
-        );
-        return () => setSubpageRightAction("identity", null);
-    }, [addIdentity, setSubpageRightAction]);
-
-    const updateIdentity = (id: string, updates: Partial<UserIdentity>) => {
-        setIdentities(loadUserIdentities().map(i => i.id === id ? { ...i, ...updates } : i));
+        setActiveId(next[0]?.id || "");
     };
 
-    const removeIdentity = (id: string) => {
-        const next = identities.filter(i => i.id !== id);
-        setIdentities(next);
-        if (editingId === id) {
-            setEditingId(null);
-            setIsNewIdentity(false);
-        }
-    };
+    if (!active) return <div className="account-loading"><span className="account-spinner" />正在准备个人资料…</div>;
 
     return (
-        <div className="flex flex-col gap-6">
-            <div className="flex items-center">
-                <h2 className="m-0 mx-2 ts-28 font-bold italic leading-none text-black">User Identity</h2>
-            </div>
+        <div className="profile-v2">
+            <section className="profile-v2-hero">
+                <button type="button" className="profile-v2-avatar jelly-button" onClick={uploadAvatar} aria-label="更换照片">
+                    {active.avatarUrl ? <img src={active.avatarUrl} alt="" /> : <User size={38} strokeWidth={1.45} />}
+                    <span><Camera size={13} /></span>
+                </button>
+                <button type="button" className="profile-v2-change" onClick={uploadAvatar}>更换照片</button>
+                <h2>{active.nickname || active.name}</h2>
+            </section>
 
-            {identities.length === 0 ? (
-                <div className="ui-empty">
-                    <div className="ui-icon-circle">
-                        <User size={24} />
-                    </div>
-                    <span className="menu-label font-semibold">没有身份卡片</span>
-                    <span className="menu-desc max-w-[240px]">
-                        在此管理您的个人身份信息，以便 AI 能够更好地了解您。
-                    </span>
-                    <button onClick={addIdentity} className="ui-btn ui-btn-primary rounded-[20px] mt-2">
-                        <Plus size={16} /> 添加身份
-                    </button>
+            <section className="profile-v2-section">
+                <h3>称呼</h3>
+                <div className="profile-v2-group">
+                    <label><b>网名</b><input value={active.nickname ?? active.name} onChange={event => update({ nickname: event.target.value, name: event.target.value || active.name })} /></label>
+                    <label><b>名字</b><input value={active.realName ?? ""} onChange={event => update({ realName: event.target.value })} placeholder="选填" /></label>
+                    <div className="profile-v2-row"><b>性别</b><div className="profile-v2-segment">{["女", "男", "其他"].map(value => <button key={value} className={active.gender === value ? "is-active" : ""} onClick={() => update({ gender: value })}>{value}</button>)}</div></div>
                 </div>
-            ) : (
-                <div className="grid grid-cols-2 gap-3">
-                    {identities.map(identity => (
-                        <div
-                            key={identity.id}
-                            className="ui-config-card min-w-0 cursor-pointer overflow-hidden"
-                            style={{ aspectRatio: "3 / 2", padding: "12px", justifyContent: "space-between" }}
-                            role="button"
-                            tabIndex={0}
-                            aria-label={`编辑 ${identity.name || "身份"}`}
-                            onClick={() => setEditingId(identity.id)}
-                            onKeyDown={(event) => {
-                                if (event.target !== event.currentTarget) return;
-                                if (event.key === "Enter" || event.key === " ") {
-                                    event.preventDefault();
-                                    setEditingId(identity.id);
-                                }
-                            }}
-                        >
-                            <div className="min-w-0 flex flex-col gap-1">
-                                <span className="truncate text-[calc(14.4px*var(--app-text-scale,1))] font-bold leading-tight text-[var(--c-text-title)]">{identity.name || "未命名身份"}</span>
-                                <span className="menu-desc truncate">{identity.occupation || identity.bio || identity.gender || "未填写身份信息"}</span>
-                            </div>
-                            <div className="flex items-end justify-between gap-2">
-                                {identity.avatarUrl ? (
-                                    <img src={identity.avatarUrl} alt={identity.name} className="h-9 w-9 rounded-full object-cover shrink-0" />
-                                ) : (
-                                    <div className="h-9 w-9 rounded-full bg-[var(--c-page-body-bg)] text-[var(--c-icon)] grid place-items-center shrink-0">
-                                        <User size={18} />
-                                    </div>
-                                )}
+            </section>
 
-                                <div className="flex gap-2 shrink-0 items-center">
-                                    <button
-                                        type="button"
-                                        onClick={(event) => {
-                                            event.stopPropagation();
-                                            setEditingId(identity.id);
-                                        }}
-                                        className="ui-link-btn"
-                                    >
-                                        <FileEdit size={18} />
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={(event) => {
-                                            event.stopPropagation();
-                                            setConfirmDeleteId(identity.id);
-                                        }}
-                                        className="ui-link-btn"
-                                        data-variant="danger"
-                                    >
-                                        <Trash2 size={18} />
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    ))}
+            <section className="profile-v2-section">
+                <h3>对外显示</h3>
+                <div className="profile-v2-group">
+                    <label><b>个性签名</b><input value={active.signature ?? ""} onChange={event => update({ signature: event.target.value })} placeholder="写一句介绍" /></label>
+                    <label><b>被拍后缀</b><input value={active.suffix ?? ""} onChange={event => update({ suffix: event.target.value })} placeholder="选填" /></label>
                 </div>
-            )}
+            </section>
 
-            {editingId && (() => {
-                const identity = identities.find(c => c.id === editingId);
-                if (!identity) return null;
-                return (
-                    <UserIdentityEditorSheet
-                        identity={identity}
-                        title={isNewIdentity ? "添加身份" : "编辑身份"}
-                        onChange={updates => updateIdentity(identity.id, updates)}
-                        onCancel={() => { if (isNewIdentity && editingId) removeIdentity(editingId); setIsNewIdentity(false); setEditingId(null); }}
-                        onConfirm={() => { setIsNewIdentity(false); setEditingId(null); }}
-                    >
-                        <UserPortraitSettings identity={identity} onChange={updates => updateIdentity(identity.id, updates)} />
-                    </UserIdentityEditorSheet>
-                );
-            })()}
+            <section className="profile-v2-section">
+                <h3>锁脸参考图</h3>
+                <div className="profile-v2-group profile-v2-portrait">
+                    <UserPortraitSettings identity={active} onChange={updates => update(updates)} />
+                </div>
+            </section>
 
-            {confirmDeleteId && (
-                <ConfirmDialog
-                    title="确认删除？"
-                    message="将删除这个身份的聊天、关系、记忆、钱包及所有应用数据。共享角色档案保留。是否继续？"
-                    icon={AlertCircle}
-                    variant="danger"
-                    confirmLabel="确认删除"
-                    cancelLabel="取消"
-                    onConfirm={() => {
-                        if (deleteBusy) return;
-                        setDeleteBusy(true); setDeleteError("");
-                        void deletePhoneIdentity(confirmDeleteId).catch(error => {
-                            setDeleteError(error instanceof Error ? error.message : "删除未完成，请重试");
-                            setDeleteBusy(false);
-                        });
-                    }}
-                    onCancel={() => setConfirmDeleteId(null)}
-                />
-            )}
-            {deleteBusy && <p role="status" className="menu-desc">正在删除身份数据…</p>}
-            {deleteError && <p role="alert" className="menu-desc">{deleteError}</p>}
+            <button className="profile-v2-bind jelly-button" type="button">
+                <span className="settings-overview-icon"><Link2 size={20} /></span>
+                <span><b>绑定虚拟账号</b><small>个人资料会同步给本机账号</small></span>
+                <ChevronRight size={18} />
+            </button>
+
+            <section className="profile-v2-section profile-v2-profiles">
+                <div className="profile-v2-title-row"><h3>其他资料</h3><button onClick={add}><Plus size={15} />新增</button></div>
+                <div className="profile-v2-group">
+                    {identities.map(item => <div className="profile-v2-profile-row" key={item.id}>
+                        <button className="profile-v2-profile-main" onClick={() => setActiveId(item.id)}>
+                            <span className="account-mini-avatar">{item.avatarUrl ? <img src={item.avatarUrl} alt="" /> : item.name.slice(0, 1)}</span>
+                            <span><b>{item.nickname || item.name}</b><small>{item.id === active.id ? "当前资料" : item.signature || "本机资料"}</small></span>
+                            {item.id === active.id ? <Check size={18} /> : <ChevronRight size={18} />}
+                        </button>
+                        {identities.length > 1 ? <button className="profile-v2-delete" onClick={() => void remove(item.id)} aria-label={`删除${item.name}`}><Trash2 size={17} /></button> : null}
+                    </div>)}
+                </div>
+            </section>
+            <p className="profile-v2-footnote">修改后即时生效。</p>
         </div>
     );
 }

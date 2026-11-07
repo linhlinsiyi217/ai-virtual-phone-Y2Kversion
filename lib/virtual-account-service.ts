@@ -1,7 +1,6 @@
 import { announceSocialDataUpdated, socialDb } from "./social-db";
 import type { AppVirtualLogin, GeneratedVirtualCredentials, VirtualAccount } from "./social-types";
 
-const HANDLE_WORDS = ["mori", "luna", "sora", "nami", "momo", "yuki", "noa", "rin"];
 const PASSWORD_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$";
 const ACTIVE_ACCOUNT_KEY = "ai_phone_active_virtual_account_v1";
 
@@ -24,16 +23,28 @@ async function hashPassword(password: string): Promise<string> {
 
 async function generateUniqueHandle(): Promise<string> {
   for (let attempt = 0; attempt < 30; attempt += 1) {
-    const word = HANDLE_WORDS[secureToken(HANDLE_WORDS.join(""), 1).charCodeAt(0) % HANDLE_WORDS.length];
-    const candidate = `${word}.${secureToken("23456789", 4)}`;
+    const candidate = `u_${secureToken("abcdefghjkmnpqrstuvwxyz23456789", 10)}`;
     if (!(await socialDb.virtualAccounts.where("handle").equals(candidate).first())) return candidate;
   }
-  return `user.${Date.now().toString(36)}`;
+  return `u_${Date.now().toString(36)}`;
+}
+
+function generatePassword(): string {
+  const required = [
+    secureToken("ABCDEFGHJKLMNPQRSTUVWXYZ", 1),
+    secureToken("abcdefghijkmnopqrstuvwxyz", 1),
+    secureToken("23456789", 1),
+    secureToken("!@#$", 1),
+  ];
+  const chars = [...required, ...secureToken(PASSWORD_ALPHABET, 10)];
+  const random = new Uint32Array(chars.length);
+  crypto.getRandomValues(random);
+  return chars.map((_, index) => ({ value: chars[index], key: random[index] })).sort((a, b) => a.key - b.key).map(item => item.value).join("");
 }
 
 export async function createGeneratedVirtualAccount(identity?: { id: string; name: string; avatarUrl?: string }): Promise<GeneratedVirtualCredentials> {
   const now = Date.now();
-  const password = secureToken(PASSWORD_ALPHABET, 12);
+  const password = generatePassword();
   const accountId = id("va");
   const friendIdentityId = id("friend");
   const account: VirtualAccount = {
@@ -69,7 +80,7 @@ export async function createGeneratedVirtualAccount(identity?: { id: string; nam
 
 export async function createCustomVirtualAccount(input: { handle: string; password: string; displayName?: string; identityId?: string | null; avatarUrl?: string }): Promise<VirtualAccount> {
   const handle = input.handle.trim().replace(/^@/, "").toLowerCase();
-  if (!/^[a-z0-9][a-z0-9._-]{3,23}$/.test(handle)) throw new Error("账号需为 4–24 位小写字母、数字、点、横线或下划线。");
+  if (!/^[a-z0-9][a-z0-9_]{3,23}$/.test(handle)) throw new Error("账号需为 4–24 位小写字母、数字或下划线。");
   if (input.password.length < 6) throw new Error("密码至少需要 6 位。");
   if (await socialDb.virtualAccounts.where("handle").equals(handle).first()) throw new Error("这个虚拟账号已存在，请换一个。");
   const now = Date.now();
