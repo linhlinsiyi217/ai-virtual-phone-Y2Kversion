@@ -10,7 +10,6 @@ import { MediaMaintenanceScheduler } from "@/components/media-maintenance-schedu
 import { DesktopShell } from "./desktop-shell";
 import { OfflinePushRevampAnnouncement } from "./offline-push-revamp-announcement";
 import { UpdateCenter } from "./update-log/update-center";
-import { SplashAnimation } from "./splash-animation";
 import { MusicProvider } from "@/lib/music-context";
 import { hydrateKvDb } from "@/lib/kv-db";
 import { getThemeAssetMap, readThemeProfile } from "@/lib/theme-storage";
@@ -162,7 +161,6 @@ function SplashScreen({ ready = false, onEnter, error }: { ready?: boolean; onEn
         <div className="phone-case">
           <div className="phone-frame">
             <div className="phone-shell splash-phone-screen">
-              <SplashAnimation />
               {error && <p role="alert" className="absolute bottom-20 left-6 right-6 rounded-2xl bg-white/90 p-4 text-center text-sm text-slate-700 dark:bg-slate-900/90 dark:text-slate-200">{error}</p>}
               <button
                 type="button"
