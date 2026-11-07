@@ -3,6 +3,7 @@ import type { CustomAppIconId } from "@/lib/custom-app-types";
 export type IconId =
   | "chat"
   | "favorites"
+  | "archiveroom"
   | "diary"
   | "music"
   | "photos"
@@ -90,6 +91,7 @@ export const DOCK_DEFAULT: IconId[] = ["settings", "theme", "resources", "charac
 
 export const ICONS: Record<IconId, IconMeta> = {
   chat: { id: "chat", label: "\u804a\u5929", tone: "var(--c-icon-green)", placeholder: false },
+  archiveroom: { id: "archiveroom", label: "档案室", tone: "var(--c-icon-amber)", placeholder: false },
   favorites: { id: "favorites", label: "收藏", tone: "var(--c-icon-amber)", placeholder: false },
   diary: { id: "diary", label: "手记", tone: "var(--c-icon-violet)", placeholder: false },
   music: { id: "music", label: "\u97F3\u4E50", tone: "var(--c-icon-coral)", placeholder: false },

@@ -30,6 +30,7 @@ import {
   mdiEarth,
   mdiPlayCircle,
   mdiBookmark,
+  mdiArchiveOutline,
   mdiCamera,
   mdiAccountGroup,
   mdiPalette,
@@ -54,6 +55,7 @@ type IconGlyphProps = {
 const MDI_PATHS: Record<IconId, string> = {
   settings: mdiCogOutline,
   chat: mdiMessageProcessing,
+  archiveroom: mdiArchiveOutline,
   favorites: mdiBookmark,
   diary: mdiBookOpenPageVariant,
   music: mdiMusic,

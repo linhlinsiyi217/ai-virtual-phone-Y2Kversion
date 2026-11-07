@@ -151,6 +151,8 @@ export type NativeToolResultRecord = { toolCallId: string; name: string; content
 
 export type ChatMessage = {
     id: string;
+    /** 消息附带的图片资产 id（档案室等按消息归集图片用） */
+    imageRefs?: string[];
     sessionId: string;
     role: ChatMessageRole;
     content: string;
@@ -197,6 +199,8 @@ export type ChatMessage = {
     origin?: "chat" | "reading_discuss" | "custom_app" | "custom_app_background" | "story_floating_phone";
     mediaUrl?: string;
     mediaData?: {
+        /** 多图消息/档案室用：附带图片的资产 id 列表 */
+        imageRefs?: string[];
         visionDescription?: string;
         forwardedChat?: import("./chat-forward-types").ForwardedChat;
         listeningInvite?: { roomId: string; initiator?: "user" | "character"; response?: "accepted" | "declined"; title?: string; artist?: string; coverUrl?: string };
