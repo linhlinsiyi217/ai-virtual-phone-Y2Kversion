@@ -3,8 +3,11 @@
   --ui-bg: #ffffff;
   --ui-ink: #0a0a0a;
   --ui-muted: #6e6e73;
-  --ui-group: #f2f2f4;
+  --ui-group: #f4f4f6;
   --ui-line: #d9d9de;
+  --ui-hair: #e6e6ea;
+  --ui-faint: #aeaeb2;
+  --ui-spring: cubic-bezier(.2, 1.35, .35, 1);
   --ui-green: #30d158;
 
   --ui-radius-group: 24px;
@@ -45,3 +48,38 @@
 .dock-skin-layer { filter: grayscale(1); }
 /* 少数状态点仍允许绿色（开启/成功） */
 [data-ui="status-on"] { color: var(--ui-green); }
+
+/* ── 按钮果冻按压（取自账号原型）：按下横向拉宽、纵向压扁，松手弹回 ── */
+.ui-btn,
+.settings-overview-row,
+.settings-list-row,
+.chat-login-submit,
+.chat-login-generate,
+.chat-login-logout,
+.chat-login-back,
+.settings-profile-card {
+  transition: transform 420ms var(--ui-spring, cubic-bezier(.2, 1.35, .35, 1)),
+              background-color 160ms ease, opacity 160ms ease;
+  will-change: transform;
+}
+.ui-btn:active,
+.chat-login-submit:active,
+.chat-login-generate:active,
+.chat-login-logout:active,
+.settings-profile-card:active {
+  transform: scaleX(1.08) scaleY(.94);
+  transition-duration: 90ms;
+}
+.settings-overview-row:active,
+.settings-list-row:active { transform: scaleX(1.006) scaleY(.985); transition-duration: 90ms; }
+@media (prefers-reduced-motion: reduce) {
+  .ui-btn:active, .settings-overview-row:active, .settings-list-row:active { transform: none; }
+  .ui-btn, .settings-overview-row, .settings-list-row { transition-duration: .08s; }
+}
+/* 行高与图标对齐原型：58 / 36 / 20 */
+.settings-overview-row { min-height: 58px; padding: 0 16px; gap: 12px; }
+.settings-overview-icon { width: 36px; height: 36px; border-radius: 11px; background: var(--ui-bg); }
+.settings-overview-icon > svg { width: 20px; height: 20px; stroke-width: 1.8; }
+.settings-overview-copy b { font-size: 17px; line-height: 24px; font-weight: 600; }
+.settings-overview-copy small { font-size: 13px; line-height: 18px; }
+.settings-overview-group { border-radius: 24px; }
