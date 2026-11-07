@@ -152,7 +152,6 @@ const MENU_ITEMS: Array<{
   glow?: string;
 }> = [
   { section: "palette", icon: IconPalette, label: "主题色", desc: "调色板预设", color: BINDING_ACCENTS.preset, glow: `color-mix(in srgb, ${BINDING_ACCENTS.preset} 35%, transparent)`, glass: "palette" },
-  { section: "interface", icon: IconInterface, label: "界面与动效", desc: "黑白主体、按钮回弹与悬浮底栏", color: "#111113", glow: "rgba(17,17,19,.16)", glass: "palette" },
   { section: "wallpaper", icon: IconWallpaper, label: "壁纸", desc: "桌面背景", color: BINDING_ACCENTS.api, glow: `color-mix(in srgb, ${BINDING_ACCENTS.api} 35%, transparent)`, glass: "wallpaper" },
   { section: "icons", icon: IconGrid, label: "图标", desc: "应用图标", color: BINDING_ACCENTS.regex, glow: `color-mix(in srgb, ${BINDING_ACCENTS.regex} 35%, transparent)`, glass: "icons" },
   { section: "widgets", icon: IconWidgets, label: "桌面组件", desc: "小组件", color: BINDING_ACCENTS.voice, glow: `color-mix(in srgb, ${BINDING_ACCENTS.voice} 35%, transparent)`, glass: "widgets" },
@@ -319,21 +318,6 @@ export function PhoneThemeApp({
               </div>
             </div>
 
-            <div>
-              <h3 className="appearance-menu-section-title">Design System</h3>
-              <button
-                className="app-card card-featured mt-2.5"
-                type="button"
-                onClick={() => setSection("interface")}
-              >
-                <span className="card-icon card-icon-glass"><GlassIcon name="palette" /></span>
-                <div className="card-featured-body">
-                  <div className="card-featured-label">界面与动效</div>
-                  <div className="card-featured-desc">黑白主体、按钮回弹与悬浮底栏</div>
-                </div>
-                <span className="card-featured-chevron"><IconChevronRight /></span>
-              </button>
-            </div>
 
             {/* Section 2: 系统设置 — Glass list group (has toggle) */}
             <div>
@@ -460,8 +444,6 @@ export function PhoneThemeApp({
           />
         ) : section === "palette" ? (
           <PalettePresetPage draft={draft} onDraftChange={onDraftChange} onApply={onApply} onNotice={onNotice} />
-        ) : section === "interface" ? (
-          <InterfaceMotionPage draft={draft} onDraftChange={onDraftChange} onApply={onApply} onNotice={onNotice} />
         ) : section === "css" ? (
           <GlobalCSSPage draft={draft} onDraftChange={onDraftChange} onApply={onApply} onNotice={onNotice} />
         ) : section === "icons" ? (
