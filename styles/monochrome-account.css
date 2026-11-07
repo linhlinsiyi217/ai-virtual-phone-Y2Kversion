@@ -173,3 +173,9 @@
 .friend-profile-add,.friend-profile-cancel{width:100%;min-height:50px;border:0;border-radius:999px;font-size:15px;font-weight:700;transition:transform 420ms cubic-bezier(.22,1.6,.32,1)}
 .friend-profile-add{background:#0a0a0a;color:#fff}.friend-profile-cancel{background:#f2f2f4;color:#111}.friend-profile-add:active,.friend-profile-cancel:active{transform:scaleX(1.055) scaleY(.93)}
 .friend-profile-note{width:100%;display:flex;align-items:center;gap:10px;margin:8px 0 0;padding:16px;border-radius:22px;background:#eefbf1;color:#5f6661;font-size:11px;line-height:17px}.friend-profile-note svg{flex:none;color:#30d158}
+
+/* 账号卡对齐设计图：头像 64 圆、名字 17/600、说明 13 灰 */
+.settings-site-account-row{padding:16px;border-radius:24px;gap:14px;background:#f2f2f4;border:0}
+.settings-account-avatar{width:64px;height:64px;border-radius:50%;overflow:hidden;background:#fff;flex:none}
+.settings-site-account-row b{font-size:17px;font-weight:650;letter-spacing:-.01em;color:#0a0a0a}
+.settings-site-account-row small{font-size:13px;line-height:18px;color:#6e6e73}
