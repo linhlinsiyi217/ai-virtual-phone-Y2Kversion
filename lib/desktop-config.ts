@@ -5,6 +5,7 @@ export type IconId =
   | "favorites"
   | "archiveroom"
   | "photowall"
+  | "watchtogether"
   | "diary"
   | "music"
   | "photos"
@@ -92,6 +93,7 @@ export const DOCK_DEFAULT: IconId[] = ["settings", "theme", "resources", "charac
 
 export const ICONS: Record<IconId, IconMeta> = {
   chat: { id: "chat", label: "\u804a\u5929", tone: "var(--c-icon-green)", placeholder: false },
+  watchtogether: { id: "watchtogether", label: "一起看", tone: "var(--c-icon-teal)", placeholder: false },
   photowall: { id: "photowall", label: "照片墙", tone: "var(--c-icon-teal)", placeholder: false },
   archiveroom: { id: "archiveroom", label: "档案室", tone: "var(--c-icon-amber)", placeholder: false },
   favorites: { id: "favorites", label: "收藏", tone: "var(--c-icon-amber)", placeholder: false },

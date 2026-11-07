@@ -32,6 +32,7 @@ import {
   mdiBookmark,
   mdiArchiveOutline,
   mdiImageMultipleOutline,
+  mdiTelevisionPlay,
   mdiCamera,
   mdiAccountGroup,
   mdiPalette,
@@ -56,6 +57,7 @@ type IconGlyphProps = {
 const MDI_PATHS: Record<IconId, string> = {
   settings: mdiCogOutline,
   chat: mdiMessageProcessing,
+  watchtogether: mdiTelevisionPlay,
   photowall: mdiImageMultipleOutline,
   archiveroom: mdiArchiveOutline,
   favorites: mdiBookmark,

@@ -33,6 +33,7 @@ import { DiaryApp } from "@/components/diary/diary-app";
 import { FavoritesApp } from "@/components/favorites/favorites-app";
 import { ArchiveRoomApp } from "@/components/archive-room-app";
 import { PhotoWallApp } from "@/components/photo-wall-app";
+import { WatchTogetherApp } from "@/components/watch-together-app";
 import { XiaohongshuApp } from "@/components/xiaohongshu/xiaohongshu-app";
 import { StoryApp } from "@/components/story/story-app";
 import { VnApp } from "@/components/vn/vn-app";
@@ -4128,6 +4129,9 @@ html,body{margin:0;padding:0;width:100%;height:100%;background:#121110;color:rgb
       return <ResourceHubApp onClose={() => setActiveApp(null)} onNotice={setNotice} />;
     }
 
+    if (activeApp === "watchtogether") {
+      return <WatchTogetherApp onClose={() => setActiveApp(null)} />;
+    }
     if (activeApp === "photowall") {
       return <PhotoWallApp onClose={() => setActiveApp(null)} />;
     }
