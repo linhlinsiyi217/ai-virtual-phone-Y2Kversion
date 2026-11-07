@@ -49,6 +49,7 @@
 @import "../styles/update-ui.css";
 @import "../styles/story-appearance.css";
 @import "../styles/design-tokens.css";
+@import "../styles/monochrome-account.css";
 
 @theme {
   /* 间距 (4px 基准) */

@@ -14,6 +14,7 @@ import { WorldBookManager } from "./settings/worldbook-manager";
 import { RegexManager } from "./settings/regex-manager";
 import { DataManagement } from "./settings/data-management";
 import { UserIdentitySettings } from "./settings/user-identity";
+import { AccountCenter } from "./settings/account-center";
 import { ChangelogPage } from "./update-log/changelog-page";
 import { BindingManager } from "./settings/binding-manager";
 import { WeixinSettings } from "./settings/weixin-settings";
@@ -37,6 +38,9 @@ import { loadKeepAlive, saveKeepAlive } from "@/lib/weixin-storage";
 import { BINDING_ACCENTS, CONTENT_APP_ACCENTS } from "@/lib/ui-accent-colors";
 import { changeFloatingTool } from "@/lib/floating-tools";
 import { CHAT_APP_SETTINGS_UPDATED_EVENT } from "@/lib/chat-storage";
+import { getActiveVirtualAccount } from "@/lib/virtual-account-service";
+import { SOCIAL_DATA_UPDATED_EVENT } from "@/lib/social-db";
+import type { VirtualAccount } from "@/lib/social-types";
 
 export const SettingsContext = createContext<{
     setSubpageTitle: (title: string | null) => void;
@@ -59,6 +63,7 @@ type SubPage =
     | "regex"
     | "data"
     | "binding"
+    | "accountCenter"
     | "identity"
     | "cloud"
     | "weixin"
@@ -148,6 +153,17 @@ export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
     const [pwdError, setPwdError] = useState("");
     const [confirmLogout, setConfirmLogout] = useState(false);
     const [accountSheetOpen, setAccountSheetOpen] = useState(false);
+    const [virtualAccount, setVirtualAccount] = useState<VirtualAccount | null>(null);
+
+    useEffect(() => {
+        const loadLocalAccount = async () => {
+            setVirtualAccount(await getActiveVirtualAccount());
+        };
+        void loadLocalAccount();
+        const sync = () => void loadLocalAccount();
+        window.addEventListener(SOCIAL_DATA_UPDATED_EVENT, sync);
+        return () => window.removeEventListener(SOCIAL_DATA_UPDATED_EVENT, sync);
+    }, []);
 
     // ── 管理中心入口：仅 role=admin 的账号可见 ──
     const [isAdmin, setIsAdmin] = useState(false);
@@ -197,6 +213,8 @@ export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
 
     const defaultTitle = currentPage === "main"
         ? "设置"
+        : currentPage === "accountCenter"
+            ? "账号与登录"
         : currentPage === "api" || currentPage === "voice" || currentPage === "imageGeneration" || currentPage === "presets" || currentPage === "worldbook" || currentPage === "regex" || currentPage === "identity"
             ? ""
             : currentPage === "moderation"
@@ -332,6 +350,8 @@ export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
                 return <DataManagement onNotice={onNotice} />;
             case "binding":
                 return <BindingManager />;
+            case "accountCenter":
+                return <AccountCenter onNotice={onNotice} />;
             case "cloud":
                 return <CloudServicesPage />;
             case "weixin":
@@ -372,7 +392,7 @@ export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
         const pending = sessionStorage.getItem("mascot-settings-mode");
         if (pending) {
             sessionStorage.removeItem("mascot-settings-mode");
-            if (SETTINGS_MENU.some(m => m.id === pending)) {
+            if (pending === "accountCenter" || SETTINGS_MENU.some(m => m.id === pending)) {
                 setCurrentPage(pending as SubPage);
             }
         }
@@ -397,7 +417,7 @@ export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
     useEffect(() => {
         const onMode = (e: Event) => {
             const { mode } = (e as CustomEvent).detail ?? {};
-            if (mode && SETTINGS_MENU.some(m => m.id === mode)) {
+            if (mode && (mode === "accountCenter" || SETTINGS_MENU.some(m => m.id === mode))) {
                 setCurrentPage(mode as SubPage);
             }
         };
@@ -421,16 +441,16 @@ export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
                 {currentPage === "main" && (
                     <div className="page-menu settings-main-menu">
                         <h1 className="settings-page-title">设置</h1>
-                        {!selfHostedMode && (
-                            <button type="button" className="settings-account-card" onClick={() => setAccountSheetOpen(true)}>
-                                <span className="settings-account-avatar"><GlassIcon name="account" /></span>
+                        <button type="button" className="settings-account-card" onClick={() => setCurrentPage("accountCenter")}>
+                                <span className="settings-account-avatar">
+                                    {virtualAccount?.avatarUrl ? <img src={virtualAccount.avatarUrl} alt="" /> : <GlassIcon name="account" />}
+                                </span>
                                 <span className="settings-account-copy">
-                                    <span className="settings-account-name">{account.displayName || account.username}</span>
-                                    <span className="settings-account-sub">虚拟账号 · 已登录</span>
+                                    <span className="settings-account-name">{virtualAccount?.displayName || "设置本机账号"}</span>
+                                    <span className="settings-account-sub">{virtualAccount ? `@${virtualAccount.handle} · 虚拟账号` : "生成账号、密码与好友码"}</span>
                                 </span>
                                 <ChevronRight size={18} className="settings-account-chevron" />
-                            </button>
-                        )}
+                        </button>
                         <CardGrid
                             variant="list"
                             label="接口"
@@ -537,6 +557,12 @@ export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
                             label="账号"
                             items={SETTINGS_MENU.filter(item => ["identity", "about"].includes(item.id)).map(makeCardItem)}
                         />
+                        {!selfHostedMode && (
+                            <button type="button" className="settings-site-account-row" onClick={() => setAccountSheetOpen(true)}>
+                                <span><b>站点账号</b><small>@{account.username} · 修改密码与退出</small></span>
+                                <ChevronRight size={17} />
+                            </button>
+                        )}
                         {accountSheetOpen && (
                             <div className="modal-overlay modal-overlay-bottom" data-ui="modal" onClick={() => setAccountSheetOpen(false)}>
                                 <div className="modal-sheet" data-ui="modal-sheet" onClick={event => event.stopPropagation()}>

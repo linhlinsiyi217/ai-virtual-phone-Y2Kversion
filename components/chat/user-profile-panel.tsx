@@ -46,6 +46,7 @@ import {
     MessageSquareDashed,
     Palette,
     Puzzle,
+    QrCode,
     Keyboard,
     Vibrate,
     Radio,
@@ -300,7 +301,7 @@ export function UserProfilePanel({ onClose, className, openBeautyRequest = 0 }: 
                     right: 0;
                     height: 300px;
                     pointer-events: none;
-                    background: linear-gradient(135deg, color-mix(in srgb, #246bfd 12%, transparent) 0%, color-mix(in srgb, var(--c-success) 8%, transparent) 100%);
+                    background: linear-gradient(180deg, rgba(0,0,0,.035) 0%, transparent 100%);
                     mask-image: linear-gradient(to bottom, black 50%, transparent 100%);
                     -webkit-mask-image: linear-gradient(to bottom, black 50%, transparent 100%);
                     z-index: 0;
@@ -348,7 +349,7 @@ export function UserProfilePanel({ onClose, className, openBeautyRequest = 0 }: 
                             <div className="flex items-center justify-between w-full mb-0.5">
                                 <div className="ts-22 font-bold text-[var(--c-text-title)] leading-none truncate">{identity?.name || "未设置身份"}</div>
                                 <div className="flex items-center gap-1.5 ts-11 font-medium bg-black/5 dark:bg-white/10 px-2 py-0.5 rounded-full shrink-0 text-[var(--c-text)] opacity-80">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-blue-400 inline-block" />
+                                    <span className="w-1.5 h-1.5 rounded-full bg-[#31c75b] inline-block" />
                                     手机在线
                                 </div>
                             </div>
@@ -370,18 +371,18 @@ export function UserProfilePanel({ onClose, className, openBeautyRequest = 0 }: 
                         type="button"
                         className="mx-4 mb-4 rounded-2xl overflow-hidden text-left relative min-h-[132px] p-5 flex flex-col justify-between"
                         onClick={() => { window.dispatchEvent(new CustomEvent("chat-hide-tabbar", { detail: true })); setShowWalletPanel(true); }}
-                        style={{ background: "#eaf5ff", boxShadow: "0 8px 24px rgba(0,0,0,0.025)", border: "1px solid rgba(255,255,255,0.72)", color: "#172033" }}
+                        style={{ background: "linear-gradient(145deg,#f8f8f9,#eeeeef)", boxShadow: "0 12px 34px rgba(0,0,0,0.05)", border: "1px solid rgba(0,0,0,0.045)", color: "#111" }}
                     >
                         <div className="relative flex items-start justify-between gap-4">
                             <div>
                                 <div className="ts-11 font-semibold opacity-70 tracking-[0.18em] uppercase">Real Balance</div>
                                 <div className="ts-30 font-semibold mt-2" style={{ fontFamily: "Georgia, serif" }}>{walletSummary.totalLabel}</div>
                             </div>
-                            <span className="ts-11 font-semibold opacity-70 tracking-[0.18em] shrink-0" style={{ color: "#172033" }}>{walletSummary.cardCount}张银行卡</span>
+                            <span className="ts-11 font-semibold opacity-70 tracking-[0.18em] shrink-0" style={{ color: "#111" }}>{walletSummary.cardCount}张银行卡</span>
                         </div>
                         <div className="relative flex items-center justify-between gap-3">
                             <span className="ts-12 opacity-75">余额管理 · 银行卡与流水</span>
-                            <span className="h-8 px-3 rounded-full bg-white/70 border border-white/80 ts-12 font-semibold flex items-center gap-1" style={{ color: "#246bfd" }}>
+                            <span className="h-8 px-3 rounded-full bg-black text-white ts-12 font-semibold flex items-center gap-1">
                                 查看
                                 <ChevronRight size={14} />
                             </span>
@@ -392,24 +393,38 @@ export function UserProfilePanel({ onClose, className, openBeautyRequest = 0 }: 
                     <div className="mx-4 mb-4 bg-[var(--c-card)] rounded-2xl flex items-center justify-between p-4 px-6"
                          style={{ boxShadow: "0 8px 24px rgba(0,0,0,0.025)" }}>
                         <button className="flex flex-col items-center gap-2 flex-1" onClick={() => { window.dispatchEvent(new CustomEvent("chat-hide-tabbar", { detail: true })); setShowMomentsSettings(true); }}>
-                            <div className="w-[42px] h-[42px] rounded-[14px] bg-[color-mix(in_srgb,var(--c-warning)_15%,transparent)] text-[var(--c-warning)] flex items-center justify-center">
+                            <div className="w-[42px] h-[42px] rounded-[14px] bg-[#f0f0f1] text-black flex items-center justify-center">
                                 <Radio size={22} strokeWidth={2} />
                             </div>
                             <span className="ts-12 font-semibold text-[var(--c-text-title)]">朋友圈互动</span>
                         </button>
                         <button className="flex flex-col items-center gap-2 flex-1" onClick={() => { window.dispatchEvent(new CustomEvent("chat-hide-tabbar", { detail: true })); setShowStickerManager(true); }}>
-                            <div className="w-[42px] h-[42px] rounded-[14px] bg-[#10b981]/15 text-[#10b981] flex items-center justify-center">
+                            <div className="w-[42px] h-[42px] rounded-[14px] bg-[#f0f0f1] text-black flex items-center justify-center">
                                 <Sticker size={22} strokeWidth={2} />
                             </div>
                             <span className="ts-12 font-semibold text-[var(--c-text-title)]">表情包仓储</span>
                         </button>
                         <button className="flex flex-col items-center gap-2 flex-1" onClick={() => { window.dispatchEvent(new CustomEvent("chat-hide-tabbar", { detail: true })); setShowCSSEditor(true); }}>
-                            <div className="w-[42px] h-[42px] rounded-[14px] bg-[color-mix(in_srgb,var(--c-danger)_15%,transparent)] text-[var(--c-danger)] flex items-center justify-center">
+                            <div className="w-[42px] h-[42px] rounded-[14px] bg-[#f0f0f1] text-black flex items-center justify-center">
                                 <Palette size={22} strokeWidth={2} />
                             </div>
                             <span className="ts-12 font-semibold text-[var(--c-text-title)]">美化工坊</span>
                         </button>
                     </div>
+
+                    <button
+                        type="button"
+                        className="mx-4 mb-4 bg-[var(--c-card)] rounded-[24px] px-4 py-4 flex items-center gap-3 text-left"
+                        style={{ boxShadow: "0 10px 30px rgba(0,0,0,0.035)" }}
+                        onClick={() => {
+                            sessionStorage.setItem("mascot-settings-mode", "accountCenter");
+                            window.dispatchEvent(new CustomEvent("open-app", { detail: { appId: "settings" } }));
+                        }}
+                    >
+                        <span className="w-10 h-10 rounded-[14px] bg-black text-white grid place-items-center"><QrCode size={20} /></span>
+                        <span className="flex-1 flex flex-col gap-0.5"><b className="ts-14">账号与好友码</b><small className="ts-11 opacity-55">虚拟登录、我的二维码与扫码添加</small></span>
+                        <ChevronRight size={17} className="opacity-40" />
+                    </button>
 
                     {/* 主动消息 */}
                     <div className="mx-4 mb-4 bg-[var(--c-card)] rounded-2xl px-4 py-1 flex flex-col"
