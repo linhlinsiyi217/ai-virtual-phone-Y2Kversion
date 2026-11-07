@@ -6,6 +6,7 @@ import { PWAManifestInjector } from "@/components/pwa-manifest-injector";
 import { PWARegistrar } from "@/components/pwa-registrar";
 import "../styles/fonts.css";
 import "./globals.css";
+import { DeviceCompatibilityBootstrap } from "@/components/device-compatibility-bootstrap";
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -41,6 +42,7 @@ export default function RootLayout({
         <PWAManifestInjector />
         <PWARegistrar />
         <IdentityRuntimeBootstrap />
+        <DeviceCompatibilityBootstrap />
         {children}
       </body>
     </html>
