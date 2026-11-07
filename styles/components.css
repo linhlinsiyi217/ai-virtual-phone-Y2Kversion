@@ -5619,3 +5619,27 @@
   color: var(--ui-muted, #6e6e73);
 }
 .settings-list-chevron { color: var(--ui-line, #d9d9de); flex: none; }
+
+/* ── 黑白规范：所有设置类二级页共用的分组样式 ───────────────── */
+.menu-group {
+  background: var(--ui-bg, #fff);
+  border-radius: var(--ui-radius-group, 24px);
+  box-shadow: 0 0 0 .5px var(--ui-line, #d9d9de);
+}
+.menu-item:not(:last-child)::after {
+  left: 16px;
+  right: 0;
+  border-bottom: .5px solid var(--ui-line, #d9d9de);
+}
+.menu-label {
+  font-size: var(--ui-fs-row, 17px);
+  line-height: var(--ui-lh-row, 24px);
+  font-weight: 600;
+  letter-spacing: -.01em;
+  color: var(--ui-ink, #0a0a0a);
+}
+.menu-desc {
+  font-size: var(--ui-fs-body, 14px);
+  line-height: var(--ui-lh-body, 21px);
+  color: var(--ui-muted, #6e6e73);
+}
