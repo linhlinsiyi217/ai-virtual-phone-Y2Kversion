@@ -108,7 +108,6 @@ export function IconGlyph({ id, className }: IconGlyphProps) {
       <path
         d={MDI_PATHS[id] || "M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2Z"}
         fill="var(--c-desktop-icon, #ffffff)"
-        filter="drop-shadow(0 2px 4px rgba(0,0,0,0.1))"
       />
     </svg>
   );
