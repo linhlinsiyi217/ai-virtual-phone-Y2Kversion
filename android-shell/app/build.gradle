@@ -32,6 +32,14 @@ android {
         try {
             def store = java.security.KeyStore.getInstance(java.security.KeyStore.getDefaultType())
             new File(ksFile).withInputStream { stream -> store.load(stream, ksPassword.toCharArray()) }
+            // 光能打开库还不够：私钥的密码、别名任一不对，打包阶段仍会抛 Cannot recover key
+            def ksAlias = System.getenv("SHELL_KEY_ALIAS")
+            def ksKeyPass = System.getenv("SHELL_KEY_PASSWORD") ?: ksPassword
+            def resolvedAlias = ksAlias ?: (store.aliases().hasMoreElements() ? store.aliases().nextElement() : null)
+            if (resolvedAlias == null) throw new IllegalStateException("密钥库里没有别名")
+            def key = store.getKey(resolvedAlias, ksKeyPass.toCharArray())
+            if (key == null) throw new IllegalStateException("取不到私钥")
+            System.setProperty("shel.gradle.keyok", "1")
             ksUsable = true
         } catch (Throwable ignored) {
             logger.lifecycle("SHELL_KEYSTORE: 密钥库无法读取，本次 release 产出未签名包")
