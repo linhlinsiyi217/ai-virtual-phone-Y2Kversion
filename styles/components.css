@@ -5807,3 +5807,13 @@ button.settings-overview-row { cursor: pointer; }
 .settings-advanced .settings-advanced-section + .settings-advanced-section { margin-top: 22px; }
 .settings-advanced-section h3 { font-size: 12px; letter-spacing: .08em; color: var(--ui-muted, #6e6e73); margin: 0 0 8px 4px; }
 .settings-advanced h2 { font-size: 12px; letter-spacing: .08em; color: var(--ui-muted, #6e6e73); margin: 26px 0 10px 4px; }
+
+/* ── 设置概览：分组强制可见（防止入场动画未跑完时整块透明） ── */
+.settings-overview-group {
+  opacity: 1 !important;
+  transform: none !important;
+  animation: none !important;
+  background: var(--ui-group, #f4f4f6);
+}
+.settings-overview { padding-bottom: calc(148px + env(safe-area-inset-bottom, 0px)); }
+.settings-overview-row { opacity: 1 !important; animation: none !important; }
