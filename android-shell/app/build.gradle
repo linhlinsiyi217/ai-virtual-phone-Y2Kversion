@@ -24,11 +24,26 @@ android {
 
     buildFeatures { buildConfig true }
 
+    // 先验证 keystore 能否真的打开：密钥库损坏或密码不匹配时不要用它签名，
+    // 否则打包阶段会抛 KeytoolException 让整个构建失败。
+    def ksPassword = System.getenv("SHELL_KEYSTORE_PASSWORD") ?: ""
+    def ksUsable = false
     if (ksFile) {
+        try {
+            def store = java.security.KeyStore.getInstance(java.security.KeyStore.getDefaultType())
+            new File(ksFile).withInputStream { stream -> store.load(stream, ksPassword.toCharArray()) }
+            ksUsable = true
+        } catch (Throwable ignored) {
+            logger.lifecycle("SHELL_KEYSTORE: 密钥库无法读取，本次 release 产出未签名包")
+            ksUsable = false
+        }
+    }
+
+    if (ksUsable) {
         signingConfigs {
             release {
                 storeFile file(ksFile)
-                storePassword System.getenv("SHELL_KEYSTORE_PASSWORD")
+                storePassword ksPassword
                 keyAlias System.getenv("SHELL_KEY_ALIAS")
                 keyPassword System.getenv("SHELL_KEY_PASSWORD")
             }
@@ -38,7 +53,7 @@ android {
     buildTypes {
         release {
             minifyEnabled false
-            if (ksFile) signingConfig signingConfigs.release
+            if (ksUsable) signingConfig signingConfigs.release
         }
     }
     compileOptions {
