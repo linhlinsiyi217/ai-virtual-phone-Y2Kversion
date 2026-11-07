@@ -34,3 +34,12 @@
   --ui-group: #1c1c1f;
   --ui-line: #2c2c30;
 }
+
+/* 黑白规范：图标去彩色（线性图标由强调色控制，玻璃图标用滤镜） */
+.glass-icon,
+.card-icon-glass,
+.card-icon-glass > svg,
+.dock-skin-layer { filter: grayscale(1); }
+.glass-icon img { filter: grayscale(1) contrast(1.02); }
+/* 少数状态点仍允许绿色（开启/成功） */
+[data-ui="status-on"] { color: var(--ui-green); }
