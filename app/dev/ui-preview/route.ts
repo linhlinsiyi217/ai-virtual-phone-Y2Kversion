@@ -30,6 +30,7 @@ export async function GET(request: Request) {
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>角色档案 · ${screen}</title>
 <style>${css}</style>
+<style>body{background:#d9d9dd;padding:56px 24px 80px;color:#111;font-family:var(--sans)}</style>
 </head>
 <body>
 <div class="board"><div class="it">${markup}</div></div>

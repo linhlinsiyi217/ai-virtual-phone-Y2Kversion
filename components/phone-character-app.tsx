@@ -32,7 +32,7 @@ import {
   DEFAULT_CHARACTER_WORLD_ID,
   type CharacterWorldGroup,
 } from "@/lib/character-world-storage";
-import { WorldTabStrip, WorldCaseSheet, NewWorldSheet } from "@/components/character/world-tabs";
+import { WorldCaseSheet, NewWorldSheet } from "@/components/character/world-tabs";
 import { RelationLinkDialog, RelationPairSheet } from "@/components/character/relation-dialogs";
 import { loadMomentsConfig, saveMomentsConfig } from "@/lib/moments-storage";
 import type { CanvasBgItem } from "@/lib/character-types";
@@ -434,7 +434,42 @@ function FlipTransitionOverlay({ transit }: { transit: TransitionState }) {
 }
 
 
-// ── 列表视图（照片墙） ─────────────────────────────────────────
+// ── 列表视图（角色库） ─────────────────────────────────────────
+
+// 设计稿 library 屏里的线性图标
+function LibIcon({ children }: { children: React.ReactNode }) {
+  return (
+    <svg className="ic" viewBox="0 0 24 24">
+      {children}
+    </svg>
+  );
+}
+
+// 设计稿里的猫咪（睡觉姿势），用于「新建档案」虚线卡
+const CAT_SLEEP_SVG = `<svg class="cat" viewBox="0 0 160 144" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+<g class="bob">
+<g class="ear l"><path class="ln wf" d="M38 70C32 52 28 32 29 17C30 11 35 9 40 12C54 20 68 32 76 46"/><path class="gy" d="M40 61C36 47 33 33 34 23C44 28 56 36 64 47Z"/></g>
+<g class="ear r"><path class="ln wf" d="M122 70C128 52 132 32 131 17C130 11 125 9 120 12C106 20 92 32 84 46"/><path class="gy" d="M120 61C124 47 127 33 126 23C116 28 104 36 96 47Z"/></g>
+<path class="ln wf" d="M54 112C50 128 60 138 80 138C100 138 110 128 106 112"/>
+<ellipse class="ln wf" cx="80" cy="80" rx="47" ry="38"/>
+<path class="ln s tuft" d="M80 42C76 33 81 26 88 28"/><path class="ln s" style="stroke-width:1.5" d="M35 89L19 85M35 94L18 96M36 99L21 106M125 89L141 85M125 94L142 96M124 99L139 106"/>
+<g class="face"><circle class="dt" cx="60" cy="69" r="2.4"/><circle class="dt" cx="100" cy="69" r="2.4"/>
+<ellipse class="bl" cx="45" cy="94" rx="9" ry="5.5"/><ellipse class="bl" cx="115" cy="94" rx="9" ry="5.5"/>
+<path class="bs" d="M40 92l-1.5 4M45 91l-1.5 4M50 91.5l-1.5 4M110 91.5l1.5 4M115 91l1.5 4M120 92l1.5 4"/>
+<g class="eye"><g transform="rotate(10 62 84)"><ellipse class="ey" cx="62" cy="84" rx="6" ry="8"/></g><circle class="hi" cx="64.6" cy="80.4" r="2.3"/><circle class="hi" cx="68.6" cy="88" r="1"/></g>
+<g class="eye"><g transform="rotate(-10 98 84)"><ellipse class="ey" cx="98" cy="84" rx="6" ry="8"/></g><circle class="hi" cx="95.4" cy="80.4" r="2.3"/><circle class="hi" cx="91.4" cy="88" r="1"/></g>
+<g class="muzzle"><ellipse class="mz" cx="74" cy="95" rx="8.5" ry="6.2"/><ellipse class="mz" cx="86" cy="95" rx="8.5" ry="6.2"/>
+<path class="nz" d="M76.5 88.5h7l-3.5 4.2z"/><path class="ln s" d="M74.5 97.5Q77 101 80 97Q83 101 85.5 97.5"/></g></g>
+<path class="ln s" d="M64 117Q80 127 96 117"/><g class="bell"><circle class="ln s gy" style="stroke:#111;stroke-width:1.7" cx="80" cy="124" r="4"/><path class="ln s" d="M78 124h4"/></g>
+<ellipse class="ln s wf" cx="63" cy="133" rx="7.5" ry="5.5"/><ellipse class="ln s wf" cx="97" cy="133" rx="7.5" ry="5.5"/>
+<path class="z ln s" d="M118 46h9l-9 10h9"/><path class="z ln s" style="animation-delay:1.2s" d="M130 32h6l-6 7h6"/>
+</g></svg>`;
+
+// 档案完整度：已有字段里填了几项
+function archiveCompleteness(c: Character): number {
+  const checks = [Boolean(c.avatar), Boolean(c.persona), Boolean(c.briefPersona), Boolean(c.personality), (c.tags?.length ?? 0) > 0, Boolean(c.wechatID)];
+  return Math.round((checks.filter(Boolean).length / checks.length) * 100);
+}
 
 function CharListView({
   characters,
@@ -575,16 +610,14 @@ function CharListView({
     newChars = newChars.map((c, i) => {
       if (c.canvasX === undefined || c.canvasY === undefined) {
         changedChars = true;
+        // 默认排布改成设计稿的双列档案卡网格（每列 169 + 12 间距，每行 196 + 12）
         const row = Math.floor(i / 2);
         const col = i % 2;
-        const hash = c.id.charCodeAt(0) + i * 17;
-        const cx = col === 0 ? 5 + (hash % 20) : 55 + (hash % 20);
-        const cy = 60 + row * 200 + (hash % 60 - 30);
         return {
           ...c,
-          canvasX: (cx / 100) * (typeof window !== 'undefined' ? window.innerWidth : 400),
-          canvasY: cy,
-          canvasRot: (hash % 40) - 20,
+          canvasX: col * 181,
+          canvasY: row * 208,
+          canvasRot: 0,
           canvasZIndex: 100 + i
         };
       }
@@ -636,6 +669,7 @@ function CharListView({
   const canvasElRef = useRef<HTMLDivElement>(null);
   const [isPropsMenuOpen, setIsPropsMenuOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [query, setQuery] = useState("");
 
   function toggleEditing() {
     if (isEditing) {
@@ -753,7 +787,7 @@ function CharListView({
       return;
     }
     if (!isEditing) return;
-    if ((e.target as HTMLElement).closest('.char-polaroid-board-item') || (e.target as HTMLElement).closest('.char-bg-item')) return;
+    if ((e.target as HTMLElement).closest('.lib-card') || (e.target as HTMLElement).closest('.char-bg-item')) return;
     if (linkFromId) setLinkFromId(null); // 点空白处取消拉线
     isDraggingCanvasRef.current = true;
     canvasPointerIdRef.current = e.pointerId;
@@ -1022,103 +1056,77 @@ function CharListView({
     );
   }
 
+  // 角色库搜索：按名字 / 签名 / 人设 / 标签过滤
+  const q = query.trim().toLowerCase();
+  const visibleCharacters = q
+    ? worldCharacters.filter(c =>
+        [c.name, c.briefPersona, c.persona, ...(c.tags ?? [])]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase()
+          .includes(q))
+    : worldCharacters;
+
+  const createNewArchive = () => {
+    pendingActionRef.current = 'create';
+    setShowStylePicker(true);
+  };
+
   return (
     <>
-      <PageShell
-        title={<strong style={{ fontWeight: 900, fontFamily: 'Impact, "Arial Black", sans-serif', fontSize: '1.15em', letterSpacing: '0.04em' }}>TARGET ARCHIVES</strong>}
-        leftAction={
-          <button
-            className="flex items-center justify-center w-[34px] h-[34px] rounded-full bg-black/5 text-[#666] hover:bg-black/10 transition-colors"
-            onClick={onClose}
-            aria-label="返回桌面"
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
-          </button>
-        }
-        className="[&_.page-body]:pb-0"
-        rightAction={
-          <div className="flex items-center gap-2">
+      <div className="lib lib-canvas char-archive-root">
+        <div className="lib-top">
+          <div className="ey">CHARACTER ARCHIVE</div>
+          <div className="lib-acts">
+            <button type="button" onClick={onClose} aria-label="返回桌面">
+              <LibIcon><path d="M15 18l-6-6 6-6" /></LibIcon>
+            </button>
             {isEditing && (
-              <button
-                className="flex items-center justify-center w-[34px] h-[34px] rounded-full bg-black/5 text-[#666] hover:bg-black/10 transition-colors"
-                onClick={() => resetViewToFit()}
-                aria-label="恢复视角"
-                title="恢复视角"
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3"></path><path d="M21 8V5a2 2 0 0 0-2-2h-3"></path><path d="M3 16v3a2 2 0 0 0 2 2h3"></path><path d="M16 21h3a2 2 0 0 0 2-2v-3"></path><circle cx="12" cy="12" r="2.5"></circle></svg>
+              <button type="button" onClick={() => resetViewToFit()} aria-label="恢复视角" title="恢复视角">
+                <LibIcon><path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3" /></LibIcon>
               </button>
             )}
-            <button
-              className={`flex items-center justify-center w-[34px] h-[34px] rounded-full transition-colors ${
-                isEditing
-                  ? 'bg-[#111111] text-white shadow-md'
-                  : 'bg-black/5 text-[#666] hover:bg-black/10'
-              }`}
-              onClick={() => toggleEditing()}
-              aria-label="编辑排版"
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+            <button type="button" className={isEditing ? "on" : ""} onClick={() => toggleEditing()} aria-label="编辑排版">
+              <LibIcon><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" /></LibIcon>
             </button>
           </div>
-        }
-        footer={
-          <div className="char-bottom-bar flex justify-center pb-8">
-            <div className="wt-bottom-pill">
-              <button className="wt-bottom-pill-btn" onClick={() => { pendingActionRef.current = 'import'; setShowStylePicker(true); }}>
-                <IconImport />
-                <span>IMPORT</span>
-              </button>
-              <button className="wt-bottom-pill-btn" onClick={() => { pendingActionRef.current = 'create'; setShowStylePicker(true); }}>
-                <IconPlus />
-                <span>CREATE</span>
-              </button>
-              {isEditing && (
-                <button className="wt-bottom-pill-btn" onClick={() => setIsPropsMenuOpen(true)}>
-                  <IconPlus /> <span>PROPS</span>
-                </button>
-              )}
-              <button className="wt-bottom-pill-btn wt-bottom-pill-active" onClick={() => setShowNpcGen(true)}>
-                <IconPlus />
-                <span>NPC</span>
-              </button>
-              <input
-                ref={fileRef} type="file" accept=".json,.png,image/png,application/json" className="hidden"
-                onChange={async (e) => {
-                  const file = e.target.files?.[0];
-                  if (file) await handleImportFile(file);
-                  e.target.value = "";
-                }}
-              />
-            </div>
-          </div>
-        }
-      >
-      {/* 世界卷宗标签条：每个世界一份案卷、一张画布 */}
-      <WorldTabStrip
-        groups={worldGroups}
-        currentWorldId={currentWorldId}
-        memberCounts={memberCounts}
-        dropTargetWorldId={dropTargetWorldId}
-        onSelect={selectWorld}
-        onOpenEditor={() => setShowWorldEditor(true)}
-        onOpenCreate={() => setShowNewWorld(true)}
-      />
-      <div
-        ref={canvasElRef}
-        className="char-infinite-canvas w-full flex-1 min-h-0 overflow-hidden relative select-none"
-        onPointerDown={handleCanvasPointerDown}
-        onPointerMove={handleCanvasPointerMove}
-        onPointerUp={handleCanvasPointerUp}
-        onPointerCancel={handleCanvasPointerUp}
-        onContextMenu={(e) => {
-          if (placementActive) {
-            e.preventDefault();
-            setPendingBgType(null);
-            onClearPendingPlacement();
-          }
-        }}
-        style={{ touchAction: 'none', WebkitUserSelect: 'none', cursor: placementActive ? 'crosshair' : undefined }}
-      >
+        </div>
+        <h1>角色档案</h1>
+        <div className="sch">
+          <LibIcon><circle cx="11" cy="11" r="6.5" /><path d="M16 16l4 4" /></LibIcon>
+          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="搜索角色、标签、人设" aria-label="搜索角色" />
+        </div>
+        <div className="chips">
+          {worldGroups.map(g => (
+            <b
+              key={g.id}
+              className={`${g.id === currentWorldId ? "on" : ""} ${g.id === dropTargetWorldId ? "drop" : ""}`}
+              data-world-tab-id={g.id}
+              role="button"
+              tabIndex={0}
+              onClick={() => (g.id === currentWorldId ? setShowWorldEditor(true) : selectWorld(g.id))}
+            >
+              {g.name} {memberCounts.get(g.id) ?? 0}
+            </b>
+          ))}
+          <b className="add" role="button" tabIndex={0} onClick={() => setShowNewWorld(true)} aria-label="新建卷宗">＋</b>
+        </div>
+        <div
+          ref={canvasElRef}
+          className="char-infinite-canvas lib-stage select-none"
+          onPointerDown={handleCanvasPointerDown}
+          onPointerMove={handleCanvasPointerMove}
+          onPointerUp={handleCanvasPointerUp}
+          onPointerCancel={handleCanvasPointerUp}
+          onContextMenu={(e) => {
+            if (placementActive) {
+              e.preventDefault();
+              setPendingBgType(null);
+              onClearPendingPlacement();
+            }
+          }}
+          style={{ touchAction: 'none', WebkitUserSelect: 'none', cursor: placementActive ? 'crosshair' : undefined }}
+        >
         {/* 拉线进行中的提示纸条 */}
         {linkFromId && (
           <div className="wt-link-hint">
@@ -1126,12 +1134,9 @@ function CharListView({
           </div>
         )}
         {worldCharacters.length === 0 && worldBgItems.length === 0 ? (
-          <div className="char-empty" style={{ zIndex: 100 }}>
-            <div className="char-empty-icon">
-              <IconCamera size={44} />
-            </div>
-            <p className="char-empty-text">这份卷宗还是空的</p>
-            <p className="char-empty-sub">CREATE 建人 · NPC 生成配角 · 或从别的卷宗拖人进来</p>
+          <div className="lib-empty" style={{ zIndex: 100 }}>
+            这份卷宗还是空的<br />
+            <span>点下方 ＋ 新建档案，或把别的卷宗里的角色拖进来</span>
           </div>
         ) : (
           <div className="char-infinite-container absolute w-0 h-0 origin-top-left" style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${pan.zoom})` }}>
@@ -1152,20 +1157,10 @@ function CharListView({
               </DraggableNode>
             ))}
 
-            {worldCharacters.map((char, idx) => {
+            {visibleCharacters.map((char) => {
               if (char.canvasX === undefined) return null;
-              const hash = char.id.charCodeAt(0) + idx * 17;
-              const styleIdx = char.polaroidStyle ?? (hash % 5);
-
-              const sizeMod = (hash % 5);
-              const w = 110 + sizeMod * 10;
-              const ratioClassArray = ["ratio-square", "ratio-portrait", "ratio-landscape", "ratio-16-9", "ratio-9-16"];
-              const ratioClass = ratioClassArray[styleIdx % ratioClassArray.length];
-
-              const tapeStyles = ["char-polaroid-tape-white", "char-polaroid-tape-red", "char-polaroid-tape-black"];
-              const tapeMod = char.polaroidStyle !== undefined ? styleIdx % tapeStyles.length : hash % 3;
-              const tapeWidth = tapeMod === 2 ? 30 : 44;
-              const tapeRot = (hash % 10) - 5;
+              const pct = archiveCompleteness(char);
+              const tags = (char.tags ?? []).slice(0, 2);
 
               return (
                 <DraggableNode
@@ -1173,8 +1168,8 @@ function CharListView({
                   x={char.canvasX} y={char.canvasY || 0} rot={char.canvasRot || 0} zIndex={char.canvasZIndex || 100}
                   onDragEnd={handleDragEndChar}
                   onClick={isEditing ? undefined : (e) => onSelect(char, e)}
-                  className={`char-polaroid char-polaroid-board-item ${ratioClass} ${linkFromId === char.id ? "wt-link-source" : ""}`}
-                  w={w}
+                  className={`ac lib-card ${linkFromId === char.id ? "wt-link-source" : ""}`}
+                  w={169}
                   isEditing={isEditing}
                   onDeleteIntent={(id) => setDeleteConfirm({ id, type: 'char' })}
                   onEditTap={handleCharEditTap}
@@ -1187,26 +1182,42 @@ function CharListView({
                   zoom={pan.zoom}
                   pinchRef={pinchRef}
                 >
-                  <div className={`char-polaroid-tape-base ${tapeStyles[tapeMod]}`} style={{ top: -10, width: tapeWidth, transform: `translateX(-50%) rotate(${tapeRot}deg)` }} />
-                  {hash % 3 === 0 && (
-                    <div className="char-clue-label" style={{ top: -10, left: -6, transform: `rotate(${-(char.canvasRot || 0) - 5}deg)` }}>
-                      0{idx + 1} ASSET
-                    </div>
-                  )}
-                  <div className="char-polaroid-img-wrapper" style={{ boxShadow: "inset 0 0 10px rgba(0,0,0,0.1)" }}>
-                    {char.avatar ? <img src={char.avatar} alt={char.name} className="char-polaroid-img" draggable={false} /> : <CharAvatarFallback name={char.name} size="100%" />}
-                    <button
-                      className="char-polaroid-menu-btn absolute top-1 right-1 w-6 h-6 bg-black/20 text-white rounded-full flex items-center justify-center cursor-pointer hover:bg-black/40 transition-colors z-10"
-                      onClick={(e) => { e.stopPropagation(); setActiveMoveChar(char); }}
-                      aria-label="转移世界"
-                    >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="1"></circle><circle cx="19" cy="12" r="1"></circle><circle cx="5" cy="12" r="1"></circle></svg>
-                    </button>
+                  <div className="a">
+                    {char.avatar
+                      ? <img src={char.avatar} alt={char.name} draggable={false} />
+                      : (char.name || "?").slice(0, 1)}
                   </div>
-                  <div className="char-polaroid-text" style={{ fontSize: 12.5 }}>{char.name || "UNNAMED"}</div>
+                  <button
+                    className="char-polaroid-menu-btn"
+                    onClick={(e) => { e.stopPropagation(); setActiveMoveChar(char); }}
+                    aria-label="转移世界"
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="1"></circle><circle cx="19" cy="12" r="1"></circle><circle cx="5" cy="12" r="1"></circle></svg>
+                  </button>
+                  <div className="n">{char.name || "未命名"}</div>
+                  <div className="g">{char.briefPersona || char.persona || "还没有签名"}</div>
+                  <div className="f">
+                    <div className="tgm">{tags.map(tag => <i key={tag}>{tag}</i>)}</div>
+                    <div className="rg" style={{ "--p": `${pct}%` } as React.CSSProperties}><b>{pct}</b></div>
+                  </div>
                 </DraggableNode>
               );
             })}
+
+            {/* 设计稿右下角的虚线「新建档案」卡，放在最后一格 */}
+            <div
+              className="ac new"
+              style={{
+                position: 'absolute', left: 0, top: 0, width: 169, zIndex: 99,
+                transform: `translate(${(worldCharacters.length % 2) * 181}px, ${Math.floor(worldCharacters.length / 2) * 208}px)`,
+              }}
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={createNewArchive}
+            >
+              <span dangerouslySetInnerHTML={{ __html: CAT_SLEEP_SVG }} />
+              新建档案
+              <span className="ac-sub">从空白或 AI 建议开始</span>
+            </div>
 
             {/* 把拉线放在所有卡片的最后渲染，并设置超高 zIndex，使其盖在所有照片之上 */}
             <svg className="absolute top-0 left-0 w-[10000px] h-[10000px] pointer-events-none overflow-visible" style={{ zIndex: 99999 }}>
@@ -1315,7 +1326,45 @@ function CharListView({
         </div>
 
       </div>
-      </PageShell>
+
+        {/* 果冻导航：保留原有四个入口（角色 / 导入 / 世界书 / 配角）+ 新建 */}
+        <div className="tb">
+          <div className="ind" style={{ left: 8, width: 90 }} />
+          <div className="tab on">
+            <LibIcon><circle cx="12" cy="8" r="3.6" /><path d="M5 20c.8-3.6 3.6-5.5 7-5.5s6.2 1.9 7 5.5" /></LibIcon>
+            <span>角色</span>
+          </div>
+          <button type="button" className="tab" onClick={() => { pendingActionRef.current = 'import'; setShowStylePicker(true); }} aria-label="导入角色">
+            <LibIcon><path d="M12 4v10M8.5 10.5L12 14l3.5-3.5M5 19h14" /></LibIcon>
+            <span>导入</span>
+          </button>
+          <button type="button" className="tab" onClick={() => setShowWorldEditor(true)} aria-label="世界书">
+            <LibIcon><path d="M5 5.5A2 2 0 017 3.5h11v15H7a2 2 0 00-2 2v-15z" /><path d="M5 20.5h13" /></LibIcon>
+            <span>世界书</span>
+          </button>
+          <button type="button" className="tab" onClick={() => setShowNpcGen(true)} aria-label="生成配角">
+            <LibIcon><circle cx="9" cy="8.5" r="3.2" /><path d="M3.5 19c.6-3.2 2.8-5 5.5-5s4.9 1.8 5.5 5" /><circle cx="17" cy="9.5" r="2.4" /><path d="M16.5 14.2c2.3 0 3.6 1.5 4 3.8" /></LibIcon>
+            <span>配角</span>
+          </button>
+          {isEditing && (
+            <button type="button" className="tab" onClick={() => setIsPropsMenuOpen(true)} aria-label="道具">
+              <LibIcon><rect x="4.5" y="4.5" width="6" height="6" rx="2" /><rect x="13.5" y="4.5" width="6" height="6" rx="2" /><rect x="4.5" y="13.5" width="6" height="6" rx="2" /><rect x="13.5" y="13.5" width="6" height="6" rx="2" /></LibIcon>
+              <span>道具</span>
+            </button>
+          )}
+          <button type="button" className="pl" onClick={createNewArchive} aria-label="新建档案">
+            <LibIcon><path d="M12 5v14M5 12h14" /></LibIcon>
+          </button>
+          <input
+            ref={fileRef} type="file" accept=".json,.png,image/png,application/json" className="hidden"
+            onChange={async (e) => {
+              const file = e.target.files?.[0];
+              if (file) await handleImportFile(file);
+              e.target.value = "";
+            }}
+          />
+        </div>
+      </div>
 
       {deleteConfirm && (
         <div
@@ -2739,30 +2788,11 @@ function IconBack() {
   );
 }
 
-function IconPlus() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-      <line x1="12" y1="5" x2="12" y2="19" />
-      <line x1="5" y1="12" x2="19" y2="12" />
-    </svg>
-  );
-}
-
 function IconEdit() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
       <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
       <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-    </svg>
-  );
-}
-
-function IconImport() {
-  return (
-    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-      <polyline points="7 10 12 15 17 10" />
-      <line x1="12" y1="15" x2="12" y2="3" />
     </svg>
   );
 }
