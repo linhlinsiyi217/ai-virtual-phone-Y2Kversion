@@ -60,7 +60,8 @@ jobs:
           set -euo pipefail
           keystore="$RUNNER_TEMP/float-shell-release.jks"
           umask 077
-          printf '%s' "$SHELL_KEYSTORE_BASE64" | base64 --decode --strict > "$keystore"
+          # Ubuntu runner 的 base64 实现不提供 --strict；解码失败本身会返回非零状态。
+          printf '%s' "$SHELL_KEYSTORE_BASE64" | base64 --decode > "$keystore"
           keytool -list -noprompt \
             -keystore "$keystore" \
             -storepass "$SHELL_KEYSTORE_PASSWORD" \
