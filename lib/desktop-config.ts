@@ -17,6 +17,10 @@ export type IconId =
   | "appmarket"
   | "xiaohongshu"
   | "x"
+  | "twitter"
+  | "lysn"
+  | "sms"
+  | "photo_library"
   | "deep_talk"
   | "dwelling"
   | "checkphone"
@@ -87,7 +91,7 @@ export const PAGE_2_DEFAULT: IconId[] = [
 // 第三页默认图标：右半边 2×2 排布（左半边留给日历组件），位置见 createDefaultDesktopIconLayout
 export const PAGE_3_DEFAULT: IconId[] = ["worldbuilder", "qa", "resource_hub", "realitybridge", "mixology", "lifesim", "kuaichuan", "photowall", "watchtogether", "archiveroom"];
 
-export const PAGE_4_DEFAULT: IconId[] = ["photos"];
+export const PAGE_4_DEFAULT: IconId[] = ["photos", "photo_library", "twitter", "lysn", "sms"];
 
 export const DOCK_DEFAULT: IconId[] = ["settings", "theme", "resources", "characters"];
 
@@ -97,9 +101,13 @@ export const ICONS: Record<IconId, IconMeta> = {
   photowall: { id: "photowall", label: "照片墙", tone: "var(--c-icon-teal)", placeholder: false },
   archiveroom: { id: "archiveroom", label: "档案室", tone: "var(--c-icon-amber)", placeholder: false },
   favorites: { id: "favorites", label: "收藏", tone: "var(--c-icon-amber)", placeholder: false },
-  diary: { id: "diary", label: "手记", tone: "var(--c-icon-violet)", placeholder: false },
+  diary: { id: "diary", label: "iCity", tone: "var(--c-icon-violet)", placeholder: false },
   music: { id: "music", label: "\u97F3\u4E50", tone: "var(--c-icon-coral)", placeholder: false },
   photos: { id: "photos", label: "相册", tone: "var(--c-icon-blue)", placeholder: false },
+  photo_library: { id: "photo_library", label: "照片", tone: "var(--c-icon-blue)", placeholder: false },
+  twitter: { id: "twitter", label: "X（新版）", tone: "var(--c-icon-slate)", placeholder: false },
+  lysn: { id: "lysn", label: "Lysn", tone: "var(--c-icon-teal)", placeholder: false },
+  sms: { id: "sms", label: "信息", tone: "var(--c-icon-green)", placeholder: false },
   reading: { id: "reading", label: "\u9605\u8BFB", tone: "var(--c-icon-amber)", placeholder: false },
   studyroom: { id: "studyroom", label: "书房", tone: "var(--c-icon-violet)", placeholder: false },
   cocreate: { id: "cocreate", label: "共创", tone: "var(--c-icon-cocreate, #c8b58a)", placeholder: false },

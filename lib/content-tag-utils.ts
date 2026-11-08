@@ -123,7 +123,7 @@ export const CONTENT_SCOPE_TAG_GROUPS: TagGroupProfile[] = [
     },
     {
         id: "diary",
-        label: "手记",
+        label: "iCity",
         tags: ["diary"],
         minors: [
             commonMinor("diary", ["diary"]),

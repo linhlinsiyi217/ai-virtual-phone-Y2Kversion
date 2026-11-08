@@ -2,6 +2,7 @@ import { jsonrepair } from "jsonrepair";
 import type { DiaryEntryBlock, DiaryEntryTodoItem } from "./diary-entry-types";
 
 export type ParsedDiaryEntry = {
+  visibility?: "world"|"friends"|"private";
   title: string;
   dateLabel: string;
   mood: string;
@@ -9,6 +10,7 @@ export type ParsedDiaryEntry = {
   tags: string[];
   body: string;
   blocks: DiaryEntryBlock[];
+  translation?: { title: string; mood: string; weather: string; tags: string[]; body: string; blocks: DiaryEntryBlock[] };
 };
 
 function cleanText(value: unknown, maxLength: number): string {
@@ -156,6 +158,11 @@ export function parseDiaryEntryContent(content: string): ParsedDiaryEntry {
     return "";
   }).filter(Boolean).join("\n\n");
 
+  const translated = record.translation && typeof record.translation === "object" && !Array.isArray(record.translation)
+    ? record.translation as Record<string, unknown> : null;
+  const translatedBody = translated ? cleanMultilineText(translated.body, 6000) : "";
+  const translatedBlocks = translated ? normalizeBlocks(translated.blocks, translatedBody) : [];
+
   return {
     title: cleanText(record.title ?? record.heading, 80) || combinedBody.slice(0, 20) || "未命名日记",
     dateLabel: cleanText(record.dateLabel ?? record.date ?? record.date_label, 40),
@@ -164,6 +171,14 @@ export function parseDiaryEntryContent(content: string): ParsedDiaryEntry {
     tags: normalizeTags(record.tags ?? record.labels),
     body: combinedBody || "今天也留下了一点痕迹。",
     blocks,
+    translation: translated && translatedBody ? {
+      title: cleanText(translated.title, 80),
+      mood: cleanText(translated.mood, 60),
+      weather: cleanText(translated.weather, 60),
+      tags: normalizeTags(translated.tags),
+      body: translatedBody,
+      blocks: translatedBlocks,
+    } : undefined,
   };
 }
 

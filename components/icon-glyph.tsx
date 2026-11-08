@@ -47,6 +47,10 @@ import {
   mdiPaw,
   mdiWeatherSunny,
   mdiDoorOpen,
+  mdiTwitter,
+  mdiChatProcessingOutline,
+  mdiMessageTextOutline,
+  mdiImageAlbum,
 } from "@mdi/js";
 
 type IconGlyphProps = {
@@ -72,6 +76,10 @@ const MDI_PATHS: Record<IconId, string> = {
   appmarket: mdiPackageVariant,
   xiaohongshu: mdiPackageVariant,
   x: mdiStar,
+  twitter: mdiTwitter,
+  lysn: mdiChatProcessingOutline,
+  sms: mdiMessageTextOutline,
+  photo_library: mdiImageAlbum,
   deep_talk: mdiHeart,
   checkphone: mdiCellphone,
   shopping: mdiShopping,

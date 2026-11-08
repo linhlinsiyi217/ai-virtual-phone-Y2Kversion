@@ -13,6 +13,10 @@ export const BINDING_ACCENTS = {
 
 export const CONTENT_APP_ACCENTS: Record<ContentAppId, string> = {
     chat: "#22A85A",
+    lysn: "#709BE5",
+    twitter: "#171717",
+    sms: "#43BB71",
+    weverse: "#18CDB2",
     diary: "#2F80ED",
     music: "#8B5CF6",
     reading: "#2563EB",

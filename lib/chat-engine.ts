@@ -3,6 +3,7 @@ import { lifePrompt, lifeScope, applyLifeOutput, createLifeStreamFilter } from "
 import { CHAT_FORWARD_PROTOCOL, refreshChatForwardProtocol } from "./chat-forward-protocol";
 import { isListeningTool, selectChatRequestTools, listeningCapabilityPrompt } from "./listening-capability";
 import { registerIdentityRequest } from "./identity-runtime";
+import { translateGeneratedContent } from "./content-translation";
 import { pendingListeningInvite, listeningInviteFirstInstruction, createListeningInviteStreamObserver } from "./listening-invite-fast";
 // lib/chat-engine.ts
 
@@ -466,6 +467,8 @@ export type DebugPromptRequestOptions = {
 };
 
 type ChatPromptBuildOptions = {
+    /** Per-call output contract; appended only to this request, never persisted as conversation history. */
+    callFormatInstruction?: string;
     followUpCount?: number;
     followUpDelay?: number;
     timedWakeElapsedMinutes?: number;
@@ -915,6 +918,10 @@ export async function sendLLMStreamRequest(
         appId?: string;
         appTags?: string[];
         followUpCount?: number;
+        /** 内容翻译使用的角色绑定；未设置时按会话角色或唯一匹配角色推断。 */
+        translationCharacterId?: string;
+        /** 不为本次请求注入世界线上下文。 */
+        skipWorldline?: boolean;
         debugSessionId?: string;
         signal?: AbortSignal;
     },
@@ -967,6 +974,8 @@ export async function sendLLMStreamRequest(
         }
         let rawOutput = options?.skipTimestampStrip ? streamedContent.trim() : stripHallucinatedTimestamps(streamedContent.trim());
         rawOutput = applyLifeOutput(await applyChatPluginLlmResponse(rawOutput, pluginPurpose, options?.debugSessionId), lifeRequestScope);
+        const matchingTranslationCharacters = loadCharacters().filter(character => meta?.characterName === character.name || meta?.characterName === `Weverse:${character.name}` || meta?.characterName === `Weverse LIVE:${character.name}`);
+        rawOutput = await translateGeneratedContent(rawOutput, pluginPurpose, options?.translationCharacterId || (options?.debugSessionId ? loadChatSessions().find(session => session.id === options.debugSessionId)?.contactId : undefined) || (matchingTranslationCharacters.length === 1 ? matchingTranslationCharacters[0].id : undefined), config, options?.signal);
 
         // Store API log entry — mirror sendLLMRequest so streaming calls also show up
         // in the "底层调用大模型日志" panel. reasoning 单独存思维链原文，供「查看原始」直接展示。
@@ -1071,6 +1080,10 @@ export async function sendLLMRequest(
         appId?: string;
         appTags?: string[];
         followUpCount?: number;
+        /** 内容翻译使用的角色绑定；未设置时按会话角色或唯一匹配角色推断。 */
+        translationCharacterId?: string;
+        /** 不为本次请求注入世界线上下文。 */
+        skipWorldline?: boolean;
         debugSessionId?: string;
         signal?: AbortSignal;
     },
@@ -1137,6 +1150,8 @@ export async function sendLLMRequest(
         }
 
         rawOutput = applyLifeOutput(await applyChatPluginLlmResponse(rawOutput, pluginPurpose, options?.debugSessionId), lifeRequestScope);
+        const matchingTranslationCharacters = loadCharacters().filter(character => meta?.characterName === character.name || meta?.characterName === `Weverse:${character.name}` || meta?.characterName === `Weverse LIVE:${character.name}`);
+        rawOutput = await translateGeneratedContent(rawOutput, pluginPurpose, options?.translationCharacterId || (options?.debugSessionId ? loadChatSessions().find(session => session.id === options.debugSessionId)?.contactId : undefined) || (matchingTranslationCharacters.length === 1 ? matchingTranslationCharacters[0].id : undefined), config, options?.signal);
 
         if (!rawOutput && parsed.toolCalls.length === 0) {
             const emptyDetails = emptyResponseDetails(parsed.raw);
@@ -1266,6 +1281,10 @@ export async function sendLLMToolStreamRequest(
         appId?: string;
         appTags?: string[];
         followUpCount?: number;
+        /** 内容翻译使用的角色绑定；未设置时按会话角色或唯一匹配角色推断。 */
+        translationCharacterId?: string;
+        /** 不为本次请求注入世界线上下文。 */
+        skipWorldline?: boolean;
         debugSessionId?: string;
         signal?: AbortSignal;
         /** 单次最大输出 token：按调用覆盖预设值（工坊输出护栏用） */
@@ -1430,6 +1449,10 @@ export async function sendLLMToolRequest(
         appId?: string;
         appTags?: string[];
         followUpCount?: number;
+        /** 内容翻译使用的角色绑定；未设置时按会话角色或唯一匹配角色推断。 */
+        translationCharacterId?: string;
+        /** 不为本次请求注入世界线上下文。 */
+        skipWorldline?: boolean;
         debugSessionId?: string;
         signal?: AbortSignal;
     },
@@ -1460,6 +1483,8 @@ export async function sendLLMToolRequest(
             rawOutput = `<think>\n${parsed.reasoning}\n</think>\n\n${rawOutput}`;
         }
         rawOutput = applyLifeOutput(await applyChatPluginLlmResponse(rawOutput, pluginPurpose, options?.debugSessionId), lifeRequestScope);
+        const matchingTranslationCharacters = loadCharacters().filter(character => meta?.characterName === character.name || meta?.characterName === `Weverse:${character.name}` || meta?.characterName === `Weverse LIVE:${character.name}`);
+        rawOutput = await translateGeneratedContent(rawOutput, pluginPurpose, options?.translationCharacterId || (options?.debugSessionId ? loadChatSessions().find(session => session.id === options.debugSessionId)?.contactId : undefined) || (matchingTranslationCharacters.length === 1 ? matchingTranslationCharacters[0].id : undefined), config, options?.signal);
 
         if (!rawOutput && parsed.toolCalls.length === 0) {
             const emptyDetails = emptyResponseDetails(parsed.raw);
@@ -2165,7 +2190,11 @@ export async function buildChatPromptMessages(
     if (resolvedAppId === "chat" && !session.isGroup && !isOfflineMode && !promptProfile) {
         llmMessages.push({ role: "system", content: ONLINE_CHAT_CADENCE_INSTRUCTION });
     }
-    appendEmptyGenerateGuardMessage(llmMessages, config, historyForPrompt);
+    if (options?.callFormatInstruction) {
+        llmMessages.push({ role: "system", content: options.callFormatInstruction });
+    } else {
+        appendEmptyGenerateGuardMessage(llmMessages, config, historyForPrompt);
+    }
 
     if (resolvedAppId === "chat" && !promptProfile) {
         const portraitPrompt = lifePrompt(session, [], config.enableImageRecognition === true);

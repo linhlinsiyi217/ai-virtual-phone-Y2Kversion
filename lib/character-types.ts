@@ -19,6 +19,14 @@ export type Character = {
   wechatID?: string;     // 手机号格式的微信号
   personality?: string;    // 角色性格
   timeZone?: string;       // IANA 时区，例如 America/New_York；空值表示跟随系统时间
+  /** 母语；persona 表示依人设。 */
+  nativeLanguage?: "persona" | "zh" | "ko" | "ja" | "en";
+  /** 默认日常交流语言；persona 表示依人设。 */
+  communicationLanguage?: "persona" | "zh" | "ko" | "ja" | "en";
+  /** 语言能力与习惯的自由描述。 */
+  languageUsage?: string;
+  /** 中文代输入：用户用中文说话时，视为用角色当前语言表达。 */
+  chineseProxyInput?: boolean;
   tags?: string[];
   createdAt: string;
   updatedAt: string;

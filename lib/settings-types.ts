@@ -253,18 +253,20 @@ export type ContentAppId =
     | "chat" | "diary" | "music" | "reading"
     | "forum" | "cocreate" | "story" | "game" | "xiaohongshu" | "dwelling"
     | "checkphone" | "shopping" | "calendar" | "interview_magazine"
-    | "moments" | "group_chat" | "vn" | "adventure";
+    | "moments" | "group_chat" | "vn" | "adventure"
+    | "lysn" | "twitter" | "sms" | "weverse";
 
 export const CONTENT_APP_IDS: ContentAppId[] = [
     "chat", "diary", "music", "reading",
     "cocreate", "story", "game", "xiaohongshu", "dwelling",
     "checkphone", "shopping", "calendar", "interview_magazine",
-    "moments", "group_chat", "vn", "adventure"
+    "moments", "group_chat", "vn", "adventure",
+    "lysn", "twitter", "sms", "weverse"
 ];
 
 export const CONTENT_APP_LABELS: Record<ContentAppId, string> = {
     chat: "聊天",
-    diary: "手记",
+    diary: "iCity",
     music: "音乐",
     reading: "阅读",
     forum: "论坛（旧）",
@@ -281,6 +283,10 @@ export const CONTENT_APP_LABELS: Record<ContentAppId, string> = {
     group_chat: "群聊",
     vn: "漫卷",
     adventure: "冒险",
+    lysn: "Lysn",
+    twitter: "X",
+    sms: "信息",
+    weverse: "Weverse",
 };
 
 // Binding slot — config selections for a given scope
@@ -290,6 +296,10 @@ export type BindingSlot = {
     presetId?: string;
     userIdentityId?: string;
     worldBookIds?: string[];
+    /** 普通内容翻译；未设置时保持模块原有双语生成。 */
+    translationApiConfigId?: string;
+    /** X 特殊话题的独立世界书；只在特殊话题生成时使用。 */
+    topicWorldBookIds?: string[];
     /** Explicit selection in combined tools, including empty. Missing preserves legacy inheritance. */
     worldBookMode?: "replace";
     regexIds?: string[];
@@ -312,6 +322,8 @@ export type BindingConfig = {
     memorySummaryApiConfigId?: string;
     /** Auxiliary API: used for embedding/vector recall (global, not per-character) */
     embeddingApiConfigId?: string;
+    /** Only used to index Photos uploads and re-analyze library photos. */
+    photoVisionApiConfigId?: string;
     /** Auxiliary API: used by the mascot assistant (global, not per-character) */
     mascotApiConfigId?: string;
     /** Auxiliary API: used by the QA workshop agent (global, not per-character) */

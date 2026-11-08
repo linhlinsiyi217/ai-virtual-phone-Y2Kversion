@@ -939,6 +939,8 @@ export function prepareShortTermContext(
         includeDirectChatEntries?: boolean;
         timeAware?: boolean;
         promptTimestampOptions?: PromptTimestampOptions;
+        /** 单次调用的预算上限；短信等场景用来压低短期历史。 */
+        tokenBudgetOverride?: number;
         /** 只取这个时间点之后的历史（剧情记忆继承开关用到）。 */
         afterTimestamp?: number;
     },
@@ -962,7 +964,7 @@ export function prepareShortTermContext(
 
     // Activation context: full timeline for keyword matching (not truncated)
     const wbActivationContext = timeline.slice(-10).map(e => e.content).join("\n");
-    const budget = memConfig.shortTermTokenBudget;
+    const budget = options?.tokenBudgetOverride ?? memConfig.shortTermTokenBudget;
     const currentTag = getFeatureTag(appId);
     const rawHistory = options?.history ?? [];
     const history = options?.afterTimestamp

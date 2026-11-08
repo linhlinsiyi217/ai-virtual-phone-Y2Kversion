@@ -1,3 +1,4 @@
+import {kvGet} from './kv-db';
 import { loadInteractableCharacters as loadCharacters } from "./character-storage";
 import type { Character } from "./character-types";
 import { previewMessagesForApi, sendLLMRequest, ChatEngineError } from "./chat-engine";
@@ -20,6 +21,17 @@ type ResolvedDiaryEntryGeneration = {
   messages: LLMMessage[];
   userName: string;
 };
+
+function addDiaryLanguageRule(messages: LLMMessage[],characterId?:string): LLMMessage[] {
+  let language="";try{language=JSON.parse(kvGet("ai_phone_icity_v1")||"{}").accounts?.find((a:{id:string})=>a.id===characterId)?.language||"";}catch{}
+  const requested=({zh:"简体中文",ko:"韩语",ja:"日语",en:"英语"} as Record<string,string>)[language];
+  return [...messages, { role: "system", content: [
+    requested?`日记语言规则：用户在 iCity 为此账号明确选择了${requested}，本篇日记使用${requested}。`:"日记语言规则：根据角色设定中的国籍、母语和长期使用语言，让角色以自己的日常母语写日记；不要默认写中文，也不要把国籍当作唯一语言依据。",
+    "原文的 title、mood、weather、tags、body 和 blocks 必须使用角色的日记语言。",
+    "同时在 JSON 的 translation 字段输出对应的准确简体中文翻译，结构为 {title,mood,weather,tags,body,blocks}，blocks 与原文逐项对应且类型一致。",
+    "中文原文无需重复翻译，可省略 translation；不要把译文写进原文段落。",
+  ].join("\n") }];
+}
 
 async function resolveDiaryEntryGeneration(
   characterId: string,
@@ -85,21 +97,28 @@ export async function generateDiaryEntryForCharacter(
   characterId: string,
   entries: DiaryEntry[],
   _trigger: DiaryEntryTrigger = "manual",
+  options: {signal?:AbortSignal;instruction?:string} = {},
 ): Promise<ParsedDiaryEntry> {
   // Tracked at the engine so every caller (manual + background timer) shows up
   // in the diary app's "generating" indicator, even across app re-entry.
   beginDiaryGeneration(characterId);
   try {
     const resolved = await resolveDiaryEntryGeneration(characterId, entries);
+    const messages = addDiaryLanguageRule(resolved.messages,resolved.character.id);
+    if(options.instruction)messages.push({role:"system",content:options.instruction});
     const raw = await sendLLMRequest(
       resolved.apiConfig,
       resolved.preset,
-      resolved.messages,
+      messages,
       resolved.regexes,
       { characterName: `日记:${resolved.character.name}`, userName: resolved.userName },
-      { appId: "diary", appTags: ["diary", "entries"] },
+      { appId: "diary", translationCharacterId: characterId, appTags: ["diary", "entries"],signal:options.signal },
     );
-    return parseDiaryEntryContent(raw);
+    if(options.signal?.aborted)throw new DOMException("已打断","AbortError");
+    const parsed=parseDiaryEntryContent(raw);
+    try{const obj=JSON.parse(raw.trim().replace(/^```(?:json)?\s*|\s*```$/g,""));if(["world","friends","private"].includes(obj.visibility))parsed.visibility=obj.visibility;}catch{}
+    try { const obj=JSON.parse(raw.trim().replace(/^```(?:json)?\s*|\s*```$/g,"")); (parsed as typeof parsed & {photos?:string[]}).photos=Array.isArray(obj.photos)?obj.photos.filter((x:unknown)=>typeof x==="string").slice(0,3):[]; } catch {}
+    return parsed;
   } finally {
     endDiaryGeneration(characterId);
   }
@@ -111,9 +130,28 @@ export async function previewDiaryEntryPromptPayload(
 ): Promise<{ messages: LLMMessage[]; characterName: string; model: string; presetName: string }> {
   const resolved = await resolveDiaryEntryGeneration(characterId, entries);
   return {
-    messages: previewMessagesForApi(resolved.apiConfig, resolved.preset, resolved.messages),
+    messages: previewMessagesForApi(resolved.apiConfig, resolved.preset, addDiaryLanguageRule(resolved.messages,resolved.character.id)),
     characterName: `日记:${resolved.character.name}`,
     model: resolved.apiConfig.defaultModel,
     presetName: resolved.preset?.name ?? "默认预设",
   };
+}
+
+export async function translateDiaryEntry(entry: DiaryEntry): Promise<NonNullable<DiaryEntry["translation"]>> {
+  const resolved = await resolveDiaryEntryGeneration(entry.characterId, []);
+  const slot = resolveBinding(loadBindingConfig(), entry.characterId, "diary");
+  const translator = loadApiConfigs().find(config => config.id === slot.translationApiConfigId) || resolved.apiConfig;
+  const raw = await sendLLMRequest(
+    translator, null,
+    [
+      { role: "system", content: "你是翻译员。将角色日记准确翻译成简体中文，保留原文的段落和区块类型。只返回 JSON：{title,mood,weather,tags,body,blocks}；blocks 与输入逐项对应。不要续写或加入评论。" },
+      { role: "user", content: JSON.stringify({ title: entry.title, mood: entry.mood, weather: entry.weather, tags: entry.tags, body: entry.body, blocks: entry.blocks }) },
+    ],
+    resolved.regexes,
+    { characterName: `日记翻译:${resolved.character.name}`, userName: resolved.userName },
+    { skipOutputRegex: true, appId: "diary", appTags: ["diary", "translation"] },
+  );
+  const parsed = parseDiaryEntryContent(raw);
+  if (!parsed.body.trim()) throw new Error("翻译没有返回内容");
+  return { title: parsed.title, mood: parsed.mood, weather: parsed.weather, tags: parsed.tags, body: parsed.body, blocks: parsed.blocks };
 }

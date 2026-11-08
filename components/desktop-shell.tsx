@@ -20,6 +20,7 @@ import MusicFloat from "@/components/music/music-float";
 import DesktopLyrics from "@/components/music/desktop-lyrics";
 import { ListeningGlow } from "@/components/music/listening-glow";
 import ShareDestinationSheet from "@/components/chat/share-destination-sheet";
+import { SocialNotificationRuntime } from "@/components/social/app-notifications";
 import QuickReplyWindow from "@/components/chat/quick-reply-window";
 import MiniAppWindow from "@/components/music/mini-app-window";
 import { PhoneCalendarApp } from "@/components/calendar-app";
@@ -37,6 +38,10 @@ const FavoritesApp = dynamic(() => import("@/components/favorites/favorites-app"
 const ArchiveRoomApp = dynamic(() => import("@/components/archive-room-app").then(m => m.ArchiveRoomApp), { ssr: false });
 const PhotoWallApp = dynamic(() => import("@/components/photo-wall-app").then(m => m.PhotoWallApp), { ssr: false });
 const WatchTogetherApp = dynamic(() => import("@/components/watch-together-app").then(m => m.WatchTogetherApp), { ssr: false });
+const TwitterApp = dynamic(() => import("@/components/twitter/twitter-app").then(m => m.TwitterApp), { ssr: false });
+const LysnApp = dynamic(() => import("@/components/lysn/lysn-app").then(m => m.LysnApp), { ssr: false });
+const PhotosApp = dynamic(() => import("@/components/photos/photos-app").then(m => m.PhotosApp), { ssr: false });
+const SmsApp = dynamic(() => import("@/components/sms/sms-app").then(m => m.SmsApp), { ssr: false });
 import { XiaohongshuApp } from "@/components/xiaohongshu/xiaohongshu-app";
 import { StoryApp } from "@/components/story/story-app";
 import { VnApp } from "@/components/vn/vn-app";
@@ -4114,6 +4119,18 @@ html,body{margin:0;padding:0;width:100%;height:100%;background:#121110;color:rgb
     if (activeApp === "photos") {
       return <PhotoAlbumApp onClose={() => setActiveApp(null)} />;
     }
+    if (activeApp === "photo_library") {
+      return <PhotosApp onClose={() => setActiveApp(null)} onNotice={setNotice} />;
+    }
+    if (activeApp === "twitter") {
+      return <TwitterApp onClose={() => setActiveApp(null)} onNotice={setNotice} />;
+    }
+    if (activeApp === "lysn") {
+      return <LysnApp onClose={() => setActiveApp(null)} onNotice={setNotice} />;
+    }
+    if (activeApp === "sms") {
+      return <SmsApp onClose={() => setActiveApp(null)} onNotice={setNotice} />;
+    }
 
     if (activeApp === "calendar") {
       return <PhoneCalendarApp onClose={() => setActiveApp(null)} onNotice={setNotice} />;
@@ -4261,6 +4278,7 @@ html,body{margin:0;padding:0;width:100%;height:100%;background:#121110;color:rgb
         {/* User's global custom CSS is injected via useEffect into document.head */}
         <div className="phone-case">
           <div className="phone-frame">
+            <SocialNotificationRuntime />
             <div
               ref={shellRef}
               className={activeApp ? "phone-shell app-open-shell" : "phone-shell"}

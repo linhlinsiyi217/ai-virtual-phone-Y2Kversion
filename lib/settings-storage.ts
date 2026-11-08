@@ -947,12 +947,16 @@ export function resolveBinding(
         presetId: global.presetId,
         userIdentityId: global.userIdentityId,
         worldBookIds: global.worldBookIds ? [...global.worldBookIds] : undefined,
+        topicWorldBookIds: global.topicWorldBookIds ? [...global.topicWorldBookIds] : undefined,
+        translationApiConfigId: global.translationApiConfigId,
         worldBookMode: global.worldBookMode,
         regexIds: global.regexIds ? [...global.regexIds] : undefined,
     };
 
     const applySlot = (slot: BindingSlot): void => {
         if (slot.apiConfigId) resolved.apiConfigId = slot.apiConfigId;
+        if (slot.translationApiConfigId) resolved.translationApiConfigId = slot.translationApiConfigId;
+        if (slot.topicWorldBookIds) resolved.topicWorldBookIds = [...slot.topicWorldBookIds];
         if (slot.voiceConfigId) resolved.voiceConfigId = slot.voiceConfigId;
         if (slot.presetId) resolved.presetId = slot.presetId;
         if (slot.worldBookMode === "replace" || (slot.worldBookIds && slot.worldBookIds.length > 0)) {
