@@ -7,7 +7,15 @@ plugins {
 // 本地没有注入密钥时仍允许生成未签名 release，便于调试；正式 CI 工作流
 // 会在构建前强制校验四项 Secret，并且只上传已验证的 release APK。
 def ksFile = System.getenv("SHELL_KEYSTORE_FILE")
-def siteUrl = (System.getenv("SHELL_SITE_URL") ?: "https://example.invalid").replaceAll('/+$', '')
+// 正式域名：可匿名访问、不带部署哈希。预览地址（...-<hash>-<user>.vercel.app）
+// 会被 Vercel 的部署保护拦成登录页，所以这里做一次兜底替换。
+def PRODUCTION_SITE = "https://ai-virtual-phone-y2-kversion-rwe1.vercel.app"
+def rawSiteUrl = (System.getenv("SHELL_SITE_URL") ?: "").trim().replaceAll('/+$', '')
+def isPreviewUrl = rawSiteUrl ==~ /https:\/\/[A-Za-z0-9-]+-[a-z0-9]{6,}-[A-Za-z0-9-]+\.vercel\.app/
+def siteUrl = (rawSiteUrl && !isPreviewUrl) ? rawSiteUrl : PRODUCTION_SITE
+if (rawSiteUrl && isPreviewUrl) {
+    logger.lifecycle("SHELL_SITE_URL 指向预览部署（${rawSiteUrl}），已改用正式域名 ${PRODUCTION_SITE}")
+}
 
 android {
     namespace 'app.floatphone.shell'
