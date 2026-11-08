@@ -66,6 +66,18 @@ jobs:
             -keystore "$keystore" \
             -storepass "$SHELL_KEYSTORE_PASSWORD" \
             -alias "$SHELL_KEY_ALIAS" >/dev/null
+          # 仅列出别名无法验证私钥密码；导入到临时 PKCS12 会实际读取私钥，
+          # 密码错误时在构建前明确失败，避免产生未签名 APK。
+          rm -f "$RUNNER_TEMP/keystore-check.p12"
+          keytool -importkeystore -noprompt \
+            -srckeystore "$keystore" \
+            -srcstoretype JKS \
+            -srcstorepass "$SHELL_KEYSTORE_PASSWORD" \
+            -srcalias "$SHELL_KEY_ALIAS" \
+            -srckeypass "$SHELL_KEY_PASSWORD" \
+            -destkeystore "$RUNNER_TEMP/keystore-check.p12" \
+            -deststoretype PKCS12 \
+            -deststorepass "$SHELL_KEYSTORE_PASSWORD" >/dev/null
           echo "SHELL_KEYSTORE_FILE=$keystore" >> "$GITHUB_ENV"
 
       - name: Build APKs

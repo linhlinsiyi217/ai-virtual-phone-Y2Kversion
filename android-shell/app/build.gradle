@@ -47,8 +47,13 @@ android {
             if (key == null) throw new IllegalStateException("取不到私钥")
             resolvedKeyPassword = ksKeyPass
             ksUsable = true
-        } catch (Throwable ignored) {
-            logger.lifecycle("SHELL_KEYSTORE: 密钥库无法读取，本次 release 产出未签名包")
+        } catch (Throwable error) {
+            if (ksFile) {
+                throw new GradleException(
+                    "SHELL_KEYSTORE: 无法读取 JKS 或私钥密码不匹配（${error.class.simpleName}: ${error.message ?: 'unknown error'}）",
+                    error
+                )
+            }
             ksUsable = false
         }
     }
