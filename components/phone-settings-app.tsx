@@ -15,6 +15,7 @@ import { RegexManager } from "./settings/regex-manager";
 import { DataManagement } from "./settings/data-management";
 import { UserIdentitySettings } from "./settings/user-identity";
 import { AboutDeclaration } from "./settings/about-declaration";
+import { ChangelogPage } from "./update-log/changelog-page";
 import { BindingManager } from "./settings/binding-manager";
 import { WeixinSettings } from "./settings/weixin-settings";
 import { CloudServicesPage } from "./settings/cloud-services-setup";
@@ -57,7 +58,8 @@ type SubPage =
     | "toolbox"
     | "agentComputer"
     | "moderation"
-    | "about";
+    | "about"
+    | "changelog";
 
 const SETTINGS_MENU = [
     { id: "api", icon: HardDrive, label: "API 设置", desc: "大模型接口", iconColor: BINDING_ACCENTS.api , glass: "api" },
@@ -73,6 +75,7 @@ const SETTINGS_MENU = [
     { id: "toolbox", icon: Wrench, label: "聊天工具箱", desc: "外部工具调用", iconColor: BINDING_ACCENTS.voice , glass: "toolbox" },
     { id: "agentComputer", icon: Laptop, label: "角色电脑", desc: "云端小电脑（自部署）", iconColor: BINDING_ACCENTS.memory , glass: "agent-computer" },
     { id: "identity", icon: UserCircle, label: "用户身份", desc: "个人信息", iconColor: BINDING_ACCENTS.identity , glass: "identity" },
+    { id: "changelog", icon: Info, label: "更新日志", desc: "版本与历史更新", iconColor: BINDING_ACCENTS.memory , glass: "about" },
     { id: "about", icon: Info, label: "关于与声明", desc: "版本与协议", iconColor: BINDING_ACCENTS.memory , glass: "about" },
 ] as const;
 
@@ -326,6 +329,8 @@ export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
                 return <ModerationCenter onNotice={onNotice} />;
             case "identity":
                 return <UserIdentitySettings />;
+            case "changelog":
+                return <ChangelogPage />;
             case "about":
                 return <AboutDeclaration />;
             default:
@@ -515,7 +520,7 @@ export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
                         <CardGrid
                             label="User"
                             labelClassName="settings-menu-section-title"
-                            items={SETTINGS_MENU.filter(item => ["identity", "about"].includes(item.id)).map(makeCardItem)}
+                            items={SETTINGS_MENU.filter(item => ["identity", "changelog", "about"].includes(item.id)).map(makeCardItem)}
                         />
                         {floatingDockSheetOpen && (
                             <div className="modal-overlay modal-overlay-bottom" data-ui="modal" onClick={() => setFloatingDockSheetOpen(false)}>
