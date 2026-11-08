@@ -3,8 +3,9 @@ plugins {
     id 'org.jetbrains.kotlin.android'
 }
 
-// 签名：CI 里通过环境变量注入 keystore（见 android-shell/README.md）；
-// 没有配置时 release 构建产出未签名 APK，debug 构建始终可直接安装测试。
+// 签名：CI 里通过环境变量注入 keystore（见 android-shell/README.md）。
+// 本地没有注入密钥时仍允许生成未签名 release，便于调试；正式 CI 工作流
+// 会在构建前强制校验四项 Secret，并且只上传已验证的 release APK。
 def ksFile = System.getenv("SHELL_KEYSTORE_FILE")
 def siteUrl = (System.getenv("SHELL_SITE_URL") ?: "https://example.invalid").replaceAll('/+$', '')
 
@@ -28,6 +29,8 @@ android {
     // 否则打包阶段会抛 KeytoolException 让整个构建失败。
     def ksPassword = System.getenv("SHELL_KEYSTORE_PASSWORD") ?: ""
     def ksUsable = false
+    def resolvedAlias = null
+    def resolvedKeyPassword = null
     if (ksFile) {
         try {
             def store = java.security.KeyStore.getInstance(java.security.KeyStore.getDefaultType())
@@ -35,11 +38,11 @@ android {
             // 光能打开库还不够：私钥的密码、别名任一不对，打包阶段仍会抛 Cannot recover key
             def ksAlias = System.getenv("SHELL_KEY_ALIAS")
             def ksKeyPass = System.getenv("SHELL_KEY_PASSWORD") ?: ksPassword
-            def resolvedAlias = ksAlias ?: (store.aliases().hasMoreElements() ? store.aliases().nextElement() : null)
+            resolvedAlias = ksAlias ?: (store.aliases().hasMoreElements() ? store.aliases().nextElement() : null)
             if (resolvedAlias == null) throw new IllegalStateException("密钥库里没有别名")
             def key = store.getKey(resolvedAlias, ksKeyPass.toCharArray())
             if (key == null) throw new IllegalStateException("取不到私钥")
-            System.setProperty("shel.gradle.keyok", "1")
+            resolvedKeyPassword = ksKeyPass
             ksUsable = true
         } catch (Throwable ignored) {
             logger.lifecycle("SHELL_KEYSTORE: 密钥库无法读取，本次 release 产出未签名包")
@@ -52,8 +55,8 @@ android {
             release {
                 storeFile file(ksFile)
                 storePassword ksPassword
-                keyAlias System.getenv("SHELL_KEY_ALIAS")
-                keyPassword System.getenv("SHELL_KEY_PASSWORD")
+                keyAlias resolvedAlias
+                keyPassword resolvedKeyPassword
             }
         }
     }

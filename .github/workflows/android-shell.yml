@@ -14,7 +14,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    # 可选签名：仓库 Secrets 配置了 SHELL_KEYSTORE_BASE64 等四项时产出已签名 release
+    # Release 签名信息只从 Secrets 注入，绝不写入仓库或源码。
     env:
       SHELL_KEYSTORE_BASE64: ${{ secrets.SHELL_KEYSTORE_BASE64 }}
       SHELL_KEYSTORE_PASSWORD: ${{ secrets.SHELL_KEYSTORE_PASSWORD }}
@@ -39,14 +39,47 @@ jobs:
         with:
           gradle-version: "8.11.1"
 
-      - name: Decode keystore (optional)
-        if: ${{ env.SHELL_KEYSTORE_BASE64 != '' }}
+      - name: Validate release signing secrets
+        shell: bash
         run: |
-          echo "$SHELL_KEYSTORE_BASE64" | base64 -d > /tmp/shell.keystore
-          echo "SHELL_KEYSTORE_FILE=/tmp/shell.keystore" >> "$GITHUB_ENV"
+          set -euo pipefail
+          missing=0
+          for name in SHELL_KEYSTORE_BASE64 SHELL_KEYSTORE_PASSWORD SHELL_KEY_ALIAS SHELL_KEY_PASSWORD; do
+            if [[ -z "${!name:-}" ]]; then
+              echo "::error::Missing Actions Secret: $name"
+              missing=1
+            fi
+          done
+          if [[ "$missing" -ne 0 ]]; then
+            exit 1
+          fi
+
+      - name: Decode and verify keystore
+        shell: bash
+        run: |
+          set -euo pipefail
+          keystore="$RUNNER_TEMP/float-shell-release.jks"
+          umask 077
+          printf '%s' "$SHELL_KEYSTORE_BASE64" | base64 --decode --strict > "$keystore"
+          keytool -list -noprompt \
+            -keystore "$keystore" \
+            -storepass "$SHELL_KEYSTORE_PASSWORD" \
+            -alias "$SHELL_KEY_ALIAS" >/dev/null
+          echo "SHELL_KEYSTORE_FILE=$keystore" >> "$GITHUB_ENV"
 
       - name: Build APKs
         run: gradle -p android-shell assembleDebug assembleRelease
+
+      - name: Verify signed release APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          apksigner="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
+          if [[ -z "$apksigner" ]]; then
+            echo "::error::Android build-tools apksigner was not found"
+            exit 1
+          fi
+          "$apksigner" verify --verbose android-shell/app/build/outputs/apk/release/*.apk
 
       - name: Upload debug APK
         uses: actions/upload-artifact@v4

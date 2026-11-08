@@ -24,20 +24,24 @@
 1. 在仓库 **Settings → Secrets and variables → Actions → Variables** 新建
    `SHELL_SITE_URL`，值为你的 HTTPS 站点地址。手动运行工作流时也可以临时填写
    `site_url`，它会覆盖仓库变量。
-2. GitHub 仓库页 → **Actions** → **Build Android Shell APK** → **Run workflow**。
-   （改动 `android-shell/**` 并推到 main 也会自动触发。）
-3. 跑完后在该次运行的 **Artifacts** 里下载：
+2. 在同一页面的 **Secrets** 区域添加下表四项签名 Secret。工作流会在构建前检查
+   四项是否齐全，并验证密钥库和别名；缺少或错误时直接失败，不会上传未签名的
+   release 包。
+3. GitHub 仓库页 → **Actions** → **Build Android Shell APK** → **Run workflow**。
+   在 `site_url` 中填入上面的 HTTPS 地址；（改动 `android-shell/**` 并推到 main
+   也会自动触发。）
+4. 跑完后在该次运行的 **Artifacts** 里下载：
    - `float-shell-debug` —— debug 签名，**下载即可直接安装**，日常自用选这个；
-   - `float-shell-release` —— 未配置签名密钥时是未签名包（装不了），配置后是正式签名包。
+   - `float-shell-release` —— 已通过签名校验的正式签名包。
 
-### 正式签名（可选，想长期分发再做）
+### 正式签名
 
 本地生成一个密钥库（一次性）：
 
 ```bash
 keytool -genkeypair -v -keystore shell.keystore -alias floatshell \
   -keyalg RSA -keysize 2048 -validity 10000
-base64 -w0 shell.keystore   # 得到一长串 base64
+base64 -w0 shell.keystore   # 得到一长串 base64，不要提交到仓库
 ```
 
 在仓库 **Settings → Secrets and variables → Actions** 添加四个 Secret：
@@ -49,8 +53,11 @@ base64 -w0 shell.keystore   # 得到一长串 base64
 | `SHELL_KEY_ALIAS` | `floatshell`（或你起的别名） |
 | `SHELL_KEY_PASSWORD` | 密钥密码 |
 
-之后每次构建的 release 包即为已签名版。注意：debug 包和 release 包
-签名不同，互相覆盖安装前要先卸载旧的。
+之后每次构建的 release 包即为已签名版。四项 Secret 的值不会打印到日志，也不要
+把 `.jks` 文件、密码或 Base64 文本写进仓库。请把 `.jks` 与密码保存在密码管理器
+或加密离线备份中；以后更新 APK 必须继续使用同一套密钥，否则 Android 会把它
+视为不同应用，无法覆盖安装。debug 包和 release 包签名不同，互相覆盖安装前要
+先卸载旧的。
 
 ## 安装与首次设置
 
