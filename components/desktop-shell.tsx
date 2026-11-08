@@ -4300,7 +4300,7 @@ html,body{margin:0;padding:0;width:100%;height:100%;background:#121110;color:rgb
               } as React.CSSProperties}
             >
               <div className="phone-wallpaper" style={wallpaperStyle} />
-              <EdgeSwipeBack />
+              <EdgeSwipeBack onBack={() => setActiveApp(null)} />
 
               <header className="phone-status-bar">
                 <StatusClock />

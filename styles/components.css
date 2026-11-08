@@ -5825,3 +5825,15 @@ button.settings-overview-row { cursor: pointer; }
   z-index: 1;
   margin: 26px 0 10px 2px;
 }
+
+/* 设置分组标题不再被下面的卡片压住 */
+.settings-menu-section-title {
+  position: relative;
+  z-index: 2;
+  margin: 26px 2px 10px;
+  font-size: 12px;
+  line-height: 16px;
+  letter-spacing: .1em;
+  font-weight: 650;
+  color: var(--ui-muted, #6e6e73);
+}
