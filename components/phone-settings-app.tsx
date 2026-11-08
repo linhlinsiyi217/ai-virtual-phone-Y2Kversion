@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useLayoutEffect, useCallback, useRef, createContext, type CSSProperties, type ReactNode } from "react";
-import { Activity, Check, ChevronRight, Clock, Database, FileText, Fingerprint, Globe, HardDrive, Image, Info, KeyRound, Laptop, Layers, Link2, Loader2, LogOut, MessageSquare, Mic, SlidersHorizontal, UserCircle, Wrench, X, CloudUpload } from "lucide-react";
+import { Activity, Check, ChevronRight, Clock, Database, FileText, Fingerprint, Globe, HardDrive, Image, Info, KeyRound, Laptop, Layers, Link2, Loader2, LogOut, MessageSquare, Mic, SlidersHorizontal, UserCircle, Wrench, X, CloudUpload, PhoneCall, Zap, CalendarDays, Camera, LayoutTemplate } from "lucide-react";
 import { ConfirmDialog } from "./ui/modal";
 import { useAccount } from "@/lib/account-context";
 import { isSelfHostedModeEnabled } from "@/lib/self-hosting";
@@ -16,6 +16,12 @@ import { DataManagement } from "./settings/data-management";
 import { UserIdentitySettings } from "./settings/user-identity";
 import { AboutDeclaration } from "./settings/about-declaration";
 import { ChangelogPage } from "./update-log/changelog-page";
+import { CallOverlaySettings } from "./settings/call-overlay-settings";
+import { PerceptionSettings } from "./perception/perception-settings";
+import { DeviceActionSettings } from "./device-action/device-action-settings";
+import { SystemCalendarSettings } from "./system-calendar/system-calendar-settings";
+import { ScreenshotSettings } from "./screenshot/screenshot-settings";
+import { WidgetSettings } from "./widget/widget-settings";
 import { BindingManager } from "./settings/binding-manager";
 import { WeixinSettings } from "./settings/weixin-settings";
 import { CloudServicesPage } from "./settings/cloud-services-setup";
@@ -59,7 +65,13 @@ type SubPage =
     | "agentComputer"
     | "moderation"
     | "about"
-    | "changelog";
+    | "changelog"
+    | "callOverlay"
+    | "perception"
+    | "deviceAction"
+    | "systemCalendar"
+    | "screenshot"
+    | "widget";
 
 const SETTINGS_MENU = [
     { id: "api", icon: HardDrive, label: "API 设置", desc: "大模型接口", iconColor: BINDING_ACCENTS.api , glass: "api" },
@@ -74,6 +86,12 @@ const SETTINGS_MENU = [
     { id: "weixin", icon: MessageSquare, label: "微信接入", desc: "iLink Bot", iconColor: CONTENT_APP_ACCENTS.chat , glass: "weixin" },
     { id: "toolbox", icon: Wrench, label: "聊天工具箱", desc: "外部工具调用", iconColor: BINDING_ACCENTS.voice , glass: "toolbox" },
     { id: "agentComputer", icon: Laptop, label: "角色电脑", desc: "云端小电脑（自部署）", iconColor: BINDING_ACCENTS.memory , glass: "agent-computer" },
+    { id: "callOverlay", icon: PhoneCall, label: "通话浮窗外观", desc: "回复条配色", iconColor: BINDING_ACCENTS.voice , glass: "voice" },
+    { id: "perception", icon: Activity, label: "感知", desc: "让角色知道电量、网络与在用应用", iconColor: BINDING_ACCENTS.memory , glass: "" },
+    { id: "deviceAction", icon: Zap, label: "操作设备", desc: "让角色帮你开灯、调音量、打开应用", iconColor: BINDING_ACCENTS.voice , glass: "" },
+    { id: "systemCalendar", icon: CalendarDays, label: "系统日历", desc: "让角色知道你的日程", iconColor: BINDING_ACCENTS.memory , glass: "" },
+    { id: "screenshot", icon: Camera, label: "截屏", desc: "让角色看一眼你的屏幕", iconColor: BINDING_ACCENTS.voice , glass: "" },
+    { id: "widget", icon: LayoutTemplate, label: "桌面小组件", desc: "角色留在桌面上的话", iconColor: BINDING_ACCENTS.memory , glass: "" },
     { id: "identity", icon: UserCircle, label: "用户身份", desc: "个人信息", iconColor: BINDING_ACCENTS.identity , glass: "identity" },
     { id: "changelog", icon: Info, label: "更新日志", desc: "版本与历史更新", iconColor: BINDING_ACCENTS.memory , glass: "about" },
     { id: "about", icon: Info, label: "关于与声明", desc: "版本与协议", iconColor: BINDING_ACCENTS.memory , glass: "about" },
@@ -321,6 +339,18 @@ export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
                 return <CloudServicesPage />;
             case "weixin":
                 return <WeixinSettings onOpenCloudServices={() => setCurrentPage("cloud")} />;
+            case "callOverlay":
+                return <CallOverlaySettings onNotice={onNotice} />;
+            case "perception":
+                return <PerceptionSettings onNotice={onNotice} />;
+            case "deviceAction":
+                return <DeviceActionSettings onNotice={onNotice} />;
+            case "systemCalendar":
+                return <SystemCalendarSettings onNotice={onNotice} />;
+            case "screenshot":
+                return <ScreenshotSettings onNotice={onNotice} />;
+            case "widget":
+                return <WidgetSettings onNotice={onNotice} />;
             case "toolbox":
                 return <ToolboxSettings />;
             case "agentComputer":
@@ -426,7 +456,7 @@ export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
                             </div>
                             <div className="mt-[10px]">
                                 <CardGrid
-                                    items={SETTINGS_MENU.filter(item => ["weixin", "toolbox"].includes(item.id)).map(makeCardItem)}
+                                    items={SETTINGS_MENU.filter(item => ["weixin", "toolbox", "callOverlay", "perception", "deviceAction", "systemCalendar", "screenshot", "widget"].includes(item.id)).map(makeCardItem)}
                                 />
                             </div>
                             <div className="mt-[10px]">
