@@ -27,13 +27,16 @@ android {
 
     // 先验证 keystore 能否真的打开：密钥库损坏或密码不匹配时不要用它签名，
     // 否则打包阶段会抛 KeytoolException 让整个构建失败。
+    def ksStoreType = "JKS"
     def ksPassword = System.getenv("SHELL_KEYSTORE_PASSWORD") ?: ""
     def ksUsable = false
     def resolvedAlias = null
     def resolvedKeyPassword = null
     if (ksFile) {
         try {
-            def store = java.security.KeyStore.getInstance(java.security.KeyStore.getDefaultType())
+            // Java 9+ 的默认类型是 PKCS12；本项目交付的 .jks 明确使用 JKS，
+            // 因此这里必须显式指定，否则会被误判为不可用并生成未签名包。
+            def store = java.security.KeyStore.getInstance(ksStoreType)
             new File(ksFile).withInputStream { stream -> store.load(stream, ksPassword.toCharArray()) }
             // 光能打开库还不够：私钥的密码、别名任一不对，打包阶段仍会抛 Cannot recover key
             def ksAlias = System.getenv("SHELL_KEY_ALIAS")
@@ -54,6 +57,7 @@ android {
         signingConfigs {
             release {
                 storeFile file(ksFile)
+                storeType ksStoreType
                 storePassword ksPassword
                 keyAlias resolvedAlias
                 keyPassword resolvedKeyPassword
