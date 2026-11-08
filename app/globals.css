@@ -50,6 +50,7 @@
 @import "../styles/story-appearance.css";
 @import "../styles/design-tokens.css";
 @import "../styles/monochrome-account.css";
+@import "../styles/photos.css";
 
 @theme {
   /* 间距 (4px 基准) */
@@ -69,3 +70,4 @@
   --font-size-lg: 17px;  --font-size-xl: 20px;
   --font-size-2xl: 24px; --font-size-3xl: 30px;
 }
+
