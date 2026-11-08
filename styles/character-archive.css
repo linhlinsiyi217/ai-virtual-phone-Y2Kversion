@@ -141,11 +141,9 @@ body{padding:0;background:var(--c-input);color:var(--c-text-title);font-family:v
 .lib-canvas .tb .pl{border:0;padding:0;font-family:inherit}
 
 /* ── 追加：详情页（档案总览）接入 ──
-   设计稿 .rail/.card 的 left/top 按 390×844 外框（含状态栏）定位；
-   应用内已去掉状态栏，这里只做位置复位，不改设计稿原有数值。 */
+   应用内容区与设计稿 390×844 外框一致（含状态栏区域），
+   .rail/.card 直接沿用设计稿定位，不改原值。 */
 .profile-app{position:absolute;inset:0;overflow:hidden;background:var(--g2)}
-.profile-app .rail{top:0;padding-top:6px}
-.profile-app .card{top:8px;bottom:8px}
 .profile-app button{font-family:inherit}
 .profile-app .mn{display:block;border:0;background:none;padding:0;cursor:pointer;text-align:left}
 .profile-app .av{position:relative;overflow:hidden;border:0;padding:0;cursor:default}
