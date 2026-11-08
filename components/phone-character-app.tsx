@@ -36,7 +36,6 @@ import { WorldCaseSheet, NewWorldSheet } from "@/components/character/world-tabs
 import { RelationLinkDialog, RelationPairSheet } from "@/components/character/relation-dialogs";
 import { loadMomentsConfig, saveMomentsConfig } from "@/lib/moments-storage";
 import type { CanvasBgItem } from "@/lib/character-types";
-import { PageShell } from "@/components/ui/page-shell";
 import { ConfirmDialog } from "@/components/ui/modal";
 import { AlertCircle, History } from "lucide-react";
 import {
@@ -332,6 +331,16 @@ export function PhoneCharacterApp({ onClose, onNotice }: PhoneCharacterAppProps)
               }
             }}
             onNotice={onNotice}
+            relations={view.id ? (() => {
+              const group = worldGroups.find((g) => g.id === safeWorldId);
+              return (group?.relations ?? [])
+                .filter((r) => r.fromCharacterId === view.id || r.toCharacterId === view.id)
+                .map((r) => {
+                  const otherId = r.fromCharacterId === view.id ? r.toCharacterId : r.fromCharacterId;
+                  const other = characters.find((c) => c.id === otherId);
+                  return { name: other?.name || "未知角色", label: r.label };
+                });
+            })() : []}
           />
         )}
       </div>
@@ -1838,6 +1847,7 @@ function CharArchiveView({
   onExportPng,
   onNotice = () => { },
   dummy,
+  relations = [],
 }: {
   char: Character;
   isEditing?: boolean;
@@ -1852,6 +1862,7 @@ function CharArchiveView({
   onExportPng: () => Promise<void>;
   onNotice?: (text: string) => void;
   dummy?: boolean;
+  relations?: { name: string; label: string }[];
 }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [showUnsavedConfirm, setShowUnsavedConfirm] = useState<"back" | "cancel" | null>(null);
@@ -1876,6 +1887,7 @@ function CharArchiveView({
   const [urlInput, setUrlInput] = useState("");
   const [avatarBusy, setAvatarBusy] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const cbRef = useRef<HTMLDivElement>(null);
 
   // Send mascot page context (on mount + field changes)
   useEffect(() => {
@@ -2083,317 +2095,307 @@ function CharArchiveView({
     setShowTimeZonePicker(false);
   }
 
+  const completeness = archiveCompleteness(char);
+  const signatureLine = (briefPersona || persona || char.briefPersona || char.persona || "").trim().split("\n")[0] || "还没有签名";
+  const updatedLabel = char.updatedAt ? char.updatedAt.slice(0, 10).replace(/-/g, "/") : "—";
+  const railName = name.trim() || char.name || "未命名";
+
+  function scrollToSection(section: "top" | "soul" | "relations") {
+    const root = cbRef.current;
+    if (!root) return;
+    if (section === "top") {
+      root.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
+    const target = root.querySelector<HTMLElement>(`[data-sec="${section}"]`);
+    if (target) root.scrollTo({ top: Math.max(0, target.offsetTop - root.offsetTop - 8), behavior: "smooth" });
+  }
+
+  const editTextStyle: React.CSSProperties = {
+    width: "100%",
+    marginTop: 2,
+  };
+
   const archiveFrame = (
-      <div className="char-archive-frame">
-        <div className="char-archive-stamp">CLASSIFIED</div>
-
-        <div className="char-archive-header">
-          <div>
-            <div className="char-archive-title">{isEditing ? "EDITING ARCHIVE" : "ARCHIVAL\nINFORMATION"}</div>
-            <div className="char-archive-subtitle">THE INTELLIGENCE DATABASE</div>
-          </div>
-          <div className="char-archive-id">ID: {char.id.slice(0, 8).toUpperCase()}</div>
+    <div className={`profile-app${dummy ? " dummy" : ""}`}>
+      <div className="rail">
+        <button type="button" className="mn" onClick={handleBack} aria-label="返回角色列表">
+          <svg className="ic" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6" /></svg>
+        </button>
+        <div
+          className={`av${isEditing ? " editable" : ""}`}
+          role={isEditing ? "button" : undefined}
+          tabIndex={isEditing ? 0 : undefined}
+          aria-label={isEditing ? "更换头像" : undefined}
+          onClick={() => {
+            if (isEditing && !avatarBusy) fileRef.current?.click();
+          }}
+        >
+          {avatar ? <img src={avatar} alt="Avatar" /> : (railName || "U").slice(0, 1)}
+          {isEditing && (
+            <span className="av-mask"><IconCamera size={14} /></span>
+          )}
         </div>
+        <div className="hd">@{railName}</div>
+        <button type="button" className="ri" onClick={() => scrollToSection("top")}>
+          <span className="pl">档案</span>
+          <svg className="ic" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" /></svg>
+        </button>
+        <button type="button" className="ri" onClick={() => scrollToSection("soul")}>
+          <span>设定</span>
+          <svg className="ic" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" /></svg>
+        </button>
+        <button type="button" className="ri" onClick={() => scrollToSection("relations")}>
+          <span>关系</span>
+          <svg className="ic" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" /></svg>
+        </button>
+        <div className="ri"><span>世界书</span><svg className="ic" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" /></svg></div>
+        <div className="ri"><span>声音</span><svg className="ic" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" /></svg></div>
+        <div className="ri"><span>记忆</span><svg className="ic" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" /></svg></div>
+        <div className="ri"><span>更多</span><svg className="ic" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" /></svg></div>
+        {!dummy && (
+          <button type="button" className="ex" onClick={onExportPng} aria-label="导出档案图片" title="导出图片">
+            <svg className="ic" viewBox="0 0 24 24"><path d="M10 5H6.5A2 2 0 004.5 7v10a2 2 0 002 2H10M14 8l4 4-4 4M18 12H9" /></svg>
+          </button>
+        )}
+      </div>
 
-        <div className="char-archive-body">
-          <div className="char-archive-left">
-            <div
-              className="char-archive-photo relative"
-              style={{ cursor: avatarBusy ? "wait" : isEditing ? "pointer" : "default" }}
-              onClick={() => {
-                if (isEditing && !avatarBusy) {
-                  fileRef.current?.click();
-                }
-              }}
-            >
-              {avatar ? (
-                <img src={avatar} alt="Avatar" />
-              ) : (
-                <CharAvatarFallback name={name || char.name} size="100%" />
-              )}
-              {isEditing && (
-                <div className="absolute inset-0 bg-black/30 flex flex-col items-center justify-center pointer-events-none text-white">
-                  <IconCamera size={24} />
-                  <span className="ts-10 mt-1">{avatarBusy ? "Optimizing..." : "Change Photo"}</span>
-                </div>
-              )}
-            </div>
-
-            <input
-              ref={fileRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              disabled={avatarBusy}
-              onChange={async (e) => {
-                const file = e.target.files?.[0];
-                if (file) await handleAvatarFile(file);
-                e.target.value = "";
-              }}
-            />
-            {isEditing && (
-              <div className="mt-2 flex flex-col gap-1 w-full justify-center">
-                <button
-                  className="ts-10 px-3 py-1 bg-[#111111] text-white border-none rounded-full cursor-pointer hover:bg-[#222222] transition-colors"
-                  onClick={() => setShowUrlInput((v) => !v)}
-                >
-                  Use IMG URL
-                </button>
-                {showUrlInput && (
-                  <div className="flex gap-1 mt-1">
-                    <input
-                      className="flex-1 ts-10 p-1 border border-[var(--c-input-border)] rounded w-full min-w-0"
-                      placeholder="Image URL..."
-                      value={urlInput}
-                      onChange={(e) => setUrlInput(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") handleAvatarUrl();
-                      }}
-                    />
-                    <button
-                      className="ts-10 px-2 py-1 bg-[#444] text-white border-none rounded cursor-pointer"
-                      onClick={handleAvatarUrl}
-                    >OK</button>
-                  </div>
-                )}
-              </div>
+      <div className="card">
+        <div className="ch">
+          <b>角色档案</b>
+          <span className="ch-actions">
+            {!isEditing && !dummy && isExisting && (
+              <button type="button" className="ch-btn" onClick={openVersionHistory} aria-label="历史版本" title="历史版本">
+                <History size={16} />
+              </button>
             )}
-          </div>
-          <div className="char-archive-right flex-1 flex flex-col">
-
-            {/* Name Box moved to the top of Right Column */}
-            <div className="char-archive-name-box flex-1 flex flex-col justify-center text-left border-b border-[var(--c-panel-border)]" style={{ padding: "4px 6px 8px 6px" }}>
-              <span className="ts-8 text-[var(--c-text)] font-mono block mb-0.5">TARGET NAME / CODENAME</span>
-              {isEditing ? (
-                <input
-                  className="char-archive-input ts-20 font-black w-full text-left bg-[var(--c-input)]/50 border border-dashed border-[#666] font-inherit tracking-[1px]"
-                  placeholder="Name or Codename"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  style={{
-                    padding: "2px 4px",
-                  }}
-                />
-              ) : (
-                <h2 className="whitespace-pre-wrap break-words ts-20 font-black m-0 tracking-[1px]">
-                  {name || "UNNAMED"}
-                </h2>
-              )}
-            </div>
-
-            <div className="char-archive-row">
-              <div className="char-archive-cell" style={{ flex: 0.8 }}>
-                <span className="char-archive-label">Status</span>
-                <span className="char-archive-val">{isEditing ? "EDITING" : "ACTIVE"}</span>
-              </div>
-              <div className="char-archive-cell" style={{ flex: 1.5 }}>
-                <span className="char-archive-label">WeChat</span>
-                <span className="char-archive-val select-text cursor-text tracking-[-0.5px]">
-                  {char.wechatID || "N/A"}
-                </span>
-              </div>
-              <div className="char-archive-cell" style={{ flex: 1.1 }}>
-                <span className="char-archive-label">Update</span>
-                <span className="char-archive-val">{char.updatedAt ? char.updatedAt.slice(0, 10).replace(/-/g, "/") : "N/A"}</span>
-              </div>
-            </div>
-
-          </div>
+            {!isEditing && !dummy && (
+              <button type="button" className="ch-btn" onClick={onEdit} aria-label="编辑角色卡" title="编辑">
+                <IconEdit />
+              </button>
+            )}
+          </span>
         </div>
 
-        <div className="char-archive-row">
-          <div className="char-archive-cell" style={{ flex: 1.8 }}>
-            <span className="char-archive-label">Tags</span>
-            <div className="flex flex-wrap gap-2">
-              {tags.map((t, i) => (
-                <div key={i} className="char-archive-tag">
-                  {t}
-                  {isEditing && (
-                    <button
-                      onClick={() => setTags(tags.filter((_, idx) => idx !== i))}
-                      className="bg-none border-none ml-1 cursor-pointer opacity-60 ts-12 p-0"
-                    >×</button>
-                  )}
-                </div>
-              ))}
-              {tags.length === 0 && !isEditing && (
-                <span className="char-archive-val opacity-50">N/A</span>
-              )}
-              {isEditing && (
-                <div className="flex gap-1 w-full mt-1">
+        <div className="cb" ref={cbRef}>
+          {isEditing && !dummy && (
+            <div className="photo-tools">
+              <button type="button" className="btn" onClick={() => fileRef.current?.click()}>更换头像</button>
+              <button type="button" className="btn" onClick={() => setShowUrlInput(v => !v)}>图片链接</button>
+              {showUrlInput && (
+                <>
                   <input
-                    className="char-archive-tag-input flex-1 min-w-0"
-                    value={tagInput}
-                    onChange={e => setTagInput(e.target.value)}
-                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddTag(); } }}
-                    placeholder="Add tag..."
+                    className="photo-url"
+                    placeholder="https://…"
+                    value={urlInput}
+                    onChange={e => setUrlInput(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleAvatarUrl();
+                      }
+                    }}
                   />
-                  <button onClick={handleAddTag} className="bg-[#4a3f2f] text-white border-none rounded-[2px] px-2 ts-10 cursor-pointer">ADD</button>
-                </div>
+                  <button type="button" className="btn k" onClick={handleAvatarUrl}>确定</button>
+                </>
               )}
             </div>
-          </div>
-          <div className="char-archive-cell" style={{ flex: 1.2 }}>
-            <span className="char-archive-label">Timezone</span>
-            {isEditing ? (
-              <div className="char-timezone-picker">
-                <button
-                  type="button"
-                  className="char-timezone-trigger"
-                  onClick={openTimeZonePicker}
-                >
-                  {timeZone || "SYSTEM"}
-                </button>
-              </div>
-            ) : (
-              <span className="char-archive-val">{timeZone || "SYSTEM"}</span>
-            )}
-          </div>
-        </div>
+          )}
 
-        {/* Persona Section (Full Width) */}
-        <div className="char-archive-text-section border-b-0">
-          <div className="char-log-entry mb-4">
-            <div className="char-log-entry-header">
-              <span>PERSONA / TRAITS</span>
-            </div>
-            {isEditing ? (
-              <AutoResizingTextarea
-                value={persona}
-                onChange={setPersona}
-                placeholder="Describe background, personality..."
-                minHeight={120}
-                style={{
-                  width: "100%", background: "color-mix(in srgb, var(--c-input) 50%, transparent)",
-                  border: "1px dashed #666", padding: 8, fontSize: "calc(12px*var(--app-text-scale,1))", lineHeight: 1.5,
-                  fontFamily: "inherit", marginTop: 8
+          <div className="meter">
+            档案完整度
+            <div><i style={{ width: `${completeness}%` }} /></div>
+            <b>{completeness}%</b>
+          </div>
+
+          <div className="lab">TAGS · 标签</div>
+          <div className="tgs">
+            {tags.map((t, i) => (
+              <span className="tg" key={`${t}-${i}`}>
+                {t}
+                {isEditing && !dummy ? (
+                  <button
+                    type="button"
+                    className="tag-x"
+                    onClick={() => setTags(tags.filter((_, idx) => idx !== i))}
+                    aria-label={`删除标签 ${t}`}
+                  >×</button>
+                ) : <i>×</i>}
+              </span>
+            ))}
+            {isEditing && !dummy ? (
+              <input
+                className="tg-input"
+                value={tagInput}
+                onChange={e => setTagInput(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleAddTag();
+                  }
                 }}
+                placeholder="＋ 添加"
+                aria-label="添加标签"
               />
             ) : (
-              <p className="char-archive-p whitespace-pre-wrap break-words">{personaText}</p>
+              <button type="button" className="tg add" onClick={dummy ? undefined : onEdit}>＋ 添加</button>
             )}
           </div>
 
-          {/* Personality — shown when editing or when has content */}
-          {(isEditing || personality.trim()) && (
-            <div className="char-log-entry mb-4 border-t border-dashed border-[#999] pt-3">
-              <div className="char-log-entry-header">
-                <span>PERSONALITY</span>
-              </div>
-              {isEditing ? (
-                <AutoResizingTextarea
-                  value={personality}
-                  onChange={setPersonality}
-                  placeholder="Character personality traits..."
-                  minHeight={60}
-                  style={{
-                    width: "100%", background: "color-mix(in srgb, var(--c-input) 50%, transparent)",
-                    border: "1px dashed #666", padding: 8, fontSize: "calc(12px*var(--app-text-scale,1))", lineHeight: 1.5,
-                    fontFamily: "inherit", marginTop: 8
-                  }}
-                />
-              ) : (
-                <p className="char-archive-p whitespace-pre-wrap break-words">{personality}</p>
-              )}
-            </div>
+          {!isEditing && (
+            <>
+              <div className="qt">个性签名</div>
+              <div className="qs">{signatureLine}</div>
+            </>
           )}
 
-          {/* 简量人设 — 注入到同世界有关系角色的上下文，防对方 OOC */}
-          {(isEditing || briefPersona.trim()) && (
-            <div className="char-log-entry mb-4 border-t border-dashed border-[#999] pt-3">
-              <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
-                <span className="char-log-entry-header !mb-0">BRIEF PERSONA / 简量人设</span>
-                {isEditing && (
-                  <button
-                    className="ts-10 px-3 py-1 bg-[#111111] text-white border-none rounded-full cursor-pointer disabled:opacity-50 hover:bg-[#222222] transition-colors"
-                    disabled={briefBusy}
-                    onClick={handleGenerateBrief}
-                  >
-                    {briefBusy ? "生成中…" : briefPersona.trim() ? "重新生成" : "AI 生成"}
-                  </button>
-                )}
-              </div>
-              <p className="ts-10 opacity-60 mt-1">
-                会注入给同世界与 TA 有关系的角色，帮助对方提到 TA 时不 OOC。
-                {!isEditing && isBriefPersonaStale(char) ? " ⚠ 设定已更新，建议重新生成简介。" : ""}
-              </p>
-              {briefError && <p className="ts-10 mt-1" style={{ color: "#b4233b" }}>{briefError}</p>}
-              {isEditing ? (
-                <AutoResizingTextarea
-                  value={briefPersona}
-                  onChange={setBriefPersona}
-                  placeholder="点「AI 生成」自动压缩人设，或手写 100~200 字简介…"
-                  minHeight={60}
-                  style={{
-                    width: "100%", background: "color-mix(in srgb, var(--c-input) 50%, transparent)",
-                    border: "1px dashed #666", padding: 8, fontSize: "calc(12px*var(--app-text-scale,1))", lineHeight: 1.5,
-                    fontFamily: "inherit", marginTop: 8
-                  }}
-                />
-              ) : (
-                <p className="char-archive-p whitespace-pre-wrap break-words">{briefPersona}</p>
-              )}
-            </div>
-          )}
+          <div className="sh"><i>×</i><b>ABOUT ME</b></div>
+          <div className="sl">基本信息</div>
+          <div className="ln">
+            <span>网名</span>
+            {isEditing ? (
+              <input
+                className="ln-input"
+                value={name}
+                onChange={e => setName(e.target.value)}
+                placeholder="角色名字"
+                aria-label="角色网名"
+              />
+            ) : (name || char.name || "未命名")}
+          </div>
+          <div className="ln"><span>微信号</span>{char.wechatID || "未绑定"}</div>
+          <div className="ln">
+            <span>时区</span>
+            {isEditing ? (
+              <button type="button" className="ln-chip" onClick={openTimeZonePicker}>{timeZone || "跟随系统"}</button>
+            ) : (timeZone || "跟随系统")}
+          </div>
+          <div className="ln"><span>更新</span>{updatedLabel}</div>
 
-        </div>
-
-        <div className="char-archive-actions">
-          {!dummy && confirmDelete ? (
-            <div className="char-confirm-row">
-              <span className="char-confirm-text">CONFIRM DELETE?</span>
-              <button className="char-confirm-yes" onClick={onDelete}>YES</button>
-              <button className="char-confirm-no" onClick={() => setConfirmDelete(false)}>NO</button>
-            </div>
+          <div className="sh"><i>×</i><b>PERSONALITY</b></div>
+          <div className="sl">角色性格</div>
+          {isEditing ? (
+            <AutoResizingTextarea
+              className="ta"
+              value={personality}
+              onChange={setPersonality}
+              placeholder="角色性格、说话习惯…"
+              minHeight={84}
+              style={editTextStyle}
+            />
+          ) : personality.trim() ? (
+            <div className="ln">{personality}</div>
           ) : (
-            !dummy && isEditing ? (
-              <>
-                <button className="char-archive-btn char-archive-btn-danger" onClick={() => { if (isDirty()) { setShowUnsavedConfirm("cancel"); } else { onCancelEdit?.(); } }}>CANCEL</button>
-                <button className="char-archive-btn bg-[var(--c-text)] text-[var(--c-page-body-bg)] border-[var(--c-input-border)]" onClick={handleSave}>SAVE</button>
-              </>
-            ) : !dummy && !isEditing ? (
-              <>
-                <button className="char-archive-btn" onClick={onExportPng}>EXPORT IMG</button>
-                <button className="char-archive-btn" onClick={onExportJson}>EXPORT JSON</button>
-                <button className="char-archive-btn char-archive-btn-danger" onClick={() => setConfirmDelete(true)}>DELETE</button>
-              </>
-            ) : null
+            <div className="ln muted">还没有填写</div>
+          )}
+
+          <div data-sec="soul">
+            <div className="sh sec-row">
+              <span className="sec-title"><i>×</i><b>BRIEF PERSONA</b></span>
+              {isEditing && (
+                <button type="button" className="btn" disabled={briefBusy} onClick={handleGenerateBrief}>
+                  {briefBusy ? "生成中…" : briefPersona.trim() ? "重新生成" : "AI 生成"}
+                </button>
+              )}
+            </div>
+            <div className="sl">简量人设</div>
+            {!isEditing && isBriefPersonaStale(char) && (
+              <div className="hint" style={{ margin: "0 0 8px 25px" }}>⚠ 设定已更新，建议重新生成简介。</div>
+            )}
+            {briefError && <div className="hint" style={{ margin: "0 0 8px 25px", color: "#b4233b" }}>{briefError}</div>}
+            {isEditing ? (
+              <AutoResizingTextarea
+                className="ta"
+                value={briefPersona}
+                onChange={setBriefPersona}
+                placeholder="点「AI 生成」自动压缩人设，或手写 100~200 字简介…"
+                minHeight={96}
+                style={editTextStyle}
+              />
+            ) : briefPersona.trim() ? (
+              <div className="ln">{briefPersona}</div>
+            ) : (
+              <div className="ln muted">还没有填写</div>
+            )}
+          </div>
+
+          <div data-sec="relations">
+            <div className="sh"><i>×</i><b>RELATIONSHIPS</b></div>
+            <div className="sl">关系网 · {relations.length} 位</div>
+            {relations.length > 0 ? (
+              <div className="ln">{relations.map(r => `${r.name} · ${r.label}`).join("\n")}</div>
+            ) : (
+              <div className="ln muted">还没有建立关系</div>
+            )}
+          </div>
+
+          <div className="sh"><i>×</i><b>PERSONA</b></div>
+          <div className="sl">人物设定</div>
+          {isEditing ? (
+            <AutoResizingTextarea
+              className="ta"
+              value={persona}
+              onChange={setPersona}
+              placeholder="描述背景、性格、说话方式…"
+              minHeight={150}
+              style={editTextStyle}
+            />
+          ) : (
+            <div className="ln">{persona.trim() ? persona : "NO DATA AVAILABLE."}</div>
           )}
         </div>
+
+        {!dummy && (
+          <div className="card-foot">
+            {confirmDelete ? (
+              <div className="confirm-row">
+                <span>确定删除这份档案？</span>
+                <button type="button" className="btn danger" onClick={onDelete}>删除</button>
+                <button type="button" className="btn" onClick={() => setConfirmDelete(false)}>取消</button>
+              </div>
+            ) : isEditing ? (
+              <>
+                <button
+                  type="button"
+                  className="btn grow"
+                  onClick={() => {
+                    if (isDirty()) setShowUnsavedConfirm("cancel");
+                    else onCancelEdit?.();
+                  }}
+                >取消</button>
+                <button type="button" className="btn k grow" onClick={handleSave}>保存</button>
+              </>
+            ) : (
+              <>
+                <button type="button" className="btn grow" onClick={onExportJson}>导出 JSON</button>
+                <button type="button" className="btn danger" onClick={() => setConfirmDelete(true)}>删除</button>
+              </>
+            )}
+          </div>
+        )}
       </div>
+
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        disabled={avatarBusy}
+        onChange={async (e) => {
+          const file = e.target.files?.[0];
+          if (file) await handleAvatarFile(file);
+          e.target.value = "";
+        }}
+      />
+    </div>
   );
 
   if (dummy) {
-    return (
-      <div className="char-archive-view" style={{ pointerEvents: "none" }}>
-        {archiveFrame}
-      </div>
-    );
+    return <div style={{ pointerEvents: "none" }}>{archiveFrame}</div>;
   }
 
   return (
-    <PageShell
-      title=""
-      onBack={handleBack}
-      className="bg-[var(--c-page-body-bg)]"
-      rightAction={!isEditing ? (
-        <div className="flex items-center gap-2">
-          {isExisting && (
-            <button
-              className="char-action-btn"
-              onClick={openVersionHistory}
-              aria-label="角色卡历史版本"
-              title="历史版本"
-            >
-              <History size={19} />
-            </button>
-          )}
-          <button className="char-action-btn" onClick={onEdit} aria-label="编辑角色卡">
-            <IconEdit />
-          </button>
-        </div>
-      ) : undefined}
-    >
+    <>
       {archiveFrame}
 
       {showSaveVersionConfirm && (
@@ -2613,7 +2615,7 @@ function CharArchiveView({
           onCancel={() => setShowUnsavedConfirm(null)}
         />
       )}
-    </PageShell>
+    </>
   );
 }
 
@@ -2646,12 +2648,14 @@ function AutoResizingTextarea({
   placeholder,
   style,
   minHeight = 60,
+  className,
 }: {
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
   style?: React.CSSProperties;
   minHeight?: number;
+  className?: string;
 }) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -2680,7 +2684,7 @@ function AutoResizingTextarea({
   return (
     <textarea
       ref={textareaRef}
-      className="resize-none overflow-hidden"
+      className={`resize-none overflow-hidden${className ? ` ${className}` : ""}`}
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}

@@ -139,3 +139,47 @@ body{padding:0;background:var(--c-input);color:var(--c-text-title);font-family:v
 .lib-canvas .tb .tab{border:0;background:none;font-family:inherit;padding:0 6px}
 .lib-canvas .tb .tab.on{padding:0 16px}
 .lib-canvas .tb .pl{border:0;padding:0;font-family:inherit}
+
+/* ── 追加：详情页（档案总览）接入 ──
+   设计稿 .rail/.card 的 left/top 按 390×844 外框（含状态栏）定位；
+   应用内已去掉状态栏，这里只做位置复位，不改设计稿原有数值。 */
+.profile-app{position:absolute;inset:0;overflow:hidden;background:var(--g2)}
+.profile-app .rail{top:0;padding-top:6px}
+.profile-app .card{top:8px;bottom:8px}
+.profile-app button{font-family:inherit}
+.profile-app .mn{display:block;border:0;background:none;padding:0;cursor:pointer;text-align:left}
+.profile-app .av{position:relative;overflow:hidden;border:0;padding:0;cursor:default}
+.profile-app .av img{width:100%;height:100%;object-fit:cover;border-radius:50%;display:block}
+.profile-app .av.editable{cursor:pointer}
+.profile-app .av-mask{position:absolute;inset:0;display:grid;place-items:center;background:rgba(0,0,0,.38);color:#fff;border-radius:50%}
+.profile-app .ri{border:0;background:none;text-align:left;padding:0 4px 0 6px;cursor:pointer}
+.profile-app .ri .ic{width:12px;height:12px;stroke-width:2.2}
+.profile-app .ex{border:0;background:none;padding:0;cursor:pointer;color:#555}
+.profile-app .ch-actions{display:flex;align-items:center;gap:6px}
+.profile-app .ch-btn{width:32px;height:32px;border:0;border-radius:16px;background:var(--g1);color:#555;display:grid;place-items:center;padding:0;cursor:pointer}
+.profile-app .ch-btn svg{width:16px;height:16px}
+.profile-app .cb{overflow-y:auto;overscroll-behavior:contain;padding-bottom:20px;-webkit-overflow-scrolling:touch}
+.profile-app .cb:after{display:none}
+.profile-app .ln{white-space:pre-wrap;word-break:break-word}
+.profile-app .muted{color:var(--ink3)}
+.profile-app .tg{font-family:inherit}
+.profile-app .tg.add{cursor:pointer;font-family:inherit}
+.profile-app .tag-x{border:0;background:none;padding:0;margin:0;line-height:1;font:inherit;font-size:13px;color:#999;cursor:pointer}
+.profile-app .tg-input{height:38px;border:1px dashed var(--g3);border-radius:9px;background:none;padding:0 10px;font:inherit;font-size:14px;color:#111;outline:none;min-width:96px}
+.profile-app .ln-input{border:0;background:var(--g1);border-radius:9px;padding:5px 10px;font:inherit;color:#111;outline:none;min-width:120px}
+.profile-app .ln-chip{border:0;background:var(--g1);border-radius:9px;padding:5px 10px;font:inherit;color:#111;outline:none;cursor:pointer}
+.profile-app .sec-row{margin-top:32px}
+.profile-app .sec-title{display:flex;align-items:center}
+.profile-app textarea.ta{height:auto;min-height:84px;width:100%;resize:vertical;display:block;outline:none}
+.profile-app .photo-tools{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:14px}
+.profile-app .photo-tools .btn{border:0;cursor:pointer;font-family:inherit}
+.profile-app .photo-url{flex:1;min-width:120px;height:34px;border:1px solid var(--line);border-radius:17px;padding:0 12px;font:inherit;font-size:12.5px;outline:none;background:#fafafb;color:#111}
+.profile-app .card-foot{flex:none;display:flex;gap:8px;align-items:center;padding:10px 20px 16px;border-top:1px solid var(--line)}
+.profile-app .card-foot .btn{border:0;cursor:pointer;font-family:inherit;justify-content:center}
+.profile-app .card-foot .btn.grow{flex:1}
+.profile-app .card-foot .btn.danger{color:#b4233b}
+.profile-app .confirm-row{display:flex;align-items:center;gap:10px;width:100%;font-size:13px;color:#444}
+.profile-app .confirm-row span{flex:1}
+/* 拍立得背面的缩略预览：去掉左侧栏，卡片铺满，避免固定像素在小尺寸下被挤扁 */
+.profile-app.dummy .rail{display:none}
+.profile-app.dummy .card{left:8px;right:8px;top:8px;bottom:8px}
