@@ -38,6 +38,8 @@ export type ChatContact = {
     addedAt: string; // ISO date
 };
 
+export type ChatCharacterOutputLanguage = "persona" | "zh" | "ko" | "ja" | "en";
+
 export type ChatSession = {
     /** 该会话专属的提示音配置（覆盖全局） */
     sounds?: ChatSoundsConfig;
@@ -50,6 +52,8 @@ export type ChatSession = {
     characterAvatarHistories?: Record<string, import("./character-types").CharacterAvatarHistoryEntry[]>;
     id: string;
     contactId: string;
+    /** 该会话的角色输出语言覆盖；缺省跟随角色设置。 */
+    characterOutputLanguage?: ChatCharacterOutputLanguage;
     lastMessageId?: string;
     lastMessagePreview?: string;
     unreadCount: number;
@@ -203,6 +207,8 @@ export type ChatMessage = {
         imageRefs?: string[];
         visionDescription?: string;
         forwardedChat?: import("./chat-forward-types").ForwardedChat;
+        twitterPostSnapshot?: import("./twitter-storage").TwitterSnapshot;
+        cityDiarySnapshot?: {title:string;text:string;handle:string;photos?:string[]};
         listeningInvite?: { roomId: string; initiator?: "user" | "character"; response?: "accepted" | "declined"; title?: string; artist?: string; coverUrl?: string };
         screenEffect?: "echo" | "love" | "fireworks";
         screenEffectScene?: { imageRef:string; effect:"echo"|"love"|"fireworks"; phase:number; capturedAt:string; partial:boolean };
@@ -424,7 +430,9 @@ export type ChatAppSettings = {
     timeAware?: boolean; // When true, inject timestamps into prompt so AI knows message timing (default: true)
     promptViewerEnabled?: boolean; // When true, show the floating prompt viewer entry
     quickActionEnabled?: boolean; // When true, show the floating quick action entry
-    floatingToolsEnabled?: boolean; // Opt-in combined entry; legacy entries remain independent.
+    floatingToolsEnabled?: boolean;
+    /** 兼容小笼包原版设置项：悬浮球贴边半隐藏 */
+    floatingDockEnabled?: boolean; // Opt-in combined entry; legacy entries remain independent.
     floatingToolsShortcut?: string;
     floatingToolsPosition?: { edge: "left" | "right"; ratio: number };
     browserNotificationsEnabled?: boolean; // When true, send browser Notification API alerts when page is hidden

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useLayoutEffect, useCallback, useRef, createContext, type CSSProperties, type ReactNode } from "react";
-import { Activity, CalendarDays, Camera, Check, ChevronRight, Clock, Database, FileText, Fingerprint, Globe, HardDrive, Image, Info, KeyRound, Laptop, Layers, LayoutTemplate, Link2, Loader2, LogOut, MessageSquare, Mic, PhoneCall, SlidersHorizontal, UserCircle, Wrench, X, CloudUpload, Zap } from "lucide-react";
+import { Activity, Check, ChevronRight, Clock, Database, FileText, Fingerprint, Globe, HardDrive, Image, Info, KeyRound, Laptop, Layers, Link2, Loader2, LogOut, MessageSquare, Mic, SlidersHorizontal, UserCircle, Wrench, X, CloudUpload } from "lucide-react";
 import { ConfirmDialog } from "./ui/modal";
 import { useAccount } from "@/lib/account-context";
 import { isSelfHostedModeEnabled } from "@/lib/self-hosting";
@@ -14,19 +14,13 @@ import { WorldBookManager } from "./settings/worldbook-manager";
 import { RegexManager } from "./settings/regex-manager";
 import { DataManagement } from "./settings/data-management";
 import { UserIdentitySettings } from "./settings/user-identity";
-import { ChangelogPage } from "./update-log/changelog-page";
+import { AboutDeclaration } from "./settings/about-declaration";
 import { BindingManager } from "./settings/binding-manager";
 import { WeixinSettings } from "./settings/weixin-settings";
 import { CloudServicesPage } from "./settings/cloud-services-setup";
 import { ToolboxSettings } from "./settings/toolbox-settings";
 import { ModerationCenter } from "./settings/moderation-center";
 import { AgentComputerSettings } from "./settings/agent-computer-settings";
-import { CallOverlaySettings } from "./settings/call-overlay-settings";
-import { PerceptionSettings } from "./perception/perception-settings";
-import { DeviceActionSettings } from "./device-action/device-action-settings";
-import { SystemCalendarSettings } from "./system-calendar/system-calendar-settings";
-import { ScreenshotSettings } from "./screenshot/screenshot-settings";
-import { WidgetSettings } from "./widget/widget-settings";
 import { fetchIsAdmin } from "@/lib/moderation-client";
 import { PageShell } from "./ui/page-shell";
 import { CardGrid, FeaturedCard, type CardItem, type FeaturedCardItem } from "./ui/card-grid";
@@ -35,8 +29,6 @@ import { Toggle } from "./ui/form";
 import { loadChatAppSettings, saveChatAppSettings } from "@/lib/chat-storage";
 import { loadKeepAlive, saveKeepAlive } from "@/lib/weixin-storage";
 import { BINDING_ACCENTS, CONTENT_APP_ACCENTS } from "@/lib/ui-accent-colors";
-import { changeFloatingTool } from "@/lib/floating-tools";
-import { CHAT_APP_SETTINGS_UPDATED_EVENT } from "@/lib/chat-storage";
 
 export const SettingsContext = createContext<{
     setSubpageTitle: (title: string | null) => void;
@@ -65,12 +57,6 @@ type SubPage =
     | "toolbox"
     | "agentComputer"
     | "moderation"
-    | "callOverlay"
-    | "perception"
-    | "deviceAction"
-    | "systemCalendar"
-    | "screenshot"
-    | "widget"
     | "about";
 
 const SETTINGS_MENU = [
@@ -85,15 +71,9 @@ const SETTINGS_MENU = [
     { id: "cloud", icon: CloudUpload, label: "云服务部署", desc: "备份 / 微信 / 推送一站配置", iconColor: BINDING_ACCENTS.api , glass: "" },
     { id: "weixin", icon: MessageSquare, label: "微信接入", desc: "iLink Bot", iconColor: CONTENT_APP_ACCENTS.chat , glass: "weixin" },
     { id: "toolbox", icon: Wrench, label: "聊天工具箱", desc: "外部工具调用", iconColor: BINDING_ACCENTS.voice , glass: "toolbox" },
-    { id: "callOverlay", icon: PhoneCall, label: "通话浮窗外观", desc: "回复条配色", iconColor: BINDING_ACCENTS.voice , glass: "voice" },
-    { id: "perception", icon: Activity, label: "感知", desc: "让角色知道电量、网络与在用应用", iconColor: BINDING_ACCENTS.memory , glass: "" },
-    { id: "deviceAction", icon: Zap, label: "操作设备", desc: "让角色帮你开灯、调音量、打开应用", iconColor: BINDING_ACCENTS.voice , glass: "" },
-    { id: "systemCalendar", icon: CalendarDays, label: "系统日历", desc: "让角色知道你的日程、记下纪念日", iconColor: BINDING_ACCENTS.memory , glass: "" },
-    { id: "screenshot", icon: Camera, label: "截屏", desc: "让角色看一眼你现在的屏幕", iconColor: BINDING_ACCENTS.voice , glass: "" },
-    { id: "widget", icon: LayoutTemplate, label: "桌面小组件", desc: "角色留在桌面上的话", iconColor: BINDING_ACCENTS.memory , glass: "" },
     { id: "agentComputer", icon: Laptop, label: "角色电脑", desc: "云端小电脑（自部署）", iconColor: BINDING_ACCENTS.memory , glass: "agent-computer" },
     { id: "identity", icon: UserCircle, label: "用户身份", desc: "个人信息", iconColor: BINDING_ACCENTS.identity , glass: "identity" },
-    { id: "about", icon: Info, label: "更新日志", desc: "版本与历史", iconColor: BINDING_ACCENTS.memory , glass: "about" },
+    { id: "about", icon: Info, label: "关于与声明", desc: "版本与协议", iconColor: BINDING_ACCENTS.memory , glass: "about" },
 ] as const;
 
 const realtimeIconStyle = {
@@ -132,7 +112,8 @@ export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
     const [timeAware, setTimeAware] = useState(true);
     const [promptViewerEnabled, setPromptViewerEnabled] = useState(false);
     const [quickActionEnabled, setQuickActionEnabled] = useState(false);
-    const [floatingToolsEnabled, setFloatingToolsEnabled] = useState(false);
+    const [floatingDockEnabled, setFloatingDockEnabled] = useState(false);
+    const [floatingDockSheetOpen, setFloatingDockSheetOpen] = useState(false);
     const [keepAlive, setKeepAlive] = useState(false);
     // 角色电脑：施工中弹窗（返回 / 仍要看看）
     const pageBodyRef = useRef<HTMLDivElement | null>(null);
@@ -248,19 +229,20 @@ export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
 
     const handlePromptViewerChange = useCallback((next: boolean) => {
         setPromptViewerEnabled(next);
-        saveChatAppSettings(changeFloatingTool(loadChatAppSettings(), "promptViewerEnabled", next));
+        saveChatAppSettings({ ...loadChatAppSettings(), promptViewerEnabled: next });
         onNotice(next ? "已开启提示词查看器" : "已关闭提示词查看器");
     }, [onNotice]);
 
     const handleQuickActionChange = useCallback((next: boolean) => {
         setQuickActionEnabled(next);
-        saveChatAppSettings(changeFloatingTool(loadChatAppSettings(), "quickActionEnabled", next));
+        saveChatAppSettings({ ...loadChatAppSettings(), quickActionEnabled: next });
         onNotice(next ? "已开启快捷操作" : "已关闭快捷操作");
     }, [onNotice]);
 
-    const handleFloatingToolsChange = useCallback((next: boolean) => {
-        saveChatAppSettings(changeFloatingTool(loadChatAppSettings(), "floatingToolsEnabled", next));
-        onNotice(next ? "已开启悬浮工具" : "已关闭悬浮工具");
+    const handleFloatingDockChange = useCallback((next: boolean) => {
+        setFloatingDockEnabled(next);
+        saveChatAppSettings({ ...loadChatAppSettings(), floatingDockEnabled: next });
+        onNotice(next ? "已开启悬浮球贴边收拢" : "已关闭悬浮球贴边收拢");
     }, [onNotice]);
 
     const handleKeepAliveChange = useCallback((next: boolean) => {
@@ -338,18 +320,6 @@ export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
                 return <WeixinSettings onOpenCloudServices={() => setCurrentPage("cloud")} />;
             case "toolbox":
                 return <ToolboxSettings />;
-            case "callOverlay":
-                return <CallOverlaySettings onNotice={onNotice} />;
-            case "perception":
-                return <PerceptionSettings onNotice={onNotice} />;
-            case "deviceAction":
-                return <DeviceActionSettings onNotice={onNotice} />;
-            case "systemCalendar":
-                return <SystemCalendarSettings onNotice={onNotice} />;
-            case "screenshot":
-                return <ScreenshotSettings onNotice={onNotice} />;
-            case "widget":
-                return <WidgetSettings onNotice={onNotice} />;
             case "agentComputer":
                 return <AgentComputerSettings onNotice={onNotice} />;
             case "moderation":
@@ -357,7 +327,7 @@ export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
             case "identity":
                 return <UserIdentitySettings />;
             case "about":
-                return <ChangelogPage />;
+                return <AboutDeclaration />;
             default:
                 return null;
         }
@@ -379,18 +349,12 @@ export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
     }, []);
 
     useEffect(() => {
-        const syncTools = () => {
-            const current = loadChatAppSettings();
-            setPromptViewerEnabled(current.promptViewerEnabled === true);
-            setQuickActionEnabled(current.quickActionEnabled === true);
-            setFloatingToolsEnabled(current.floatingToolsEnabled === true);
-        };
         const settings = loadChatAppSettings();
         setTimeAware(settings.timeAware !== false);
-        syncTools();
+        setPromptViewerEnabled(settings.promptViewerEnabled === true);
+        setQuickActionEnabled(settings.quickActionEnabled === true);
+        setFloatingDockEnabled(settings.floatingDockEnabled === true);
         setKeepAlive(loadKeepAlive());
-        window.addEventListener(CHAT_APP_SETTINGS_UPDATED_EVENT, syncTools);
-        return () => window.removeEventListener(CHAT_APP_SETTINGS_UPDATED_EVENT, syncTools);
     }, []);
 
     // Listen for mascot navigation mode (e.g. jump to worldbook/regex tab)
@@ -420,37 +384,50 @@ export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
             <PageShell title={title} onBack={handleBack} rightAction={currentPage !== "main" ? subpageRightActions[currentPage] : undefined} bodyRef={pageBodyRef}>
                 {currentPage === "main" && (
                     <div className="page-menu settings-main-menu">
-                        <h1 className="settings-page-title">设置</h1>
                         {!selfHostedMode && (
                             <button type="button" className="settings-account-card" onClick={() => setAccountSheetOpen(true)}>
                                 <span className="settings-account-avatar"><GlassIcon name="account" /></span>
                                 <span className="settings-account-copy">
                                     <span className="settings-account-name">{account.displayName || account.username}</span>
-                                    <span className="settings-account-sub">虚拟账号 · 已登录</span>
+                                    <span className="settings-account-sub">账号、密码与登录</span>
                                 </span>
                                 <ChevronRight size={18} className="settings-account-chevron" />
                             </button>
                         )}
                         <CardGrid
-                            variant="list"
-                            label="接口"
-                            items={SETTINGS_MENU.filter(item => ["api", "voice", "imageGeneration"].includes(item.id)).map(makeCardItem)}
+                            label="API Config"
+                            labelClassName="settings-menu-section-title"
+                            items={SETTINGS_MENU.filter(item => ["api", "voice"].includes(item.id)).map(makeCardItem)}
                         />
-                        <CardGrid
-                            variant="list"
-                            label="数据与规则"
-                            items={SETTINGS_MENU.filter(item => ["presets", "worldbook", "regex", "data", "binding"].includes(item.id)).map(makeCardItem)}
-                        />
-                        <CardGrid
-                            variant="list"
-                            label="连接"
-                            items={SETTINGS_MENU.filter(item => ["cloud", "weixin", "toolbox", "agentComputer"].includes(item.id)).map(makeCardItem)}
-                        />
-                        <CardGrid
-                            variant="list"
-                            label="运行"
-                            items={SETTINGS_MENU.filter(item => ["callOverlay", "perception", "deviceAction", "systemCalendar", "screenshot", "widget"].includes(item.id)).map(makeCardItem)}
-                        />
+                        <div className="settings-data-rules-section">
+                            <h3 className="settings-menu-section-title">Data & Rules</h3>
+                            <div className="mt-[10px] flex flex-col gap-3">
+                                <CardGrid
+                                    items={SETTINGS_MENU.filter(item => ["presets", "worldbook", "regex", "data"].includes(item.id)).map(makeCardItem)}
+                                />
+                                <FeaturedCard item={bindingFeaturedItem} />
+                            </div>
+                        </div>
+                        <div className="settings-image-generation-section">
+                            <h3 className="settings-menu-section-title">Image Generation</h3>
+                            <div className="mt-[10px]">
+                                <FeaturedCard item={imageGenerationFeaturedItem} />
+                            </div>
+                        </div>
+                        <div>
+                            <h3 className="settings-menu-section-title">Connections</h3>
+                            <div className="mt-[10px]">
+                                <FeaturedCard item={cloudFeaturedItem} />
+                            </div>
+                            <div className="mt-[10px]">
+                                <CardGrid
+                                    items={SETTINGS_MENU.filter(item => ["weixin", "toolbox"].includes(item.id)).map(makeCardItem)}
+                                />
+                            </div>
+                            <div className="mt-[10px]">
+                                <FeaturedCard item={agentComputerFeaturedItem} />
+                            </div>
+                        </div>
                         <div className="settings-realtime-section">
                             <h3 className="settings-menu-section-title">Runtime</h3>
                             <div className="app-card card-featured settings-toggle-card">
@@ -490,7 +467,24 @@ export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
                             </div>
                         ) : null}
                         <div className="settings-tools-section">
-                            <h3 className="settings-menu-section-title">Tools</h3>
+                            <div className="settings-tools-header">
+                                <div className="settings-tools-title-wrap">
+                                    <h3 className="settings-menu-section-title">Tools</h3>
+                                    <button
+                                        type="button"
+                                        className="settings-tools-info-btn"
+                                        onClick={() => setFloatingDockSheetOpen(true)}
+                                        aria-label="悬浮球偏好设置"
+                                        title="悬浮球偏好设置"
+                                    >
+                                        <span className="settings-tools-info-circle">
+                                            <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                                                <path d="M15.32 18.27L15.10 19.19Q14.09 19.58 13.49 19.79Q12.89 20 12.10 20Q10.88 20 10.21 19.41Q9.53 18.81 9.53 17.90Q9.53 17.54 9.58 17.17Q9.63 16.80 9.74 16.33L10.58 13.37Q10.69 12.94 10.77 12.56Q10.84 12.18 10.84 11.86Q10.84 11.29 10.61 11.07Q10.37 10.85 9.71 10.85Q9.39 10.85 9.05 10.95Q8.71 11.05 8.46 11.14L8.69 10.23Q9.51 9.89 10.26 9.65Q11.01 9.41 11.69 9.41Q12.89 9.41 13.55 10Q14.20 10.58 14.20 11.52Q14.20 11.71 14.16 12.20Q14.11 12.69 13.99 13.09L13.16 16.05Q13.06 16.40 12.98 16.86Q12.89 17.32 12.89 17.55Q12.89 18.14 13.16 18.35Q13.42 18.57 14.07 18.57Q14.38 18.57 14.76 18.46Q15.15 18.35 15.32 18.27M15.54 5.87Q15.54 6.64 14.95 7.18Q14.37 7.73 13.54 7.73Q12.72 7.73 12.13 7.18Q11.54 6.64 11.54 5.87Q11.54 5.10 12.13 4.55Q12.72 4 13.54 4Q14.37 4 14.95 4.55Q15.54 5.10 15.54 5.87" />
+                                            </svg>
+                                        </span>
+                                    </button>
+                                </div>
+                            </div>
                             <div className="menu-group settings-tools-menu">
                                 <div className="menu-item settings-tools-menu-item">
                                     <span className="card-icon card-icon-glass">
@@ -501,7 +495,7 @@ export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
                                         <span className="menu-desc settings-tools-menu-desc">开启后显示悬浮按钮，可查看当前提示词</span>
                                     </span>
                                     <span className="menu-right settings-tools-menu-toggle">
-                                        <Toggle checked={promptViewerEnabled} ariaLabel="提示词查看器" onChange={handlePromptViewerChange} className="settings-toggle-control" />
+                                        <Toggle checked={promptViewerEnabled} onChange={handlePromptViewerChange} className="settings-toggle-control" />
                                     </span>
                                 </div>
                                 <div className="menu-item settings-tools-menu-item">
@@ -513,30 +507,42 @@ export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
                                         <span className="menu-desc settings-tools-menu-desc">快速切换 API 与世界书</span>
                                     </span>
                                     <span className="menu-right settings-tools-menu-toggle">
-                                        <Toggle checked={quickActionEnabled} ariaLabel="快捷操作" onChange={handleQuickActionChange} className="settings-toggle-control" />
-                                    </span>
-                                </div>
-                                <div className="menu-item settings-tools-menu-item">
-                                    <span className="card-icon card-icon-glass" style={quickActionIconStyle}>
-                                        <span aria-hidden="true" style={{ display: "grid", placeItems: "center", width: 30, height: 30, borderRadius: 10, background: "linear-gradient(145deg, #a6adba, #555f71)", boxShadow: "inset 0 1px 0 #ffffff80" }}>
-                                            <span style={{ width: 19, height: 19, borderRadius: "50%", border: "3px solid #ffffff55", background: "#ffffffe0", backgroundClip: "padding-box" }} />
-                                        </span>
-                                    </span>
-                                    <span className="settings-tools-menu-copy">
-                                        <span className="menu-label appearance-menu-item-label">悬浮工具</span>
-                                        <span className="menu-desc settings-tools-menu-desc">合并提示词与快捷操作，可拖动贴边</span>
-                                    </span>
-                                    <span className="menu-right settings-tools-menu-toggle">
-                                        <Toggle checked={floatingToolsEnabled} ariaLabel="悬浮工具" onChange={handleFloatingToolsChange} className="settings-toggle-control" />
+                                        <Toggle checked={quickActionEnabled} onChange={handleQuickActionChange} className="settings-toggle-control" />
                                     </span>
                                 </div>
                             </div>
                         </div>
                         <CardGrid
-                            variant="list"
-                            label="账号"
+                            label="User"
+                            labelClassName="settings-menu-section-title"
                             items={SETTINGS_MENU.filter(item => ["identity", "about"].includes(item.id)).map(makeCardItem)}
                         />
+                        {floatingDockSheetOpen && (
+                            <div className="modal-overlay modal-overlay-bottom" data-ui="modal" onClick={() => setFloatingDockSheetOpen(false)}>
+                                <div className="modal-sheet" data-ui="modal-sheet" onClick={event => event.stopPropagation()}>
+                                    <div className="modal-header" data-ui="modal-header">
+                                        <span style={{ width: 44 }} />
+                                        <h3 className="modal-title">悬浮球设置</h3>
+                                        <button className="modal-header-btn modal-header-btn-muted" onClick={() => setFloatingDockSheetOpen(false)} aria-label="关闭"><X size={18} /></button>
+                                    </div>
+                                    <div className="modal-body modal-body-tight" data-ui="modal-body">
+                                        <div className="menu-group">
+                                            <div className="menu-item settings-tools-menu-item">
+                                                <span className="card-icon card-icon-glass">
+                                                    <SlidersHorizontal size={20} strokeWidth={1.8} />
+                                                </span>
+                                                <span className="settings-tools-menu-copy">
+                                                    <span className="menu-label appearance-menu-item-label">贴边半透明收拢模式</span>
+                                                </span>
+                                                <span className="menu-right settings-tools-menu-toggle">
+                                                    <Toggle checked={floatingDockEnabled} onChange={handleFloatingDockChange} className="settings-toggle-control" />
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                         {accountSheetOpen && (
                             <div className="modal-overlay modal-overlay-bottom" data-ui="modal" onClick={() => setAccountSheetOpen(false)}>
                                 <div className="modal-sheet" data-ui="modal-sheet" onClick={event => event.stopPropagation()}>
@@ -624,18 +630,14 @@ export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
                     </div>
                 )}
 
-                {currentPage !== "main" && (currentPage === "about" ? (
-                    <div className="settings-log-wrap">
-                        {renderSubPage()}
-                    </div>
-                ) : (
+                {currentPage !== "main" && (
                     // shrink-0：page-body 是 flex 容器，包裹层默认可压缩——内容超一屏时会被压到
                     // 恰好一屏高、卡片从中溢出，底部 padding 落不到内容末尾，最后一张卡贴死滚动边界
                     //（iOS 底部工具栏/安全区一盖就"没放下又滚不动"）。尾部留白 = 原 pb-8 + 安全区。
                     <div className="block min-h-full shrink-0 p-4 box-border" style={{ paddingBottom: "calc(32px + env(safe-area-inset-bottom, 0px))" }}>
                         {renderSubPage()}
                     </div>
-                ))}
+                )}
             </PageShell>
         </SettingsContext.Provider>
     );
