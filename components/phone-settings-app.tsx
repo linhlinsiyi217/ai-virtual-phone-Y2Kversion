@@ -93,8 +93,7 @@ const SETTINGS_MENU = [
     { id: "screenshot", icon: Camera, label: "截屏", desc: "让角色看一眼你的屏幕", iconColor: BINDING_ACCENTS.voice , glass: "" },
     { id: "widget", icon: LayoutTemplate, label: "桌面小组件", desc: "角色留在桌面上的话", iconColor: BINDING_ACCENTS.memory , glass: "" },
     { id: "identity", icon: UserCircle, label: "用户身份", desc: "个人信息", iconColor: BINDING_ACCENTS.identity , glass: "identity" },
-    { id: "changelog", icon: Info, label: "更新日志", desc: "版本与历史更新", iconColor: BINDING_ACCENTS.memory , glass: "about" },
-    { id: "about", icon: Info, label: "关于与声明", desc: "版本与协议", iconColor: BINDING_ACCENTS.memory , glass: "about" },
+    { id: "about", icon: Info, label: "更新日志", desc: "版本与历史更新", iconColor: BINDING_ACCENTS.memory , glass: "about" },
 ] as const;
 
 const realtimeIconStyle = {
@@ -359,10 +358,8 @@ export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
                 return <ModerationCenter onNotice={onNotice} />;
             case "identity":
                 return <UserIdentitySettings />;
-            case "changelog":
-                return <ChangelogPage />;
             case "about":
-                return <AboutDeclaration />;
+                return <ChangelogPage />;
             default:
                 return null;
         }
@@ -550,7 +547,7 @@ export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
                         <CardGrid
                             label="User"
                             labelClassName="settings-menu-section-title"
-                            items={SETTINGS_MENU.filter(item => ["identity", "changelog", "about"].includes(item.id)).map(makeCardItem)}
+                            items={SETTINGS_MENU.filter(item => ["identity", "about"].includes(item.id)).map(makeCardItem)}
                         />
                         {floatingDockSheetOpen && (
                             <div className="modal-overlay modal-overlay-bottom" data-ui="modal" onClick={() => setFloatingDockSheetOpen(false)}>

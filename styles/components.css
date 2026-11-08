@@ -5817,3 +5817,11 @@ button.settings-overview-row { cursor: pointer; }
 }
 .settings-overview { padding-bottom: calc(148px + env(safe-area-inset-bottom, 0px)); }
 .settings-overview-row { opacity: 1 !important; animation: none !important; }
+
+/* 分组标题不再被下面的卡片盖住 */
+.card-section-label,
+.appearance-menu-section-title {
+  position: relative;
+  z-index: 1;
+  margin: 26px 0 10px 2px;
+}
