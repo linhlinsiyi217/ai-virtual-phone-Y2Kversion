@@ -39,13 +39,10 @@
 }
 
 /* 黑白规范：图标去彩色（线性图标由强调色控制，玻璃图标用滤镜） */
-/* 只对内部图形去色。不要给外层容器加 filter——filter 会让容器成为
-   fixed 子元素的定位基准，里面的浮层会错位，变成看不见的挡板盖住按钮。 */
 .glass-icon > svg,
 .glass-icon img,
 .card-icon-glass > svg,
 .card-icon-glass img,
-.dock-skin-layer { filter: grayscale(1); }
 /* 少数状态点仍允许绿色（开启/成功） */
 [data-ui="status-on"] { color: var(--ui-green); }
 
