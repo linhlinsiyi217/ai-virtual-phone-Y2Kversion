@@ -301,12 +301,27 @@ class MainActivity : AppCompatActivity() {
         ShellBus.webView = webView
 
         webView.webViewClient = object : WebViewClient() {
+            // 记住页面实际停留的域名：部署别名常 308 跳到正式域名，
+            // 只比对配置里的 host 会把跳转当成外链，直接甩到外部浏览器。
+            private var committedHost: String? = null
+
+            override fun onPageStarted(view: WebView, url: String?, favicon: android.graphics.Bitmap?) {
+                url?.let { committedHost = Uri.parse(it).host ?: committedHost }
+                super.onPageStarted(view, url, favicon)
+            }
+
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
                 val url = request.url
                 val scheme = url.scheme ?: return false
                 // 站内导航留在壳里；http(s) 外链和自定义协议（shortcuts:// 等）交给系统
                 if (scheme == "http" || scheme == "https") {
-                    if (url.host == Uri.parse(SITE_URL).host) return false
+                    // 重定向一律在壳内跟随（别名 → 正式域名属于这一种）
+                    if (request.isRedirect) return false
+                    val host = url.host ?: ""
+                    val siteHost = Uri.parse(SITE_URL).host ?: ""
+                    if (host.isNotEmpty() && (host == siteHost || host == committedHost)) return false
+                    // 同一部署的其它 vercel 域名也留在壳内
+                    if (siteHost.endsWith(".vercel.app") && host.endsWith(".vercel.app")) return false
                     return runCatching {
                         startActivity(Intent(Intent.ACTION_VIEW, url)); true
                     }.getOrDefault(true)
