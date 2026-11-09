@@ -32,13 +32,12 @@ import {
   DEFAULT_CHARACTER_WORLD_ID,
   type CharacterWorldGroup,
 } from "@/lib/character-world-storage";
-import { WorldTabStrip, WorldCaseSheet, NewWorldSheet } from "@/components/character/world-tabs";
+import { WorldCaseSheet, NewWorldSheet } from "@/components/character/world-tabs";
 import { RelationLinkDialog, RelationPairSheet } from "@/components/character/relation-dialogs";
+import { CSheet, CConfirm } from "@/components/character/modal-kit";
 import { loadMomentsConfig, saveMomentsConfig } from "@/lib/moments-storage";
 import type { CanvasBgItem } from "@/lib/character-types";
-import { PageShell } from "@/components/ui/page-shell";
-import { ConfirmDialog } from "@/components/ui/modal";
-import { AlertCircle, History } from "lucide-react";
+import { History } from "lucide-react";
 import {
   backupCharacterVersion,
   clearCharacterVersions,
@@ -332,6 +331,16 @@ export function PhoneCharacterApp({ onClose, onNotice }: PhoneCharacterAppProps)
               }
             }}
             onNotice={onNotice}
+            relations={view.id ? (() => {
+              const group = worldGroups.find((g) => g.id === safeWorldId);
+              return (group?.relations ?? [])
+                .filter((r) => r.fromCharacterId === view.id || r.toCharacterId === view.id)
+                .map((r) => {
+                  const otherId = r.fromCharacterId === view.id ? r.toCharacterId : r.fromCharacterId;
+                  const other = characters.find((c) => c.id === otherId);
+                  return { name: other?.name || "未知角色", label: r.label };
+                });
+            })() : []}
           />
         )}
       </div>
@@ -434,7 +443,42 @@ function FlipTransitionOverlay({ transit }: { transit: TransitionState }) {
 }
 
 
-// ── 列表视图（照片墙） ─────────────────────────────────────────
+// ── 列表视图（角色库） ─────────────────────────────────────────
+
+// 设计稿 library 屏里的线性图标
+function LibIcon({ children }: { children: React.ReactNode }) {
+  return (
+    <svg className="ic" viewBox="0 0 24 24">
+      {children}
+    </svg>
+  );
+}
+
+// 设计稿里的猫咪（睡觉姿势），用于「新建档案」虚线卡
+const CAT_SLEEP_SVG = `<svg class="cat" viewBox="0 0 160 144" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+<g class="bob">
+<g class="ear l"><path class="ln wf" d="M38 70C32 52 28 32 29 17C30 11 35 9 40 12C54 20 68 32 76 46"/><path class="gy" d="M40 61C36 47 33 33 34 23C44 28 56 36 64 47Z"/></g>
+<g class="ear r"><path class="ln wf" d="M122 70C128 52 132 32 131 17C130 11 125 9 120 12C106 20 92 32 84 46"/><path class="gy" d="M120 61C124 47 127 33 126 23C116 28 104 36 96 47Z"/></g>
+<path class="ln wf" d="M54 112C50 128 60 138 80 138C100 138 110 128 106 112"/>
+<ellipse class="ln wf" cx="80" cy="80" rx="47" ry="38"/>
+<path class="ln s tuft" d="M80 42C76 33 81 26 88 28"/><path class="ln s" style="stroke-width:1.5" d="M35 89L19 85M35 94L18 96M36 99L21 106M125 89L141 85M125 94L142 96M124 99L139 106"/>
+<g class="face"><circle class="dt" cx="60" cy="69" r="2.4"/><circle class="dt" cx="100" cy="69" r="2.4"/>
+<ellipse class="bl" cx="45" cy="94" rx="9" ry="5.5"/><ellipse class="bl" cx="115" cy="94" rx="9" ry="5.5"/>
+<path class="bs" d="M40 92l-1.5 4M45 91l-1.5 4M50 91.5l-1.5 4M110 91.5l1.5 4M115 91l1.5 4M120 92l1.5 4"/>
+<g class="eye"><g transform="rotate(10 62 84)"><ellipse class="ey" cx="62" cy="84" rx="6" ry="8"/></g><circle class="hi" cx="64.6" cy="80.4" r="2.3"/><circle class="hi" cx="68.6" cy="88" r="1"/></g>
+<g class="eye"><g transform="rotate(-10 98 84)"><ellipse class="ey" cx="98" cy="84" rx="6" ry="8"/></g><circle class="hi" cx="95.4" cy="80.4" r="2.3"/><circle class="hi" cx="91.4" cy="88" r="1"/></g>
+<g class="muzzle"><ellipse class="mz" cx="74" cy="95" rx="8.5" ry="6.2"/><ellipse class="mz" cx="86" cy="95" rx="8.5" ry="6.2"/>
+<path class="nz" d="M76.5 88.5h7l-3.5 4.2z"/><path class="ln s" d="M74.5 97.5Q77 101 80 97Q83 101 85.5 97.5"/></g></g>
+<path class="ln s" d="M64 117Q80 127 96 117"/><g class="bell"><circle class="ln s gy" style="stroke:#111;stroke-width:1.7" cx="80" cy="124" r="4"/><path class="ln s" d="M78 124h4"/></g>
+<ellipse class="ln s wf" cx="63" cy="133" rx="7.5" ry="5.5"/><ellipse class="ln s wf" cx="97" cy="133" rx="7.5" ry="5.5"/>
+<path class="z ln s" d="M118 46h9l-9 10h9"/><path class="z ln s" style="animation-delay:1.2s" d="M130 32h6l-6 7h6"/>
+</g></svg>`;
+
+// 档案完整度：已有字段里填了几项
+function archiveCompleteness(c: Character): number {
+  const checks = [Boolean(c.avatar), Boolean(c.persona), Boolean(c.briefPersona), Boolean(c.personality), (c.tags?.length ?? 0) > 0, Boolean(c.wechatID)];
+  return Math.round((checks.filter(Boolean).length / checks.length) * 100);
+}
 
 function CharListView({
   characters,
@@ -575,16 +619,14 @@ function CharListView({
     newChars = newChars.map((c, i) => {
       if (c.canvasX === undefined || c.canvasY === undefined) {
         changedChars = true;
+        // 默认排布改成设计稿的双列档案卡网格（每列 169 + 12 间距，每行 196 + 12）
         const row = Math.floor(i / 2);
         const col = i % 2;
-        const hash = c.id.charCodeAt(0) + i * 17;
-        const cx = col === 0 ? 5 + (hash % 20) : 55 + (hash % 20);
-        const cy = 60 + row * 200 + (hash % 60 - 30);
         return {
           ...c,
-          canvasX: (cx / 100) * (typeof window !== 'undefined' ? window.innerWidth : 400),
-          canvasY: cy,
-          canvasRot: (hash % 40) - 20,
+          canvasX: col * 181,
+          canvasY: row * 208,
+          canvasRot: 0,
           canvasZIndex: 100 + i
         };
       }
@@ -636,6 +678,7 @@ function CharListView({
   const canvasElRef = useRef<HTMLDivElement>(null);
   const [isPropsMenuOpen, setIsPropsMenuOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [query, setQuery] = useState("");
 
   function toggleEditing() {
     if (isEditing) {
@@ -753,7 +796,7 @@ function CharListView({
       return;
     }
     if (!isEditing) return;
-    if ((e.target as HTMLElement).closest('.char-polaroid-board-item') || (e.target as HTMLElement).closest('.char-bg-item')) return;
+    if ((e.target as HTMLElement).closest('.lib-card') || (e.target as HTMLElement).closest('.char-bg-item')) return;
     if (linkFromId) setLinkFromId(null); // 点空白处取消拉线
     isDraggingCanvasRef.current = true;
     canvasPointerIdRef.current = e.pointerId;
@@ -1022,103 +1065,77 @@ function CharListView({
     );
   }
 
+  // 角色库搜索：按名字 / 签名 / 人设 / 标签过滤
+  const q = query.trim().toLowerCase();
+  const visibleCharacters = q
+    ? worldCharacters.filter(c =>
+        [c.name, c.briefPersona, c.persona, ...(c.tags ?? [])]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase()
+          .includes(q))
+    : worldCharacters;
+
+  const createNewArchive = () => {
+    pendingActionRef.current = 'create';
+    setShowStylePicker(true);
+  };
+
   return (
     <>
-      <PageShell
-        title={<strong style={{ fontWeight: 900, fontFamily: 'Impact, "Arial Black", sans-serif', fontSize: '1.15em', letterSpacing: '0.04em' }}>TARGET ARCHIVES</strong>}
-        leftAction={
-          <button
-            className="flex items-center justify-center w-[34px] h-[34px] rounded-full bg-black/5 text-[#666] hover:bg-black/10 transition-colors"
-            onClick={onClose}
-            aria-label="返回桌面"
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
-          </button>
-        }
-        className="[&_.page-body]:pb-0"
-        rightAction={
-          <div className="flex items-center gap-2">
+      <div className="lib lib-canvas char-archive-root">
+        <div className="lib-top">
+          <div className="ey">CHARACTER ARCHIVE</div>
+          <div className="lib-acts">
+            <button type="button" onClick={onClose} aria-label="返回桌面">
+              <LibIcon><path d="M15 18l-6-6 6-6" /></LibIcon>
+            </button>
             {isEditing && (
-              <button
-                className="flex items-center justify-center w-[34px] h-[34px] rounded-full bg-black/5 text-[#666] hover:bg-black/10 transition-colors"
-                onClick={() => resetViewToFit()}
-                aria-label="恢复视角"
-                title="恢复视角"
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3"></path><path d="M21 8V5a2 2 0 0 0-2-2h-3"></path><path d="M3 16v3a2 2 0 0 0 2 2h3"></path><path d="M16 21h3a2 2 0 0 0 2-2v-3"></path><circle cx="12" cy="12" r="2.5"></circle></svg>
+              <button type="button" onClick={() => resetViewToFit()} aria-label="恢复视角" title="恢复视角">
+                <LibIcon><path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3" /></LibIcon>
               </button>
             )}
-            <button
-              className={`flex items-center justify-center w-[34px] h-[34px] rounded-full transition-colors ${
-                isEditing
-                  ? 'bg-[#111111] text-white shadow-md'
-                  : 'bg-black/5 text-[#666] hover:bg-black/10'
-              }`}
-              onClick={() => toggleEditing()}
-              aria-label="编辑排版"
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+            <button type="button" className={isEditing ? "on" : ""} onClick={() => toggleEditing()} aria-label="编辑排版">
+              <LibIcon><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" /></LibIcon>
             </button>
           </div>
-        }
-        footer={
-          <div className="char-bottom-bar flex justify-center pb-8">
-            <div className="wt-bottom-pill">
-              <button className="wt-bottom-pill-btn" onClick={() => { pendingActionRef.current = 'import'; setShowStylePicker(true); }}>
-                <IconImport />
-                <span>IMPORT</span>
-              </button>
-              <button className="wt-bottom-pill-btn" onClick={() => { pendingActionRef.current = 'create'; setShowStylePicker(true); }}>
-                <IconPlus />
-                <span>CREATE</span>
-              </button>
-              {isEditing && (
-                <button className="wt-bottom-pill-btn" onClick={() => setIsPropsMenuOpen(true)}>
-                  <IconPlus /> <span>PROPS</span>
-                </button>
-              )}
-              <button className="wt-bottom-pill-btn wt-bottom-pill-active" onClick={() => setShowNpcGen(true)}>
-                <IconPlus />
-                <span>NPC</span>
-              </button>
-              <input
-                ref={fileRef} type="file" accept=".json,.png,image/png,application/json" className="hidden"
-                onChange={async (e) => {
-                  const file = e.target.files?.[0];
-                  if (file) await handleImportFile(file);
-                  e.target.value = "";
-                }}
-              />
-            </div>
-          </div>
-        }
-      >
-      {/* 世界卷宗标签条：每个世界一份案卷、一张画布 */}
-      <WorldTabStrip
-        groups={worldGroups}
-        currentWorldId={currentWorldId}
-        memberCounts={memberCounts}
-        dropTargetWorldId={dropTargetWorldId}
-        onSelect={selectWorld}
-        onOpenEditor={() => setShowWorldEditor(true)}
-        onOpenCreate={() => setShowNewWorld(true)}
-      />
-      <div
-        ref={canvasElRef}
-        className="char-infinite-canvas w-full flex-1 min-h-0 overflow-hidden relative select-none"
-        onPointerDown={handleCanvasPointerDown}
-        onPointerMove={handleCanvasPointerMove}
-        onPointerUp={handleCanvasPointerUp}
-        onPointerCancel={handleCanvasPointerUp}
-        onContextMenu={(e) => {
-          if (placementActive) {
-            e.preventDefault();
-            setPendingBgType(null);
-            onClearPendingPlacement();
-          }
-        }}
-        style={{ touchAction: 'none', WebkitUserSelect: 'none', cursor: placementActive ? 'crosshair' : undefined }}
-      >
+        </div>
+        <h1>角色档案</h1>
+        <div className="sch">
+          <LibIcon><circle cx="11" cy="11" r="6.5" /><path d="M16 16l4 4" /></LibIcon>
+          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="搜索角色、标签、人设" aria-label="搜索角色" />
+        </div>
+        <div className="chips">
+          {worldGroups.map(g => (
+            <b
+              key={g.id}
+              className={`${g.id === currentWorldId ? "on" : ""} ${g.id === dropTargetWorldId ? "drop" : ""}`}
+              data-world-tab-id={g.id}
+              role="button"
+              tabIndex={0}
+              onClick={() => (g.id === currentWorldId ? setShowWorldEditor(true) : selectWorld(g.id))}
+            >
+              {g.name} {memberCounts.get(g.id) ?? 0}
+            </b>
+          ))}
+          <b className="add" role="button" tabIndex={0} onClick={() => setShowNewWorld(true)} aria-label="新建卷宗">＋</b>
+        </div>
+        <div
+          ref={canvasElRef}
+          className="char-infinite-canvas lib-stage select-none"
+          onPointerDown={handleCanvasPointerDown}
+          onPointerMove={handleCanvasPointerMove}
+          onPointerUp={handleCanvasPointerUp}
+          onPointerCancel={handleCanvasPointerUp}
+          onContextMenu={(e) => {
+            if (placementActive) {
+              e.preventDefault();
+              setPendingBgType(null);
+              onClearPendingPlacement();
+            }
+          }}
+          style={{ touchAction: 'none', WebkitUserSelect: 'none', cursor: placementActive ? 'crosshair' : undefined }}
+        >
         {/* 拉线进行中的提示纸条 */}
         {linkFromId && (
           <div className="wt-link-hint">
@@ -1126,12 +1143,9 @@ function CharListView({
           </div>
         )}
         {worldCharacters.length === 0 && worldBgItems.length === 0 ? (
-          <div className="char-empty" style={{ zIndex: 100 }}>
-            <div className="char-empty-icon">
-              <IconCamera size={44} />
-            </div>
-            <p className="char-empty-text">这份卷宗还是空的</p>
-            <p className="char-empty-sub">CREATE 建人 · NPC 生成配角 · 或从别的卷宗拖人进来</p>
+          <div className="lib-empty" style={{ zIndex: 100 }}>
+            这份卷宗还是空的<br />
+            <span>点下方 ＋ 新建档案，或把别的卷宗里的角色拖进来</span>
           </div>
         ) : (
           <div className="char-infinite-container absolute w-0 h-0 origin-top-left" style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${pan.zoom})` }}>
@@ -1152,20 +1166,10 @@ function CharListView({
               </DraggableNode>
             ))}
 
-            {worldCharacters.map((char, idx) => {
+            {visibleCharacters.map((char) => {
               if (char.canvasX === undefined) return null;
-              const hash = char.id.charCodeAt(0) + idx * 17;
-              const styleIdx = char.polaroidStyle ?? (hash % 5);
-
-              const sizeMod = (hash % 5);
-              const w = 110 + sizeMod * 10;
-              const ratioClassArray = ["ratio-square", "ratio-portrait", "ratio-landscape", "ratio-16-9", "ratio-9-16"];
-              const ratioClass = ratioClassArray[styleIdx % ratioClassArray.length];
-
-              const tapeStyles = ["char-polaroid-tape-white", "char-polaroid-tape-red", "char-polaroid-tape-black"];
-              const tapeMod = char.polaroidStyle !== undefined ? styleIdx % tapeStyles.length : hash % 3;
-              const tapeWidth = tapeMod === 2 ? 30 : 44;
-              const tapeRot = (hash % 10) - 5;
+              const pct = archiveCompleteness(char);
+              const tags = (char.tags ?? []).slice(0, 2);
 
               return (
                 <DraggableNode
@@ -1173,8 +1177,8 @@ function CharListView({
                   x={char.canvasX} y={char.canvasY || 0} rot={char.canvasRot || 0} zIndex={char.canvasZIndex || 100}
                   onDragEnd={handleDragEndChar}
                   onClick={isEditing ? undefined : (e) => onSelect(char, e)}
-                  className={`char-polaroid char-polaroid-board-item ${ratioClass} ${linkFromId === char.id ? "wt-link-source" : ""}`}
-                  w={w}
+                  className={`ac lib-card ${linkFromId === char.id ? "wt-link-source" : ""}`}
+                  w={169}
                   isEditing={isEditing}
                   onDeleteIntent={(id) => setDeleteConfirm({ id, type: 'char' })}
                   onEditTap={handleCharEditTap}
@@ -1187,26 +1191,42 @@ function CharListView({
                   zoom={pan.zoom}
                   pinchRef={pinchRef}
                 >
-                  <div className={`char-polaroid-tape-base ${tapeStyles[tapeMod]}`} style={{ top: -10, width: tapeWidth, transform: `translateX(-50%) rotate(${tapeRot}deg)` }} />
-                  {hash % 3 === 0 && (
-                    <div className="char-clue-label" style={{ top: -10, left: -6, transform: `rotate(${-(char.canvasRot || 0) - 5}deg)` }}>
-                      0{idx + 1} ASSET
-                    </div>
-                  )}
-                  <div className="char-polaroid-img-wrapper" style={{ boxShadow: "inset 0 0 10px rgba(0,0,0,0.1)" }}>
-                    {char.avatar ? <img src={char.avatar} alt={char.name} className="char-polaroid-img" draggable={false} /> : <CharAvatarFallback name={char.name} size="100%" />}
-                    <button
-                      className="char-polaroid-menu-btn absolute top-1 right-1 w-6 h-6 bg-black/20 text-white rounded-full flex items-center justify-center cursor-pointer hover:bg-black/40 transition-colors z-10"
-                      onClick={(e) => { e.stopPropagation(); setActiveMoveChar(char); }}
-                      aria-label="转移世界"
-                    >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="1"></circle><circle cx="19" cy="12" r="1"></circle><circle cx="5" cy="12" r="1"></circle></svg>
-                    </button>
+                  <div className="a">
+                    {char.avatar
+                      ? <img src={char.avatar} alt={char.name} draggable={false} />
+                      : (char.name || "?").slice(0, 1)}
                   </div>
-                  <div className="char-polaroid-text" style={{ fontSize: 12.5 }}>{char.name || "UNNAMED"}</div>
+                  <button
+                    className="char-polaroid-menu-btn"
+                    onClick={(e) => { e.stopPropagation(); setActiveMoveChar(char); }}
+                    aria-label="转移世界"
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="1"></circle><circle cx="19" cy="12" r="1"></circle><circle cx="5" cy="12" r="1"></circle></svg>
+                  </button>
+                  <div className="n">{char.name || "未命名"}</div>
+                  <div className="g">{char.briefPersona || char.persona || "还没有签名"}</div>
+                  <div className="f">
+                    <div className="tgm">{tags.map(tag => <i key={tag}>{tag}</i>)}</div>
+                    <div className="rg" style={{ "--p": `${pct}%` } as React.CSSProperties}><b>{pct}</b></div>
+                  </div>
                 </DraggableNode>
               );
             })}
+
+            {/* 设计稿右下角的虚线「新建档案」卡，放在最后一格 */}
+            <div
+              className="ac new"
+              style={{
+                position: 'absolute', left: 0, top: 0, width: 169, zIndex: 99,
+                transform: `translate(${(worldCharacters.length % 2) * 181}px, ${Math.floor(worldCharacters.length / 2) * 208}px)`,
+              }}
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={createNewArchive}
+            >
+              <span dangerouslySetInnerHTML={{ __html: CAT_SLEEP_SVG }} />
+              新建档案
+              <span className="ac-sub">从空白或 AI 建议开始</span>
+            </div>
 
             {/* 把拉线放在所有卡片的最后渲染，并设置超高 zIndex，使其盖在所有照片之上 */}
             <svg className="absolute top-0 left-0 w-[10000px] h-[10000px] pointer-events-none overflow-visible" style={{ zIndex: 99999 }}>
@@ -1315,51 +1335,78 @@ function CharListView({
         </div>
 
       </div>
-      </PageShell>
+
+        {/* 果冻导航：保留原有四个入口（角色 / 导入 / 世界书 / 配角）+ 新建 */}
+        <div className="tb">
+          <div className="ind" style={{ left: 8, width: 90 }} />
+          <div className="tab on">
+            <LibIcon><circle cx="12" cy="8" r="3.6" /><path d="M5 20c.8-3.6 3.6-5.5 7-5.5s6.2 1.9 7 5.5" /></LibIcon>
+            <span>角色</span>
+          </div>
+          <button type="button" className="tab" onClick={() => { pendingActionRef.current = 'import'; setShowStylePicker(true); }} aria-label="导入角色">
+            <LibIcon><path d="M12 4v10M8.5 10.5L12 14l3.5-3.5M5 19h14" /></LibIcon>
+            <span>导入</span>
+          </button>
+          <button type="button" className="tab" onClick={() => setShowWorldEditor(true)} aria-label="世界书">
+            <LibIcon><path d="M5 5.5A2 2 0 017 3.5h11v15H7a2 2 0 00-2 2v-15z" /><path d="M5 20.5h13" /></LibIcon>
+            <span>世界书</span>
+          </button>
+          <button type="button" className="tab" onClick={() => setShowNpcGen(true)} aria-label="生成配角">
+            <LibIcon><circle cx="9" cy="8.5" r="3.2" /><path d="M3.5 19c.6-3.2 2.8-5 5.5-5s4.9 1.8 5.5 5" /><circle cx="17" cy="9.5" r="2.4" /><path d="M16.5 14.2c2.3 0 3.6 1.5 4 3.8" /></LibIcon>
+            <span>配角</span>
+          </button>
+          {isEditing && (
+            <button type="button" className="tab" onClick={() => setIsPropsMenuOpen(true)} aria-label="道具">
+              <LibIcon><rect x="4.5" y="4.5" width="6" height="6" rx="2" /><rect x="13.5" y="4.5" width="6" height="6" rx="2" /><rect x="4.5" y="13.5" width="6" height="6" rx="2" /><rect x="13.5" y="13.5" width="6" height="6" rx="2" /></LibIcon>
+              <span>道具</span>
+            </button>
+          )}
+          <button type="button" className="pl" onClick={createNewArchive} aria-label="新建档案">
+            <LibIcon><path d="M12 5v14M5 12h14" /></LibIcon>
+          </button>
+          <input
+            ref={fileRef} type="file" accept=".json,.png,image/png,application/json" className="hidden"
+            onChange={async (e) => {
+              const file = e.target.files?.[0];
+              if (file) await handleImportFile(file);
+              e.target.value = "";
+            }}
+          />
+        </div>
+      </div>
 
       {deleteConfirm && (
-        <div
-          className="modal-overlay"
-          style={{ zIndex: 8000000, backdropFilter: "blur(var(--ui-blur-light))" }}
-          onClick={() => {
+        <CConfirm
+          title={deleteConfirm.type === "char" ? "删除这个角色？" : "删除这个物件？"}
+          message={deleteConfirm.type === "char"
+            ? `「${characters.find(c => c.id === deleteConfirm.id)?.name || "未命名角色"}」的档案、对话记录和关系线会一起从当前卷宗移除，无法恢复。`
+            : "这件散落物件会从画布上移除，无法恢复。"}
+          cancelLabel="取消"
+          confirmLabel="删除"
+          confirmDisabled={!deleteConfirmReady}
+          onCancel={() => {
             if (deleteConfirmReady) setDeleteConfirm(null);
           }}
-        >
-          <div className="char-punched-hole-note" onClick={(e) => e.stopPropagation()}>
-            <h3>销毁确认</h3>
-            <p>您确定要丢弃该档案或物件吗？此操作将永远无法恢复。</p>
-            <div className="char-punched-hole-btn-group">
-              <button
-                className="char-punched-hole-btn"
-                disabled={!deleteConfirmReady}
-                onClick={() => {
-                  if (deleteConfirmReady) setDeleteConfirm(null);
-                }}
-              >驳回申请</button>
-              <button className="char-punched-hole-btn danger" disabled={!deleteConfirmReady} onClick={() => {
-                if (!deleteConfirmReady) return;
-                if (deleteConfirm.type === 'char') {
-                  onUpdateChars(characters.filter(c => c.id !== deleteConfirm.id));
-                  onNotice?.("已销毁调查档案");
-                } else {
-                  onUpdateBgItems((bgItems || []).filter(b => b.id !== deleteConfirm.id));
-                  onNotice?.("已销毁散落物件");
-                }
-                setDeleteConfirm(null);
-              }}>批准销毁</button>
-            </div>
-          </div>
-        </div>
+          onConfirm={() => {
+            if (!deleteConfirmReady) return;
+            if (deleteConfirm.type === "char") {
+              onUpdateChars(characters.filter(c => c.id !== deleteConfirm.id));
+              onNotice?.("已删除角色档案");
+            } else {
+              onUpdateBgItems((bgItems || []).filter(b => b.id !== deleteConfirm.id));
+              onNotice?.("已删除散落物件");
+            }
+            setDeleteConfirm(null);
+          }}
+        />
       )}
 
       {importError && (
-        <ConfirmDialog
+        <CConfirm
           title="导入失败"
           message={importError}
-          icon={AlertCircle}
-          variant="danger"
+          cancelLabel="取消"
           confirmLabel="知道了"
-          cancelLabel=""
           onConfirm={() => setImportError(null)}
           onCancel={() => setImportError(null)}
         />
@@ -1431,181 +1478,113 @@ function CharListView({
 
       {/* Style picker popup */}
       {showStylePicker && (
-        <div
-          className="absolute inset-0 bg-black/50 flex flex-col items-center justify-end pb-[120px] px-4"
-          style={{ zIndex: 9999999 }}
-          onClick={() => setShowStylePicker(false)}
+        <CSheet
+          eyebrow="SELECT FORMAT"
+          title="选择拍立得比例"
+          ariaLabel="选择拍立得比例"
+          onClose={() => setShowStylePicker(false)}
+          footer={{ label: "取消", onClick: () => setShowStylePicker(false) }}
         >
-          <div className="relative w-full max-w-[280px]" onClick={e => e.stopPropagation()}>
-            {/* Back paper layer */}
-            <div className="absolute rounded-[2px]" style={{
-              top: 6, left: 4, right: -6, bottom: -4,
-              background: '#ede7d9', border: '1px solid #cfc3a6',
-              transform: 'rotate(2.5deg)',
-              boxShadow: '3px 4px 10px rgba(0,0,0,0.18)'
-            }} />
-            {/* Main paper */}
-            <div
-              className="relative w-full rounded-[2px]"
-              style={{
-                background: '#f5f0e6',
-                padding: '18px 12px 14px',
-                boxShadow: '2px 3px 12px rgba(0,0,0,0.25), inset 0 0 30px rgba(139,119,80,0.08)',
-                border: '1px solid #d4c9a8',
-                fontFamily: '"Courier New", monospace',
-                transform: 'rotate(-1.5deg)'
-              }}
-            >
-              {/* tape decoration on top */}
-              <div className="absolute rounded-[1px]" style={{ top: -6, left: '50%', marginLeft: -18, width: 36, height: 12, background: 'rgba(255,255,255,0.55)', transform: 'rotate(1deg)' }} />
-              <div className="text-center ts-12 font-bold text-[#4a3f2f] mb-3 tracking-[1px] uppercase">Select Format</div>
-              <div className="flex gap-1.5 justify-center">
-                {[
-                  { label: '正方', cls: 'ratio-square' },
-                  { label: '竖版', cls: 'ratio-portrait' },
-                  { label: '横版', cls: 'ratio-landscape' },
-                  { label: '16:9', cls: 'ratio-16-9' },
-                  { label: '9:16', cls: 'ratio-9-16' },
-                ].map((style, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => {
-                      pendingStyleRef.current = idx;
-                      setShowStylePicker(false);
-                      if (pendingActionRef.current === 'import') {
-                        fileRef.current?.click();
-                      } else {
-                        onCreate(idx);
-                      }
-                    }}
-                    className="bg-none border-[1.5px] border-transparent rounded-[3px] cursor-pointer p-1 flex flex-col items-center gap-[3px]"
-                    style={{
-                      transition: 'border-color 0.15s, background 0.15s'
-                    }}
-                    onMouseEnter={e => { e.currentTarget.style.borderColor = '#8c7a5a'; e.currentTarget.style.background = 'rgba(140,122,90,0.08)'; }}
-                    onMouseLeave={e => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.background = 'none'; }}
-                  >
-                    <div
-                      className={`char-polaroid ${style.cls} w-9 pointer-events-none relative`}
-                      style={{ padding: '2px 2px 8px', boxShadow: '0 1px 2px rgba(0,0,0,0.12)' }}
-                    >
-                      <div className="char-polaroid-img-wrapper bg-[#ddd]" />
-                    </div>
-                    <div className="ts-9 text-[#6b5d47] font-semibold" style={{ fontFamily: 'inherit' }}>{style.label}</div>
-                  </button>
-                ))}
-              </div>
-            </div>
+          <div className="cm-grid cm-grid-ratio">
+            {[
+              { label: "正方", w: 64, h: 64 },
+              { label: "竖版", w: 48, h: 64 },
+              { label: "横版", w: 64, h: 48 },
+              { label: "16:9", w: 64, h: 36 },
+              { label: "9:16", w: 36, h: 64 },
+            ].map((style, idx) => (
+              <button
+                key={idx}
+                type="button"
+                className="cm-ratio"
+                onClick={() => {
+                  pendingStyleRef.current = idx;
+                  setShowStylePicker(false);
+                  if (pendingActionRef.current === "import") {
+                    fileRef.current?.click();
+                  } else {
+                    onCreate(idx);
+                  }
+                }}
+              >
+                <span className="cm-ratio-paper" style={{ width: style.w, height: style.h }}>
+                  <i />
+                </span>
+                <em>{style.label}</em>
+              </button>
+            ))}
           </div>
-        </div>
+        </CSheet>
       )}
 
       {/* Props picker popup */}
       {isPropsMenuOpen && (
-        <div
-          className="absolute inset-0 bg-black/50 flex flex-col items-center justify-end pb-[120px] px-4"
-          style={{ zIndex: 9999999 }}
-          onClick={() => setIsPropsMenuOpen(false)}
+        <CSheet
+          eyebrow="ADD PROPS"
+          title="添加画布道具"
+          ariaLabel="添加画布道具"
+          onClose={() => setIsPropsMenuOpen(false)}
+          footer={{ label: "完成", onClick: () => setIsPropsMenuOpen(false) }}
         >
-          <div className="relative w-full max-w-[320px]" onClick={e => e.stopPropagation()}>
-            {/* Back paper layer */}
-            <div className="absolute rounded-[2px]" style={{
-              top: 5, left: 3, right: -5, bottom: -3,
-              background: '#ede7d9', border: '1px solid #cfc3a6',
-              transform: 'rotate(2deg)',
-              boxShadow: '3px 4px 10px rgba(0,0,0,0.18)'
-            }} />
-            {/* Main paper */}
-            <div
-              className="relative w-full rounded-[2px]"
-              style={{
-                background: '#f5f0e6',
-                padding: '18px 10px 14px',
-                boxShadow: '2px 3px 12px rgba(0,0,0,0.25), inset 0 0 30px rgba(139,119,80,0.08)',
-                border: '1px solid #d4c9a8',
-                fontFamily: '"Courier New", monospace',
-                transform: 'rotate(-1deg)'
-              }}
-            >
-              <div className="absolute rounded-[1px]" style={{ top: -6, left: '50%', marginLeft: -18, width: 36, height: 12, background: 'rgba(255,255,255,0.55)', transform: 'rotate(0.5deg)' }} />
-              <div className="text-center ts-12 font-bold text-[#4a3f2f] mb-3 tracking-[1px] uppercase">Add Props</div>
-              <div className="flex gap-1.5 justify-center flex-wrap">
-                {([
-                  { type: 'a4' as const, label: '档案', w: 200, h: 280, scale: 0.16 },
-                  { type: 'yellow-note' as const, label: '便签', w: 110, h: 80, scale: 0.28 },
-                  { type: 'blue-note' as const, label: '传票', w: 120, h: 90, scale: 0.26 },
-                  { type: 'torn' as const, label: '碎片', w: 130, h: 70, scale: 0.24 },
-                  { type: 'grid' as const, label: '网格', w: 150, h: 100, scale: 0.21 },
-                  { type: 'scrap' as const, label: '烧纸', w: 140, h: 50, scale: 0.24 },
-                ]).map((item) => (
-                  <button
-                    key={item.type}
-                    onClick={() => handleAddBgItem(item.type)}
-                    className="bg-none border-[1.5px] border-transparent rounded-[3px] cursor-pointer p-1 flex flex-col items-center gap-[3px]"
-                    style={{
-                      transition: 'border-color 0.15s, background 0.15s'
-                    }}
-                    onMouseEnter={e => { e.currentTarget.style.borderColor = '#8c7a5a'; e.currentTarget.style.background = 'rgba(140,122,90,0.08)'; }}
-                    onMouseLeave={e => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.background = 'none'; }}
-                  >
-                    {/* Scaled real prop preview */}
-                    <div className="overflow-hidden relative rounded-[1px]" style={{
-                      width: item.w * item.scale, height: item.h * item.scale,
-                    }}>
-                      <div className="pointer-events-none" style={{
-                        transform: `scale(${item.scale})`, transformOrigin: 'top left',
-                        width: item.w, height: item.h,
-                      }}>
-                        <div className={`char-bg-item relative ${item.type === 'a4' ? 'char-paper-a4' :
-                          (item.type === 'yellow-note' || item.type === 'blue-note') ? 'char-sticky-note' :
-                              item.type === 'torn' ? 'char-paper-torn' :
-                                item.type === 'grid' ? 'char-paper-grid' :
-                                  'char-paper-scrap'
-                          }`} {...(item.type === 'yellow-note' ? { "data-color": "yellow" } : item.type === 'blue-note' ? { "data-color": "blue" } : {})} style={{ width: item.w, height: item.h }}>
-                          {renderBgContent({ id: `preview-${item.type}`, type: item.type, x: 0, y: 0, rot: 0, zIndex: 1 }).props.children}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="ts-9 text-[#6b5d47] font-semibold">{item.label}</div>
-                  </button>
-                ))}
-              </div>
-            </div>
+          <p className="cm-lede">点一下就会放到画布上，可以连续添加。</p>
+          <div className="cm-grid cm-grid-props">
+            {([
+              { type: "a4" as const, label: "档案", w: 200, h: 280, scale: 0.16 },
+              { type: "yellow-note" as const, label: "便签", w: 110, h: 80, scale: 0.28 },
+              { type: "blue-note" as const, label: "传票", w: 120, h: 90, scale: 0.26 },
+              { type: "torn" as const, label: "碎片", w: 130, h: 70, scale: 0.24 },
+              { type: "grid" as const, label: "网格", w: 150, h: 100, scale: 0.21 },
+              { type: "scrap" as const, label: "烧纸", w: 140, h: 50, scale: 0.24 },
+            ]).map((item) => (
+              <button
+                key={item.type}
+                type="button"
+                className="cm-prop"
+                onClick={() => handleAddBgItem(item.type)}
+              >
+                <span
+                  className={`cm-prop-paper cm-prop-${item.type}`}
+                  style={{ width: Math.round(item.w * item.scale), height: Math.round(item.h * item.scale) }}
+                />
+                <em>{item.label}</em>
+              </button>
+            ))}
           </div>
-        </div>
+        </CSheet>
       )}
 
       {/* 转移世界 Modal */}
       {activeMoveChar && (
-        <div className="modal-overlay" data-ui="modal" onPointerDown={() => setActiveMoveChar(null)}>
-          <div className="modal-dialog" data-ui="modal-dialog" onPointerDown={(e) => e.stopPropagation()} style={{ padding: 0, overflow: 'hidden' }}>
-            <div className="modal-header" data-ui="modal-header" style={{ padding: '20px 20px 10px' }}>
-              <h3 className="modal-title" style={{ margin: 0, fontSize: '16px' }}>转移到其他卷宗</h3>
-            </div>
-            <div role="listbox" style={{ maxHeight: '40dvh', padding: '10px 16px', overflowY: 'auto' }}>
+        <CSheet
+          eyebrow="MOVE TO CASE"
+          title="转移到其他卷宗"
+          ariaLabel="转移到其他卷宗"
+          onClose={() => setActiveMoveChar(null)}
+          footer={{ label: "取消", onClick: () => setActiveMoveChar(null) }}
+        >
+          {worldGroups.filter(g => g.id !== currentWorldId).length === 0 ? (
+            <p className="cm-empty">没有其他卷宗可供转移</p>
+          ) : (
+            <div className="cm-list" role="listbox">
               {worldGroups.filter(g => g.id !== currentWorldId).map(group => (
                 <button
                   key={group.id}
                   type="button"
-                  style={{ width: '100%', padding: '12px 16px', textAlign: 'left', borderRadius: '8px', background: 'rgba(0,0,0,0.03)', marginBottom: '8px', border: '1px solid rgba(0,0,0,0.05)', fontWeight: '500', fontSize: '14px', color: '#333' }}
+                  role="option"
+                  aria-selected={false}
+                  className="cm-list-item"
                   onClick={() => {
                     moveCharacterToWorld(activeMoveChar.id, group.id);
                     setActiveMoveChar(null);
                   }}
-                  role="option"
                 >
-                  {group.name}
+                  <span>{group.name}</span>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M9 6l6 6-6 6" /></svg>
                 </button>
               ))}
-              {worldGroups.filter(g => g.id !== currentWorldId).length === 0 && (
-                <div style={{ padding: '20px', textAlign: 'center', color: '#999' }}>没有其他卷宗可供转移</div>
-              )}
             </div>
-            <div className="modal-footer" data-ui="modal-footer" style={{ padding: '10px 20px 20px' }}>
-              <button className="ui-btn ui-btn-outline" style={{ width: '100%' }} onClick={() => setActiveMoveChar(null)}>取消</button>
-            </div>
-          </div>
-        </div>
+          )}
+        </CSheet>
       )}
     </>
   );
@@ -1789,6 +1768,7 @@ function CharArchiveView({
   onExportPng,
   onNotice = () => { },
   dummy,
+  relations = [],
 }: {
   char: Character;
   isEditing?: boolean;
@@ -1803,10 +1783,12 @@ function CharArchiveView({
   onExportPng: () => Promise<void>;
   onNotice?: (text: string) => void;
   dummy?: boolean;
+  relations?: { name: string; label: string }[];
 }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [showUnsavedConfirm, setShowUnsavedConfirm] = useState<"back" | "cancel" | null>(null);
   const [showSaveVersionConfirm, setShowSaveVersionConfirm] = useState(false);
+  const [saveVersionMode, setSaveVersionMode] = useState<"backup" | "overwrite">("backup");
   const [showVersions, setShowVersions] = useState(false);
   const [versions, setVersions] = useState<CharacterVersion[]>([]);
   const [restoreTarget, setRestoreTarget] = useState<CharacterVersion | null>(null);
@@ -1827,6 +1809,7 @@ function CharArchiveView({
   const [urlInput, setUrlInput] = useState("");
   const [avatarBusy, setAvatarBusy] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const cbRef = useRef<HTMLDivElement>(null);
 
   // Send mascot page context (on mount + field changes)
   useEffect(() => {
@@ -1962,6 +1945,7 @@ function CharArchiveView({
 
   function handleSave() {
     if (isExisting) {
+      setSaveVersionMode("backup");
       setShowSaveVersionConfirm(true);
     } else {
       commitSave(false);
@@ -2034,433 +2018,406 @@ function CharArchiveView({
     setShowTimeZonePicker(false);
   }
 
+  const completeness = archiveCompleteness(char);
+  const signatureLine = (briefPersona || persona || char.briefPersona || char.persona || "").trim().split("\n")[0] || "还没有签名";
+  const updatedLabel = char.updatedAt ? char.updatedAt.slice(0, 10).replace(/-/g, "/") : "—";
+  const railName = name.trim() || char.name || "未命名";
+
+  function scrollToSection(section: "top" | "soul" | "relations") {
+    const root = cbRef.current;
+    if (!root) return;
+    if (section === "top") {
+      root.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
+    const target = root.querySelector<HTMLElement>(`[data-sec="${section}"]`);
+    if (target) root.scrollTo({ top: Math.max(0, target.offsetTop - root.offsetTop - 8), behavior: "smooth" });
+  }
+
+  const editTextStyle: React.CSSProperties = {
+    width: "100%",
+    marginTop: 2,
+  };
+
   const archiveFrame = (
-      <div className="char-archive-frame">
-        <div className="char-archive-stamp">CLASSIFIED</div>
-
-        <div className="char-archive-header">
-          <div>
-            <div className="char-archive-title">{isEditing ? "EDITING ARCHIVE" : "ARCHIVAL\nINFORMATION"}</div>
-            <div className="char-archive-subtitle">THE INTELLIGENCE DATABASE</div>
-          </div>
-          <div className="char-archive-id">ID: {char.id.slice(0, 8).toUpperCase()}</div>
+    <div className={`profile-app${dummy ? " dummy" : ""}`}>
+      <div className="rail">
+        <button type="button" className="mn" onClick={handleBack} aria-label="返回角色列表">
+          <svg className="ic" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6" /></svg>
+        </button>
+        <div
+          className={`av${isEditing ? " editable" : ""}`}
+          role={isEditing ? "button" : undefined}
+          tabIndex={isEditing ? 0 : undefined}
+          aria-label={isEditing ? "更换头像" : undefined}
+          onClick={() => {
+            if (isEditing && !avatarBusy) fileRef.current?.click();
+          }}
+        >
+          {avatar ? <img src={avatar} alt="Avatar" /> : (railName || "U").slice(0, 1)}
+          {isEditing && (
+            <span className="av-mask"><IconCamera size={14} /></span>
+          )}
         </div>
+        <div className="hd">@{railName}</div>
+        <button type="button" className="ri" onClick={() => scrollToSection("top")}>
+          <span className="pl">档案</span>
+          <svg className="ic" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" /></svg>
+        </button>
+        <button type="button" className="ri" onClick={() => scrollToSection("soul")}>
+          <span>设定</span>
+          <svg className="ic" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" /></svg>
+        </button>
+        <button type="button" className="ri" onClick={() => scrollToSection("relations")}>
+          <span>关系</span>
+          <svg className="ic" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" /></svg>
+        </button>
+        <div className="ri"><span>世界书</span><svg className="ic" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" /></svg></div>
+        <div className="ri"><span>声音</span><svg className="ic" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" /></svg></div>
+        <div className="ri"><span>记忆</span><svg className="ic" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" /></svg></div>
+        <div className="ri"><span>更多</span><svg className="ic" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" /></svg></div>
+        {!dummy && (
+          <button type="button" className="ex" onClick={onExportPng} aria-label="导出档案图片" title="导出图片">
+            <svg className="ic" viewBox="0 0 24 24"><path d="M10 5H6.5A2 2 0 004.5 7v10a2 2 0 002 2H10M14 8l4 4-4 4M18 12H9" /></svg>
+          </button>
+        )}
+      </div>
 
-        <div className="char-archive-body">
-          <div className="char-archive-left">
-            <div
-              className="char-archive-photo relative"
-              style={{ cursor: avatarBusy ? "wait" : isEditing ? "pointer" : "default" }}
-              onClick={() => {
-                if (isEditing && !avatarBusy) {
-                  fileRef.current?.click();
-                }
-              }}
-            >
-              {avatar ? (
-                <img src={avatar} alt="Avatar" />
-              ) : (
-                <CharAvatarFallback name={name || char.name} size="100%" />
-              )}
-              {isEditing && (
-                <div className="absolute inset-0 bg-black/30 flex flex-col items-center justify-center pointer-events-none text-white">
-                  <IconCamera size={24} />
-                  <span className="ts-10 mt-1">{avatarBusy ? "Optimizing..." : "Change Photo"}</span>
-                </div>
-              )}
-            </div>
-
-            <input
-              ref={fileRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              disabled={avatarBusy}
-              onChange={async (e) => {
-                const file = e.target.files?.[0];
-                if (file) await handleAvatarFile(file);
-                e.target.value = "";
-              }}
-            />
-            {isEditing && (
-              <div className="mt-2 flex flex-col gap-1 w-full justify-center">
-                <button
-                  className="ts-10 px-3 py-1 bg-[#111111] text-white border-none rounded-full cursor-pointer hover:bg-[#222222] transition-colors"
-                  onClick={() => setShowUrlInput((v) => !v)}
-                >
-                  Use IMG URL
-                </button>
-                {showUrlInput && (
-                  <div className="flex gap-1 mt-1">
-                    <input
-                      className="flex-1 ts-10 p-1 border border-[var(--c-input-border)] rounded w-full min-w-0"
-                      placeholder="Image URL..."
-                      value={urlInput}
-                      onChange={(e) => setUrlInput(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") handleAvatarUrl();
-                      }}
-                    />
-                    <button
-                      className="ts-10 px-2 py-1 bg-[#444] text-white border-none rounded cursor-pointer"
-                      onClick={handleAvatarUrl}
-                    >OK</button>
-                  </div>
-                )}
-              </div>
+      <div className="card">
+        <div className="ch">
+          <b>角色档案</b>
+          <span className="ch-actions">
+            {!isEditing && !dummy && isExisting && (
+              <button type="button" className="ch-btn" onClick={openVersionHistory} aria-label="历史版本" title="历史版本">
+                <History size={16} />
+              </button>
             )}
-          </div>
-          <div className="char-archive-right flex-1 flex flex-col">
-
-            {/* Name Box moved to the top of Right Column */}
-            <div className="char-archive-name-box flex-1 flex flex-col justify-center text-left border-b border-[var(--c-panel-border)]" style={{ padding: "4px 6px 8px 6px" }}>
-              <span className="ts-8 text-[var(--c-text)] font-mono block mb-0.5">TARGET NAME / CODENAME</span>
-              {isEditing ? (
-                <input
-                  className="char-archive-input ts-20 font-black w-full text-left bg-[var(--c-input)]/50 border border-dashed border-[#666] font-inherit tracking-[1px]"
-                  placeholder="Name or Codename"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  style={{
-                    padding: "2px 4px",
-                  }}
-                />
-              ) : (
-                <h2 className="whitespace-pre-wrap break-words ts-20 font-black m-0 tracking-[1px]">
-                  {name || "UNNAMED"}
-                </h2>
-              )}
-            </div>
-
-            <div className="char-archive-row">
-              <div className="char-archive-cell" style={{ flex: 0.8 }}>
-                <span className="char-archive-label">Status</span>
-                <span className="char-archive-val">{isEditing ? "EDITING" : "ACTIVE"}</span>
-              </div>
-              <div className="char-archive-cell" style={{ flex: 1.5 }}>
-                <span className="char-archive-label">WeChat</span>
-                <span className="char-archive-val select-text cursor-text tracking-[-0.5px]">
-                  {char.wechatID || "N/A"}
-                </span>
-              </div>
-              <div className="char-archive-cell" style={{ flex: 1.1 }}>
-                <span className="char-archive-label">Update</span>
-                <span className="char-archive-val">{char.updatedAt ? char.updatedAt.slice(0, 10).replace(/-/g, "/") : "N/A"}</span>
-              </div>
-            </div>
-
-          </div>
+            {!isEditing && !dummy && (
+              <button type="button" className="ch-btn" onClick={onEdit} aria-label="编辑角色卡" title="编辑">
+                <IconEdit />
+              </button>
+            )}
+          </span>
         </div>
 
-        <div className="char-archive-row">
-          <div className="char-archive-cell" style={{ flex: 1.8 }}>
-            <span className="char-archive-label">Tags</span>
-            <div className="flex flex-wrap gap-2">
-              {tags.map((t, i) => (
-                <div key={i} className="char-archive-tag">
-                  {t}
-                  {isEditing && (
-                    <button
-                      onClick={() => setTags(tags.filter((_, idx) => idx !== i))}
-                      className="bg-none border-none ml-1 cursor-pointer opacity-60 ts-12 p-0"
-                    >×</button>
-                  )}
-                </div>
-              ))}
-              {tags.length === 0 && !isEditing && (
-                <span className="char-archive-val opacity-50">N/A</span>
-              )}
-              {isEditing && (
-                <div className="flex gap-1 w-full mt-1">
+        <div className="cb" ref={cbRef}>
+          {isEditing && !dummy && (
+            <div className="photo-tools">
+              <button type="button" className="btn" onClick={() => fileRef.current?.click()}>更换头像</button>
+              <button type="button" className="btn" onClick={() => setShowUrlInput(v => !v)}>图片链接</button>
+              {showUrlInput && (
+                <>
                   <input
-                    className="char-archive-tag-input flex-1 min-w-0"
-                    value={tagInput}
-                    onChange={e => setTagInput(e.target.value)}
-                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddTag(); } }}
-                    placeholder="Add tag..."
+                    className="photo-url"
+                    placeholder="https://…"
+                    value={urlInput}
+                    onChange={e => setUrlInput(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleAvatarUrl();
+                      }
+                    }}
                   />
-                  <button onClick={handleAddTag} className="bg-[#4a3f2f] text-white border-none rounded-[2px] px-2 ts-10 cursor-pointer">ADD</button>
-                </div>
+                  <button type="button" className="btn k" onClick={handleAvatarUrl}>确定</button>
+                </>
               )}
             </div>
-          </div>
-          <div className="char-archive-cell" style={{ flex: 1.2 }}>
-            <span className="char-archive-label">Timezone</span>
-            {isEditing ? (
-              <div className="char-timezone-picker">
-                <button
-                  type="button"
-                  className="char-timezone-trigger"
-                  onClick={openTimeZonePicker}
-                >
-                  {timeZone || "SYSTEM"}
-                </button>
-              </div>
-            ) : (
-              <span className="char-archive-val">{timeZone || "SYSTEM"}</span>
-            )}
-          </div>
-        </div>
+          )}
 
-        {/* Persona Section (Full Width) */}
-        <div className="char-archive-text-section border-b-0">
-          <div className="char-log-entry mb-4">
-            <div className="char-log-entry-header">
-              <span>PERSONA / TRAITS</span>
-            </div>
-            {isEditing ? (
-              <AutoResizingTextarea
-                value={persona}
-                onChange={setPersona}
-                placeholder="Describe background, personality..."
-                minHeight={120}
-                style={{
-                  width: "100%", background: "color-mix(in srgb, var(--c-input) 50%, transparent)",
-                  border: "1px dashed #666", padding: 8, fontSize: "calc(12px*var(--app-text-scale,1))", lineHeight: 1.5,
-                  fontFamily: "inherit", marginTop: 8
+          <div className="meter">
+            档案完整度
+            <div><i style={{ width: `${completeness}%` }} /></div>
+            <b>{completeness}%</b>
+          </div>
+
+          <div className="lab">TAGS · 标签</div>
+          <div className="tgs">
+            {tags.map((t, i) => (
+              <span className="tg" key={`${t}-${i}`}>
+                {t}
+                {isEditing && !dummy ? (
+                  <button
+                    type="button"
+                    className="tag-x"
+                    onClick={() => setTags(tags.filter((_, idx) => idx !== i))}
+                    aria-label={`删除标签 ${t}`}
+                  >×</button>
+                ) : <i>×</i>}
+              </span>
+            ))}
+            {isEditing && !dummy ? (
+              <input
+                className="tg-input"
+                value={tagInput}
+                onChange={e => setTagInput(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleAddTag();
+                  }
                 }}
+                placeholder="＋ 添加"
+                aria-label="添加标签"
               />
             ) : (
-              <p className="char-archive-p whitespace-pre-wrap break-words">{personaText}</p>
+              <button type="button" className="tg add" onClick={dummy ? undefined : onEdit}>＋ 添加</button>
             )}
           </div>
 
-          {/* Personality — shown when editing or when has content */}
-          {(isEditing || personality.trim()) && (
-            <div className="char-log-entry mb-4 border-t border-dashed border-[#999] pt-3">
-              <div className="char-log-entry-header">
-                <span>PERSONALITY</span>
-              </div>
-              {isEditing ? (
-                <AutoResizingTextarea
-                  value={personality}
-                  onChange={setPersonality}
-                  placeholder="Character personality traits..."
-                  minHeight={60}
-                  style={{
-                    width: "100%", background: "color-mix(in srgb, var(--c-input) 50%, transparent)",
-                    border: "1px dashed #666", padding: 8, fontSize: "calc(12px*var(--app-text-scale,1))", lineHeight: 1.5,
-                    fontFamily: "inherit", marginTop: 8
-                  }}
-                />
-              ) : (
-                <p className="char-archive-p whitespace-pre-wrap break-words">{personality}</p>
-              )}
-            </div>
+          {!isEditing && (
+            <>
+              <div className="qt">个性签名</div>
+              <div className="qs">{signatureLine}</div>
+            </>
           )}
 
-          {/* 简量人设 — 注入到同世界有关系角色的上下文，防对方 OOC */}
-          {(isEditing || briefPersona.trim()) && (
-            <div className="char-log-entry mb-4 border-t border-dashed border-[#999] pt-3">
-              <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
-                <span className="char-log-entry-header !mb-0">BRIEF PERSONA / 简量人设</span>
-                {isEditing && (
-                  <button
-                    className="ts-10 px-3 py-1 bg-[#111111] text-white border-none rounded-full cursor-pointer disabled:opacity-50 hover:bg-[#222222] transition-colors"
-                    disabled={briefBusy}
-                    onClick={handleGenerateBrief}
-                  >
-                    {briefBusy ? "生成中…" : briefPersona.trim() ? "重新生成" : "AI 生成"}
-                  </button>
-                )}
-              </div>
-              <p className="ts-10 opacity-60 mt-1">
-                会注入给同世界与 TA 有关系的角色，帮助对方提到 TA 时不 OOC。
-                {!isEditing && isBriefPersonaStale(char) ? " ⚠ 设定已更新，建议重新生成简介。" : ""}
-              </p>
-              {briefError && <p className="ts-10 mt-1" style={{ color: "#b4233b" }}>{briefError}</p>}
-              {isEditing ? (
-                <AutoResizingTextarea
-                  value={briefPersona}
-                  onChange={setBriefPersona}
-                  placeholder="点「AI 生成」自动压缩人设，或手写 100~200 字简介…"
-                  minHeight={60}
-                  style={{
-                    width: "100%", background: "color-mix(in srgb, var(--c-input) 50%, transparent)",
-                    border: "1px dashed #666", padding: 8, fontSize: "calc(12px*var(--app-text-scale,1))", lineHeight: 1.5,
-                    fontFamily: "inherit", marginTop: 8
-                  }}
-                />
-              ) : (
-                <p className="char-archive-p whitespace-pre-wrap break-words">{briefPersona}</p>
-              )}
-            </div>
-          )}
+          <div className="sh"><i>×</i><b>ABOUT ME</b></div>
+          <div className="sl">基本信息</div>
+          <div className="ln">
+            <span>网名</span>
+            {isEditing ? (
+              <input
+                className="ln-input"
+                value={name}
+                onChange={e => setName(e.target.value)}
+                placeholder="角色名字"
+                aria-label="角色网名"
+              />
+            ) : (name || char.name || "未命名")}
+          </div>
+          <div className="ln"><span>微信号</span>{char.wechatID || "未绑定"}</div>
+          <div className="ln">
+            <span>时区</span>
+            {isEditing ? (
+              <button type="button" className="ln-chip" onClick={openTimeZonePicker}>{timeZone || "跟随系统"}</button>
+            ) : (timeZone || "跟随系统")}
+          </div>
+          <div className="ln"><span>更新</span>{updatedLabel}</div>
 
-        </div>
-
-        <div className="char-archive-actions">
-          {!dummy && confirmDelete ? (
-            <div className="char-confirm-row">
-              <span className="char-confirm-text">CONFIRM DELETE?</span>
-              <button className="char-confirm-yes" onClick={onDelete}>YES</button>
-              <button className="char-confirm-no" onClick={() => setConfirmDelete(false)}>NO</button>
-            </div>
+          <div className="sh"><i>×</i><b>PERSONALITY</b></div>
+          <div className="sl">角色性格</div>
+          {isEditing ? (
+            <AutoResizingTextarea
+              className="ta"
+              value={personality}
+              onChange={setPersonality}
+              placeholder="角色性格、说话习惯…"
+              minHeight={84}
+              style={editTextStyle}
+            />
+          ) : personality.trim() ? (
+            <div className="ln">{personality}</div>
           ) : (
-            !dummy && isEditing ? (
-              <>
-                <button className="char-archive-btn char-archive-btn-danger" onClick={() => { if (isDirty()) { setShowUnsavedConfirm("cancel"); } else { onCancelEdit?.(); } }}>CANCEL</button>
-                <button className="char-archive-btn bg-[var(--c-text)] text-[var(--c-page-body-bg)] border-[var(--c-input-border)]" onClick={handleSave}>SAVE</button>
-              </>
-            ) : !dummy && !isEditing ? (
-              <>
-                <button className="char-archive-btn" onClick={onExportPng}>EXPORT IMG</button>
-                <button className="char-archive-btn" onClick={onExportJson}>EXPORT JSON</button>
-                <button className="char-archive-btn char-archive-btn-danger" onClick={() => setConfirmDelete(true)}>DELETE</button>
-              </>
-            ) : null
+            <div className="ln muted">还没有填写</div>
+          )}
+
+          <div data-sec="soul">
+            <div className="sh sec-row">
+              <span className="sec-title"><i>×</i><b>BRIEF PERSONA</b></span>
+              {isEditing && (
+                <button type="button" className="btn" disabled={briefBusy} onClick={handleGenerateBrief}>
+                  {briefBusy ? "生成中…" : briefPersona.trim() ? "重新生成" : "AI 生成"}
+                </button>
+              )}
+            </div>
+            <div className="sl">简量人设</div>
+            {!isEditing && isBriefPersonaStale(char) && (
+              <div className="hint" style={{ margin: "0 0 8px 25px" }}>⚠ 设定已更新，建议重新生成简介。</div>
+            )}
+            {briefError && <div className="hint" style={{ margin: "0 0 8px 25px", color: "#b4233b" }}>{briefError}</div>}
+            {isEditing ? (
+              <AutoResizingTextarea
+                className="ta"
+                value={briefPersona}
+                onChange={setBriefPersona}
+                placeholder="点「AI 生成」自动压缩人设，或手写 100~200 字简介…"
+                minHeight={96}
+                style={editTextStyle}
+              />
+            ) : briefPersona.trim() ? (
+              <div className="ln">{briefPersona}</div>
+            ) : (
+              <div className="ln muted">还没有填写</div>
+            )}
+          </div>
+
+          <div data-sec="relations">
+            <div className="sh"><i>×</i><b>RELATIONSHIPS</b></div>
+            <div className="sl">关系网 · {relations.length} 位</div>
+            {relations.length > 0 ? (
+              <div className="ln">{relations.map(r => `${r.name} · ${r.label}`).join("\n")}</div>
+            ) : (
+              <div className="ln muted">还没有建立关系</div>
+            )}
+          </div>
+
+          <div className="sh"><i>×</i><b>PERSONA</b></div>
+          <div className="sl">人物设定</div>
+          {isEditing ? (
+            <AutoResizingTextarea
+              className="ta"
+              value={persona}
+              onChange={setPersona}
+              placeholder="描述背景、性格、说话方式…"
+              minHeight={150}
+              style={editTextStyle}
+            />
+          ) : (
+            <div className="ln">{persona.trim() ? persona : "NO DATA AVAILABLE."}</div>
           )}
         </div>
+
+        {!dummy && (
+          <div className="card-foot">
+            {confirmDelete ? (
+              <div className="confirm-row">
+                <span>确定删除这份档案？</span>
+                <button type="button" className="btn danger" onClick={onDelete}>删除</button>
+                <button type="button" className="btn" onClick={() => setConfirmDelete(false)}>取消</button>
+              </div>
+            ) : isEditing ? (
+              <>
+                <button
+                  type="button"
+                  className="btn grow"
+                  onClick={() => {
+                    if (isDirty()) setShowUnsavedConfirm("cancel");
+                    else onCancelEdit?.();
+                  }}
+                >取消</button>
+                <button type="button" className="btn k grow" onClick={handleSave}>保存</button>
+              </>
+            ) : (
+              <>
+                <button type="button" className="btn grow" onClick={onExportJson}>导出 JSON</button>
+                <button type="button" className="btn danger" onClick={() => setConfirmDelete(true)}>删除</button>
+              </>
+            )}
+          </div>
+        )}
       </div>
+
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        disabled={avatarBusy}
+        onChange={async (e) => {
+          const file = e.target.files?.[0];
+          if (file) await handleAvatarFile(file);
+          e.target.value = "";
+        }}
+      />
+    </div>
   );
 
   if (dummy) {
-    return (
-      <div className="char-archive-view" style={{ pointerEvents: "none" }}>
-        {archiveFrame}
-      </div>
-    );
+    return <div style={{ pointerEvents: "none" }}>{archiveFrame}</div>;
   }
 
   return (
-    <PageShell
-      title=""
-      onBack={handleBack}
-      className="bg-[var(--c-page-body-bg)]"
-      rightAction={!isEditing ? (
-        <div className="flex items-center gap-2">
-          {isExisting && (
-            <button
-              className="char-action-btn"
-              onClick={openVersionHistory}
-              aria-label="角色卡历史版本"
-              title="历史版本"
-            >
-              <History size={19} />
-            </button>
-          )}
-          <button className="char-action-btn" onClick={onEdit} aria-label="编辑角色卡">
-            <IconEdit />
-          </button>
-        </div>
-      ) : undefined}
-    >
+    <>
       {archiveFrame}
 
       {showSaveVersionConfirm && (
-        <div className="fixed inset-0 z-[10020] flex items-center justify-center bg-black/45 px-5" role="dialog" aria-modal="true" aria-label="保存角色卡">
-          <div className="w-full max-w-sm rounded-2xl border border-[var(--c-panel-border)] bg-[var(--c-page-body-bg)] p-5 text-[var(--c-text)] shadow-2xl">
-            <div className="text-base font-bold">保存角色卡</div>
-            <p className="mt-2 ts-12 leading-relaxed opacity-75">
-              当前是 V{getCharacterCurrentVersion(char.id)}。你可以先保存修改前的旧卡，也可以覆盖当前版本。
-            </p>
-            <div className="mt-4 flex flex-col gap-2">
-              <button
-                type="button"
-                className="rounded-xl bg-[var(--c-text)] px-4 py-3 font-semibold text-[var(--c-page-body-bg)]"
-                onClick={() => {
-                  setShowSaveVersionConfirm(false);
-                  commitSave(true);
-                }}
-              >
-                备份旧卡并保存为 V{getCharacterNextVersion(char.id)}
-              </button>
-              <button
-                type="button"
-                className="rounded-xl border border-[var(--c-panel-border)] px-4 py-3 font-semibold"
-                onClick={() => {
-                  setShowSaveVersionConfirm(false);
-                  commitSave(false);
-                }}
-              >
-                覆盖当前版本
-              </button>
-              <button
-                type="button"
-                className="px-4 py-2 opacity-65"
-                onClick={() => setShowSaveVersionConfirm(false)}
-              >
-                取消
-              </button>
-            </div>
+        <CConfirm
+          title="保存角色卡"
+          message={`当前是 V${getCharacterCurrentVersion(char.id)}。先选一种保存方式：`}
+          cancelLabel="取消"
+          confirmLabel="保存"
+          onCancel={() => setShowSaveVersionConfirm(false)}
+          onConfirm={() => {
+            setShowSaveVersionConfirm(false);
+            commitSave(saveVersionMode === "backup");
+          }}
+        >
+          <div className="cf-choice" role="radiogroup" aria-label="保存方式">
+            <button
+              type="button"
+              role="radio"
+              aria-checked={saveVersionMode === "backup"}
+              className={saveVersionMode === "backup" ? "on" : ""}
+              onClick={() => setSaveVersionMode("backup")}
+            >
+              <i />
+              备份旧卡并保存为 V{getCharacterNextVersion(char.id)}
+            </button>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={saveVersionMode === "overwrite"}
+              className={saveVersionMode === "overwrite" ? "on" : ""}
+              onClick={() => setSaveVersionMode("overwrite")}
+            >
+              <i />
+              覆盖当前版本 V{getCharacterCurrentVersion(char.id)}
+            </button>
           </div>
-        </div>
+        </CConfirm>
       )}
 
       {showVersions && (
-        <div
-          className="fixed inset-0 z-[10020] flex items-end justify-center bg-black/45 sm:items-center sm:px-5"
-          role="dialog"
-          aria-modal="true"
-          aria-label="角色卡历史版本"
-          onPointerDown={(event) => {
-            if (event.target === event.currentTarget) setShowVersions(false);
-          }}
+        <CSheet
+          eyebrow="VERSION HISTORY"
+          title="历史版本"
+          ariaLabel="角色卡历史版本"
+          onClose={() => setShowVersions(false)}
+          footer={{ label: "关闭", onClick: () => setShowVersions(false) }}
         >
-          <div className="max-h-[78vh] w-full max-w-md overflow-hidden rounded-t-2xl border border-[var(--c-panel-border)] bg-[var(--c-page-body-bg)] text-[var(--c-text)] shadow-2xl sm:rounded-2xl">
-            <div className="flex items-center justify-between border-b border-[var(--c-panel-border)] px-5 py-4">
-              <div>
-                <div className="font-bold">历史版本</div>
-                <div className="mt-0.5 ts-10 opacity-60">当前生效：V{getCharacterCurrentVersion(char.id)}</div>
-              </div>
-              <button type="button" className="px-2 py-1 font-semibold" onClick={() => setShowVersions(false)}>关闭</button>
-            </div>
-            <div className="max-h-[62vh] overflow-y-auto p-4">
-              {versions.length === 0 ? (
-                <div className="py-10 text-center ts-12 opacity-60">还没有历史版本。编辑保存或由小卷修改后会自动生成。</div>
-              ) : (
-                <div className="flex flex-col gap-3">
-                  {versions.map((version) => (
-                    <div key={version.id} className="rounded-xl border border-[var(--c-panel-border)] p-4">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <div className="font-bold">V{version.version}</div>
-                          <div className="mt-1 ts-10 opacity-65">{version.label}</div>
-                          <div className="mt-1 ts-10 opacity-50">{new Date(version.createdAt).toLocaleString()}</div>
-                        </div>
-                        {getCharacterCurrentVersion(char.id) === version.version && (
-                          <span className="shrink-0 rounded-full border border-[var(--c-panel-border)] px-2 py-1 ts-10">当前</span>
-                        )}
-                      </div>
-                      <div className="mt-3 rounded-lg bg-black/5 p-3 ts-11 dark:bg-white/5">
-                        <div className="font-semibold">{version.data.name || "未命名角色"}</div>
-                        <div className="mt-1 line-clamp-3 whitespace-pre-wrap opacity-65">
-                          {version.data.persona || version.data.personality || "（无角色设定）"}
-                        </div>
-                      </div>
-                      <div className="mt-3 flex gap-2">
-                        <button
-                          type="button"
-                          className="flex-1 rounded-lg bg-[var(--c-text)] px-3 py-2 ts-12 font-semibold text-[var(--c-page-body-bg)] disabled:opacity-40"
-                          disabled={getCharacterCurrentVersion(char.id) === version.version}
-                          onClick={() => setRestoreTarget(version)}
-                        >
-                          切换到 V{version.version}
-                        </button>
-                        <button
-                          type="button"
-                          className="rounded-lg border border-red-400/60 px-3 py-2 ts-12 text-red-600"
-                          onClick={() => setDeleteVersionTarget(version)}
-                        >
-                          删除
-                        </button>
+          <p className="cm-lede">当前生效：V{getCharacterCurrentVersion(char.id)}。编辑保存或由小卷修改后会自动生成新版本。</p>
+          {versions.length === 0 ? (
+            <p className="cm-empty">还没有历史版本。</p>
+          ) : (
+            <div className="cm-ver-list">
+              {versions.map((version) => {
+                const isCurrent = getCharacterCurrentVersion(char.id) === version.version;
+                return (
+                  <div key={version.id} className="cm-ver">
+                    <div className="cm-ver-no">
+                      V{version.version}
+                      {isCurrent && <span className="cm-ver-current">当前</span>}
+                    </div>
+                    <div className="cm-ver-label">{version.label}</div>
+                    <div className="cm-ver-time">{new Date(version.createdAt).toLocaleString()}</div>
+                    <div className="cm-ver-snippet">
+                      <div className="cm-ver-name">{version.data.name || "未命名角色"}</div>
+                      <div className="cm-ver-bio">
+                        {version.data.persona || version.data.personality || "（无角色设定）"}
                       </div>
                     </div>
-                  ))}
-                </div>
-              )}
+                    <div className="cm-ver-actions">
+                      <button
+                        type="button"
+                        className="cm-ver-restore"
+                        disabled={isCurrent}
+                        onClick={() => setRestoreTarget(version)}
+                      >
+                        切换到 V{version.version}
+                      </button>
+                      <button
+                        type="button"
+                        className="cm-chip-btn"
+                        onClick={() => setDeleteVersionTarget(version)}
+                      >
+                        删除
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-          </div>
-        </div>
+          )}
+        </CSheet>
       )}
 
       {restoreTarget && (
-        <ConfirmDialog
+        <CConfirm
           title={`切换到 V${restoreTarget.version}？`}
           message="当前角色卡会切换为该快照。切走前会同步保存当前版本，切换本身不会创建新版本号。"
-          icon={History}
-          confirmLabel="确认切换"
           cancelLabel="取消"
+          confirmLabel="确认切换"
           onConfirm={() => {
             const target = restoreTarget;
             setRestoreTarget(null);
@@ -2472,89 +2429,80 @@ function CharArchiveView({
       )}
 
       {deleteVersionTarget && (
-        <ConfirmDialog
+        <CConfirm
           title={`删除 V${deleteVersionTarget.version}？`}
-          message="此历史快照删除后无法恢复，不会删除当前角色卡。"
-          icon={AlertCircle}
-          variant="danger"
-          confirmLabel="删除版本"
+          message={`这个历史快照会被永久删除，之后无法再切回 V${deleteVersionTarget.version}；当前角色卡不受影响。`}
           cancelLabel="取消"
+          confirmLabel="删除"
           onConfirm={() => removeVersion(deleteVersionTarget)}
           onCancel={() => setDeleteVersionTarget(null)}
         />
       )}
 
       {isEditing && showTimeZonePicker && (
-        <div
-          className="char-timezone-sheet-backdrop"
-          onPointerDown={e => {
-            if (e.target === e.currentTarget) closeTimeZonePicker();
-          }}
+        <CSheet
+          eyebrow="TIMEZONE"
+          title="选择时区"
+          ariaLabel="选择时区"
+          onClose={closeTimeZonePicker}
+          footer={{ label: "完成", onClick: applyTimeZoneSearch }}
         >
-          <div className="char-timezone-sheet" role="dialog" aria-modal="true" aria-label="Timezone">
-            <div className="char-timezone-sheet-header">
-              <span>TIMEZONE</span>
-              <button type="button" onClick={closeTimeZonePicker}>CLOSE</button>
-            </div>
-            <input
-              className="char-timezone-search"
-              value={timeZoneSearch}
-              onChange={e => setTimeZoneSearch(e.target.value)}
-              onKeyDown={e => {
-                if (e.key === "Escape") {
-                  closeTimeZonePicker();
-                } else if (e.key === "Enter") {
-                  e.preventDefault();
-                  if (filteredTimeZoneOptions[0]) selectTimeZoneOption(filteredTimeZoneOptions[0]);
-                  else applyTimeZoneSearch();
-                }
-              }}
-              placeholder="Asia/Shanghai"
-              spellCheck={false}
-              autoFocus
-            />
-            <div className="char-timezone-sheet-actions">
-              <button type="button" onClick={clearTimeZone}>SYSTEM</button>
-              <button type="button" onClick={applyTimeZoneSearch}>DONE</button>
-            </div>
-            <div className="char-timezone-options" role="listbox">
-              {filteredTimeZoneOptions.length > 0 ? (
-                <>
-                  {filteredTimeZoneOptions.map(option => (
-                    <button
-                      key={option}
-                      type="button"
-                      className="char-timezone-option"
-                      onClick={() => selectTimeZoneOption(option)}
-                      role="option"
-                      aria-selected={option === timeZone}
-                    >
-                      {option}
-                    </button>
-                  ))}
-                  {hasMoreTimeZoneOptions && (
-                    <div className="char-timezone-more">MORE RESULTS</div>
-                  )}
-                </>
-              ) : (
-                <div className="char-timezone-empty">NO MATCHES</div>
-              )}
-            </div>
+          <input
+            className="cm-input cm-tz-search"
+            value={timeZoneSearch}
+            onChange={e => setTimeZoneSearch(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === "Escape") {
+                closeTimeZonePicker();
+              } else if (e.key === "Enter") {
+                e.preventDefault();
+                if (filteredTimeZoneOptions[0]) selectTimeZoneOption(filteredTimeZoneOptions[0]);
+                else applyTimeZoneSearch();
+              }
+            }}
+            placeholder="Asia/Shanghai"
+            spellCheck={false}
+            autoFocus
+          />
+          <div className="cm-tz-system">
+            <button type="button" className="cm-text-btn" onClick={clearTimeZone}>使用系统时区</button>
           </div>
-        </div>
+          <div className="cm-list cm-tz-list" role="listbox">
+            {filteredTimeZoneOptions.length > 0 ? (
+              <>
+                {filteredTimeZoneOptions.map(option => (
+                  <button
+                    key={option}
+                    type="button"
+                    className={`cm-list-item ${option === timeZone ? "on" : ""}`}
+                    onClick={() => selectTimeZoneOption(option)}
+                    role="option"
+                    aria-selected={option === timeZone}
+                  >
+                    <span>{option}</span>
+                    {option === timeZone && <span className="cm-tz-check">✓</span>}
+                  </button>
+                ))}
+                {hasMoreTimeZoneOptions && (
+                  <div className="cm-empty">还有更多结果，输入可缩小范围。</div>
+                )}
+              </>
+            ) : (
+              <div className="cm-empty">没有匹配的时区。</div>
+            )}
+          </div>
+        </CSheet>
       )}
 
 
 
       {/* Unsaved changes confirmation dialog */}
       {showUnsavedConfirm && (
-        <ConfirmDialog
+        <CConfirm
           title="确定要放弃编辑吗？"
-          message="当前编辑内容尚未保存，离开后所有更改将丢失。"
-          icon={AlertCircle}
-          variant="danger"
-          confirmLabel="放弃更改"
+          message="当前编辑内容还没保存，离开后这次修改会全部丢失。"
           cancelLabel="继续编辑"
+          confirmLabel="放弃更改"
           onConfirm={() => {
             const action = showUnsavedConfirm;
             setShowUnsavedConfirm(null);
@@ -2564,7 +2512,7 @@ function CharArchiveView({
           onCancel={() => setShowUnsavedConfirm(null)}
         />
       )}
-    </PageShell>
+    </>
   );
 }
 
@@ -2597,12 +2545,14 @@ function AutoResizingTextarea({
   placeholder,
   style,
   minHeight = 60,
+  className,
 }: {
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
   style?: React.CSSProperties;
   minHeight?: number;
+  className?: string;
 }) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -2631,7 +2581,7 @@ function AutoResizingTextarea({
   return (
     <textarea
       ref={textareaRef}
-      className="resize-none overflow-hidden"
+      className={`resize-none overflow-hidden${className ? ` ${className}` : ""}`}
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
@@ -2739,30 +2689,11 @@ function IconBack() {
   );
 }
 
-function IconPlus() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-      <line x1="12" y1="5" x2="12" y2="19" />
-      <line x1="5" y1="12" x2="19" y2="12" />
-    </svg>
-  );
-}
-
 function IconEdit() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
       <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
       <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-    </svg>
-  );
-}
-
-function IconImport() {
-  return (
-    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-      <polyline points="7 10 12 15 17 10" />
-      <line x1="12" y1="15" x2="12" y2="3" />
     </svg>
   );
 }
@@ -2840,138 +2771,116 @@ function NpcGeneratorSheet({ characters, onClose, onConfirm }: {
     || results.some(r => !r.name.trim() || !r.persona.trim());
 
   return (
-    <div
-      className="wt-modal"
-      onClick={busy ? undefined : onClose}
+    <CSheet
+      eyebrow={results ? "REVIEW NPC" : "GENERATE NPC"}
+      title={results ? "预览生成的配角" : "生成配角"}
+      ariaLabel="生成配角"
+      onClose={onClose}
+      closeDisabled={busy}
+      footer={results ? {
+        label: results.length > 1 ? `确认创建 ${results.length} 位` : "确认创建",
+        disabled: confirmDisabled,
+        onClick: () => { if (results) onConfirm(results, targetId, allowAutoPost); },
+      } : {
+        label: busy ? "生成中…" : "生成",
+        disabled: busy || !targetId,
+        onClick: handleGenerate,
+      }}
     >
-      <div
-        className="wt-paper"
-        onClick={e => e.stopPropagation()}
-      >
-        <div className="wt-paper-tape" />
-        <div className="wt-paper-kicker text-center">
-          {results ? "REVIEW NPC" : "GENERATE NPC"}
-        </div>
-
-        {!results ? (
-          <div className="flex flex-col">
-            <label className="wt-paper-label">为哪位角色生成配角</label>
-            <select className="wt-paper-input" value={targetId} onChange={e => setTargetId(e.target.value)}>
-              {characters.map(c => (
-                <option key={c.id} value={c.id}>{c.name || "未命名角色"}</option>
-              ))}
-            </select>
-            <label className="wt-paper-label mt-2">生成数量</label>
-            <div className="flex gap-2">
-              {[1, 2, 3, 4, 5].map(n => (
-                <button
-                  key={n}
-                  type="button"
-                  className={`wt-btn flex-1 ${count === n ? "wt-btn-primary" : ""}`}
-                  onClick={() => setCount(n)}
-                >
-                  {n}
-                </button>
-              ))}
-            </div>
-            <label className="wt-paper-label mt-2">补充要求（可选）</label>
-            <textarea
-              className="wt-paper-textarea"
-              style={{ minHeight: 64 }}
-              placeholder="例如：生成一个损友 / 她的亲妹妹 / 暗恋她的学长…"
-              value={hint}
-              onChange={e => setHint(e.target.value)}
-            />
-            <p className="wt-paper-hint mt-1">会带上 TA 的核心记忆与相关长期记忆——记忆里提过的人是最好的配角素材。</p>
-            {error && <p className="wt-paper-confirm mt-2">{error}</p>}
-
-            <div className="wt-paper-actions mt-4">
-              <button className="wt-btn flex-1" onClick={onClose} disabled={busy}>取消</button>
+      {!results ? (
+        <div className="cm-form">
+          <label className="cm-label" htmlFor="npc-target">为哪位角色生成配角</label>
+          <select id="npc-target" className="cm-input" value={targetId} onChange={e => setTargetId(e.target.value)}>
+            {characters.map(c => (
+              <option key={c.id} value={c.id}>{c.name || "未命名角色"}</option>
+            ))}
+          </select>
+          <label className="cm-label">生成数量</label>
+          <div className="cm-seg">
+            {[1, 2, 3, 4, 5].map(n => (
               <button
-                className="wt-btn wt-btn-primary flex-1"
-                onClick={handleGenerate}
-                disabled={busy || !targetId}
+                key={n}
+                type="button"
+                className={count === n ? "on" : ""}
+                onClick={() => setCount(n)}
               >
-                {busy ? "生成中…" : "生成"}
+                {n}
               </button>
-            </div>
-            {characters.length === 0 && <p className="wt-paper-hint mt-2">还没有角色，先创建一位主角。</p>}
+            ))}
           </div>
-        ) : (
-          <div className="flex flex-col">
-            {results.map((result, index) => (
-              <div key={index} className={index > 0 ? "mt-4 pt-3" : ""} style={index > 0 ? { borderTop: "1px dashed #c9b98a" } : undefined}>
-                <div className="flex items-center">
-                  <span className="wt-paper-kicker" style={{ marginBottom: 0 }}>NPC {index + 1} / {results.length}</span>
-                  <span className="wt-paper-spacer" />
-                  {results.length > 1 && (
-                    <button type="button" className="wt-btn wt-btn-danger wt-btn-small" onClick={() => removeAt(index)}>
-                      移除
-                    </button>
-                  )}
+          <label className="cm-label" htmlFor="npc-hint">补充要求（可选）</label>
+          <textarea
+            id="npc-hint"
+            className="cm-textarea"
+            style={{ minHeight: 84 }}
+            placeholder="例如：生成一个损友 / 她的亲妹妹 / 暗恋她的学长…"
+            value={hint}
+            onChange={e => setHint(e.target.value)}
+          />
+          <p className="cm-hint">会带上 TA 的核心记忆与相关长期记忆——记忆里提过的人是最好的配角素材。</p>
+          {error && <p className="cm-error">{error}</p>}
+          {characters.length === 0 && <p className="cm-hint">还没有角色，先创建一位主角。</p>}
+        </div>
+      ) : (
+        <div className="cm-form">
+          {results.map((result, index) => (
+            <div key={index} className="cm-result">
+              <div className="cm-result-head">
+                <span className="cm-eyebrow">NPC {index + 1} / {results.length}</span>
+                {results.length > 1 && (
+                  <button type="button" className="cm-chip-btn" onClick={() => removeAt(index)}>
+                    移除
+                  </button>
+                )}
+              </div>
+
+              <label className="cm-label">名字</label>
+              <input className="cm-input" value={result.name} onChange={e => patchAt(index, { name: e.target.value })} />
+
+              <label className="cm-label">人设（完整角色卡）</label>
+              <textarea
+                className="cm-textarea"
+                style={{ minHeight: 120 }}
+                value={result.persona}
+                onChange={e => patchAt(index, { persona: e.target.value })}
+              />
+
+              <label className="cm-label">性格</label>
+              <input className="cm-input" value={result.personality} onChange={e => patchAt(index, { personality: e.target.value })} />
+
+              <label className="cm-label">简量人设（注入给同世界角色）</label>
+              <textarea
+                className="cm-textarea"
+                style={{ minHeight: 84 }}
+                value={result.briefPersona}
+                onChange={e => patchAt(index, { briefPersona: e.target.value })}
+              />
+
+              <div className="cm-pair">
+                <div>
+                  <label className="cm-label">TA 是{targetName}的</label>
+                  <input className="cm-input" value={result.relationLabel} onChange={e => patchAt(index, { relationLabel: e.target.value })} />
                 </div>
-
-                <label className="wt-paper-label mt-2">名字</label>
-                <input className="wt-paper-input" value={result.name} onChange={e => patchAt(index, { name: e.target.value })} />
-
-                <label className="wt-paper-label mt-2">人设（完整角色卡）</label>
-                <textarea
-                  className="wt-paper-textarea"
-                  style={{ minHeight: 120 }}
-                  value={result.persona}
-                  onChange={e => patchAt(index, { persona: e.target.value })}
-                />
-
-                <label className="wt-paper-label mt-2">性格</label>
-                <input className="wt-paper-input" value={result.personality} onChange={e => patchAt(index, { personality: e.target.value })} />
-
-                <label className="wt-paper-label mt-2">简量人设（注入给同世界角色）</label>
-                <textarea
-                  className="wt-paper-textarea"
-                  style={{ minHeight: 64 }}
-                  value={result.briefPersona}
-                  onChange={e => patchAt(index, { briefPersona: e.target.value })}
-                />
-
-                <div className="flex gap-2 mt-2">
-                  <div className="flex-1 flex flex-col">
-                    <label className="wt-paper-label">TA 是{targetName}的</label>
-                    <input className="wt-paper-input" value={result.relationLabel} onChange={e => patchAt(index, { relationLabel: e.target.value })} />
-                  </div>
-                  <div className="flex-1 flex flex-col">
-                    <label className="wt-paper-label">{targetName}是 TA 的</label>
-                    <input className="wt-paper-input" value={result.reverseRelationLabel} onChange={e => patchAt(index, { reverseRelationLabel: e.target.value })} />
-                  </div>
+                <div>
+                  <label className="cm-label">{targetName}是 TA 的</label>
+                  <input className="cm-input" value={result.reverseRelationLabel} onChange={e => patchAt(index, { reverseRelationLabel: e.target.value })} />
                 </div>
               </div>
-            ))}
-
-            <label className="flex items-center gap-2 mt-3 wt-paper-label" style={{ fontWeight: 'normal' }}>
-              <input type="checkbox" checked={allowAutoPost} onChange={e => setAllowAutoPost(e.target.checked)} />
-              加好友后允许自动发朋友圈（本批全部生效）
-            </label>
-
-            {error && <p className="wt-paper-confirm mt-2">{error}</p>}
-
-            <div className="wt-paper-actions mt-4">
-              <button className="wt-btn flex-1" onClick={handleGenerate} disabled={busy}>
-                {busy ? "生成中…" : "重新生成"}
-              </button>
-              <button
-                className="wt-btn wt-btn-primary flex-1"
-                disabled={confirmDisabled}
-                onClick={() => results && onConfirm(results, targetId, allowAutoPost)}
-              >
-                {results.length > 1 ? `确认创建 ${results.length} 位` : "确认创建"}
-              </button>
             </div>
+          ))}
 
-            <div className="flex mt-2">
-              <button className="wt-btn flex-1" onClick={onClose} disabled={busy}>取消</button>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
+          <label className="cm-check">
+            <input type="checkbox" checked={allowAutoPost} onChange={e => setAllowAutoPost(e.target.checked)} />
+            加好友后允许自动发朋友圈（本批全部生效）
+          </label>
+
+          {error && <p className="cm-error">{error}</p>}
+
+          <button type="button" className="cm-text-btn" onClick={handleGenerate} disabled={busy}>
+            {busy ? "生成中…" : "重新生成"}
+          </button>
+        </div>
+      )}
+    </CSheet>
   );
 }
