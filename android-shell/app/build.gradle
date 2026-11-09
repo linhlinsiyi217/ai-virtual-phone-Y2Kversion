@@ -9,7 +9,7 @@ plugins {
 def ksFile = System.getenv("SHELL_KEYSTORE_FILE")
 // 正式域名：可匿名访问、不带部署哈希。预览地址（...-<hash>-<user>.vercel.app）
 // 会被 Vercel 的部署保护拦成登录页，所以这里做一次兜底替换。
-def PRODUCTION_SITE = "https://ai-virtual-phone-y2-kversion-rwe1.vercel.app"
+def PRODUCTION_SITE = "https://ai-virtual-phone-y2-kversion-jeir.vercel.app"
 def rawSiteUrl = (System.getenv("SHELL_SITE_URL") ?: "").trim().replaceAll('/+$', '')
 def isPreviewUrl = rawSiteUrl ==~ /https:\/\/[A-Za-z0-9-]+-[a-z0-9]{6,}-[A-Za-z0-9-]+\.vercel\.app/
 def siteUrl = (rawSiteUrl && !isPreviewUrl) ? rawSiteUrl : PRODUCTION_SITE
