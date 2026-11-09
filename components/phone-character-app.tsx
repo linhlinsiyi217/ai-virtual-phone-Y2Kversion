@@ -34,6 +34,7 @@ import {
 } from "@/lib/character-world-storage";
 import { WorldCaseSheet, NewWorldSheet } from "@/components/character/world-tabs";
 import { RelationLinkDialog, RelationPairSheet } from "@/components/character/relation-dialogs";
+import { CSheet, CConfirm } from "@/components/character/modal-kit";
 import { loadMomentsConfig, saveMomentsConfig } from "@/lib/moments-storage";
 import type { CanvasBgItem } from "@/lib/character-types";
 import { ConfirmDialog } from "@/components/ui/modal";
@@ -1489,73 +1490,43 @@ function CharListView({
 
       {/* Style picker popup */}
       {showStylePicker && (
-        <div
-          className="absolute inset-0 bg-black/50 flex flex-col items-center justify-end pb-[120px] px-4"
-          style={{ zIndex: 9999999 }}
-          onClick={() => setShowStylePicker(false)}
+        <CSheet
+          eyebrow="SELECT FORMAT"
+          title="选择拍立得比例"
+          ariaLabel="选择拍立得比例"
+          onClose={() => setShowStylePicker(false)}
+          footer={{ label: "取消", onClick: () => setShowStylePicker(false) }}
         >
-          <div className="relative w-full max-w-[280px]" onClick={e => e.stopPropagation()}>
-            {/* Back paper layer */}
-            <div className="absolute rounded-[2px]" style={{
-              top: 6, left: 4, right: -6, bottom: -4,
-              background: '#ede7d9', border: '1px solid #cfc3a6',
-              transform: 'rotate(2.5deg)',
-              boxShadow: '3px 4px 10px rgba(0,0,0,0.18)'
-            }} />
-            {/* Main paper */}
-            <div
-              className="relative w-full rounded-[2px]"
-              style={{
-                background: '#f5f0e6',
-                padding: '18px 12px 14px',
-                boxShadow: '2px 3px 12px rgba(0,0,0,0.25), inset 0 0 30px rgba(139,119,80,0.08)',
-                border: '1px solid #d4c9a8',
-                fontFamily: '"Courier New", monospace',
-                transform: 'rotate(-1.5deg)'
-              }}
-            >
-              {/* tape decoration on top */}
-              <div className="absolute rounded-[1px]" style={{ top: -6, left: '50%', marginLeft: -18, width: 36, height: 12, background: 'rgba(255,255,255,0.55)', transform: 'rotate(1deg)' }} />
-              <div className="text-center ts-12 font-bold text-[#4a3f2f] mb-3 tracking-[1px] uppercase">Select Format</div>
-              <div className="flex gap-1.5 justify-center">
-                {[
-                  { label: '正方', cls: 'ratio-square' },
-                  { label: '竖版', cls: 'ratio-portrait' },
-                  { label: '横版', cls: 'ratio-landscape' },
-                  { label: '16:9', cls: 'ratio-16-9' },
-                  { label: '9:16', cls: 'ratio-9-16' },
-                ].map((style, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => {
-                      pendingStyleRef.current = idx;
-                      setShowStylePicker(false);
-                      if (pendingActionRef.current === 'import') {
-                        fileRef.current?.click();
-                      } else {
-                        onCreate(idx);
-                      }
-                    }}
-                    className="bg-none border-[1.5px] border-transparent rounded-[3px] cursor-pointer p-1 flex flex-col items-center gap-[3px]"
-                    style={{
-                      transition: 'border-color 0.15s, background 0.15s'
-                    }}
-                    onMouseEnter={e => { e.currentTarget.style.borderColor = '#8c7a5a'; e.currentTarget.style.background = 'rgba(140,122,90,0.08)'; }}
-                    onMouseLeave={e => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.background = 'none'; }}
-                  >
-                    <div
-                      className={`char-polaroid ${style.cls} w-9 pointer-events-none relative`}
-                      style={{ padding: '2px 2px 8px', boxShadow: '0 1px 2px rgba(0,0,0,0.12)' }}
-                    >
-                      <div className="char-polaroid-img-wrapper bg-[#ddd]" />
-                    </div>
-                    <div className="ts-9 text-[#6b5d47] font-semibold" style={{ fontFamily: 'inherit' }}>{style.label}</div>
-                  </button>
-                ))}
-              </div>
-            </div>
+          <div className="cm-grid cm-grid-ratio">
+            {[
+              { label: "正方", w: 64, h: 64 },
+              { label: "竖版", w: 48, h: 64 },
+              { label: "横版", w: 64, h: 48 },
+              { label: "16:9", w: 64, h: 36 },
+              { label: "9:16", w: 36, h: 64 },
+            ].map((style, idx) => (
+              <button
+                key={idx}
+                type="button"
+                className="cm-ratio"
+                onClick={() => {
+                  pendingStyleRef.current = idx;
+                  setShowStylePicker(false);
+                  if (pendingActionRef.current === "import") {
+                    fileRef.current?.click();
+                  } else {
+                    onCreate(idx);
+                  }
+                }}
+              >
+                <span className="cm-ratio-paper" style={{ width: style.w, height: style.h }}>
+                  <i />
+                </span>
+                <em>{style.label}</em>
+              </button>
+            ))}
           </div>
-        </div>
+        </CSheet>
       )}
 
       {/* Props picker popup */}
