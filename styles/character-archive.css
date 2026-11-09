@@ -247,3 +247,12 @@ body{padding:0;background:var(--c-input);color:var(--c-text-title);font-family:v
 .cm-list-item:active{transform:scale(.98);background:var(--g1);transition-duration:.09s}
 .cm-list-item svg{color:var(--ink3);flex:none}
 .cm-empty{margin:6px 0;padding:18px 0;text-align:center;color:var(--ink3);font-size:14px}
+/* 卷宗详情 / 新建卷宗表单 */
+.cm-label{display:block;margin:0 0 8px;font-size:11px;letter-spacing:.14em;color:var(--ink3)}
+.cm-label + .cm-input,.cm-label + .cm-textarea{margin-bottom:20px}
+.cm-input,.cm-textarea{width:100%;box-sizing:border-box;border:1px solid var(--line);border-radius:16px;background:#f6f6f8;color:#111;font:14px/1.6 var(--sans);padding:12px 14px;outline:none}
+.cm-input:focus,.cm-textarea:focus{border-color:#111;background:#fff}
+.cm-input:disabled{color:var(--ink3);background:var(--g1)}
+.cm-textarea{min-height:132px;resize:vertical;display:block}
+.cm-hint{margin:-8px 0 20px;font-size:12px;line-height:1.75;color:var(--ink3)}
+.cm-link{display:inline-flex;align-items:center;border:0;background:none;padding:6px 0;margin-top:4px;font:650 13px/1.4 var(--sans);color:#111;text-decoration:underline;text-underline-offset:3px;cursor:pointer}
