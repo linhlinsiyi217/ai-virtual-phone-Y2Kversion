@@ -122,3 +122,10 @@ doremy 2026-11-06 主分支的 lib/life、components/life 已试合过一轮，�
 - `lib/weverse-storage`
 
 直接整批拷入会从 16 条存量错误涨到 52 条，说明这批模块之间还有二次依赖。做法：先合 `photo-library-*` 与 `social-*` 两组底层，再合 lysn/twitter/photos 界面。
+
+### 部署目标（主人已确认，不要改）
+
+- **唯一固定项目：`ai-virtual-phone-y2-kversion-jeir`**
+- 域名：`https://ai-virtual-phone-y2-kversion-jeir.vercel.app`
+- 不再向 `-rwe1`、`-re7q`、`-mkae`、无后缀 / delta 等项目部署或配置
+- APK 的 `SHELL_SITE_URL` 也要指向这个域名
