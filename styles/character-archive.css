@@ -256,3 +256,31 @@ body{padding:0;background:var(--c-input);color:var(--c-text-title);font-family:v
 .cm-textarea{min-height:132px;resize:vertical;display:block}
 .cm-hint{margin:-8px 0 20px;font-size:12px;line-height:1.75;color:var(--ink3)}
 .cm-link{display:inline-flex;align-items:center;border:0;background:none;padding:6px 0;margin-top:4px;font:650 13px/1.4 var(--sans);color:#111;text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+/* 拉线 / 关系细目 */
+.cm-rel-line{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 0 22px;padding:16px;border-radius:18px;background:var(--g1);font-size:15px;line-height:1.5}
+.cm-rel-line strong{font-weight:700}
+.cm-rel-line span{color:var(--ink2);font-size:13px}
+.cm-rel-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.cm-rel-item{display:flex;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid var(--line)}
+.cm-rel-item:last-child{border-bottom:0}
+.cm-rel-text{flex:1;min-width:0;font-size:14px;line-height:1.6;color:#333;word-break:break-word}
+.cm-chip-btn{flex:none;height:32px;padding:0 14px;border-radius:16px;border:1px solid var(--line);background:#fff;color:#111;font:650 12.5px/1 var(--sans);cursor:pointer;transition:transform .42s var(--spring)}
+.cm-chip-btn:active{transform:scale(.94);transition-duration:.09s}
+/* NPC 生成器 */
+.cm-form{display:flex;flex-direction:column}
+.cm-form > .cm-label{margin-top:18px}
+.cm-form > .cm-label:first-child{margin-top:0}
+.cm-form .cm-hint{margin-top:12px}
+.cm-seg{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:4px;background:var(--g1);border-radius:15px;padding:3px;margin-bottom:20px}
+.cm-seg button{height:38px;border:0;border-radius:12px;background:none;color:var(--ink2);font:650 14px/1 var(--sans);cursor:pointer}
+.cm-seg button.on{background:#fff;color:#111;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+.cm-error{margin:12px 0 0;font-size:12.5px;line-height:1.65;color:#111;font-weight:600}
+.cm-check{display:flex;align-items:center;gap:10px;margin-top:18px;font-size:13px;line-height:1.5;color:#444}
+.cm-text-btn{align-self:center;margin-top:18px;border:0;background:none;padding:8px 0;font:650 13px/1.4 var(--sans);color:#111;text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+.cm-text-btn:disabled{opacity:.4}
+.cm-result{padding:18px;border:1px solid var(--line);border-radius:22px;margin-top:14px;background:#fafafb}
+.cm-result:first-child{margin-top:0}
+.cm-result-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:4px}
+.cm-result .cm-label{margin-top:16px}
+.cm-pair{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.cm-pair .cm-label{margin-top:16px}
