@@ -37,8 +37,7 @@ import { RelationLinkDialog, RelationPairSheet } from "@/components/character/re
 import { CSheet, CConfirm } from "@/components/character/modal-kit";
 import { loadMomentsConfig, saveMomentsConfig } from "@/lib/moments-storage";
 import type { CanvasBgItem } from "@/lib/character-types";
-import { ConfirmDialog } from "@/components/ui/modal";
-import { AlertCircle, History } from "lucide-react";
+import { History } from "lucide-react";
 import {
   backupCharacterVersion,
   clearCharacterVersions,
@@ -1377,48 +1376,37 @@ function CharListView({
       </div>
 
       {deleteConfirm && (
-        <div
-          className="modal-overlay"
-          style={{ zIndex: 8000000, backdropFilter: "blur(var(--ui-blur-light))" }}
-          onClick={() => {
+        <CConfirm
+          title={deleteConfirm.type === "char" ? "删除这个角色？" : "删除这个物件？"}
+          message={deleteConfirm.type === "char"
+            ? `「${characters.find(c => c.id === deleteConfirm.id)?.name || "未命名角色"}」的档案、对话记录和关系线会一起从当前卷宗移除，无法恢复。`
+            : "这件散落物件会从画布上移除，无法恢复。"}
+          cancelLabel="取消"
+          confirmLabel="删除"
+          confirmDisabled={!deleteConfirmReady}
+          onCancel={() => {
             if (deleteConfirmReady) setDeleteConfirm(null);
           }}
-        >
-          <div className="char-punched-hole-note" onClick={(e) => e.stopPropagation()}>
-            <h3>销毁确认</h3>
-            <p>您确定要丢弃该档案或物件吗？此操作将永远无法恢复。</p>
-            <div className="char-punched-hole-btn-group">
-              <button
-                className="char-punched-hole-btn"
-                disabled={!deleteConfirmReady}
-                onClick={() => {
-                  if (deleteConfirmReady) setDeleteConfirm(null);
-                }}
-              >驳回申请</button>
-              <button className="char-punched-hole-btn danger" disabled={!deleteConfirmReady} onClick={() => {
-                if (!deleteConfirmReady) return;
-                if (deleteConfirm.type === 'char') {
-                  onUpdateChars(characters.filter(c => c.id !== deleteConfirm.id));
-                  onNotice?.("已销毁调查档案");
-                } else {
-                  onUpdateBgItems((bgItems || []).filter(b => b.id !== deleteConfirm.id));
-                  onNotice?.("已销毁散落物件");
-                }
-                setDeleteConfirm(null);
-              }}>批准销毁</button>
-            </div>
-          </div>
-        </div>
+          onConfirm={() => {
+            if (!deleteConfirmReady) return;
+            if (deleteConfirm.type === "char") {
+              onUpdateChars(characters.filter(c => c.id !== deleteConfirm.id));
+              onNotice?.("已删除角色档案");
+            } else {
+              onUpdateBgItems((bgItems || []).filter(b => b.id !== deleteConfirm.id));
+              onNotice?.("已删除散落物件");
+            }
+            setDeleteConfirm(null);
+          }}
+        />
       )}
 
       {importError && (
-        <ConfirmDialog
+        <CConfirm
           title="导入失败"
           message={importError}
-          icon={AlertCircle}
-          variant="danger"
+          cancelLabel="取消"
           confirmLabel="知道了"
-          cancelLabel=""
           onConfirm={() => setImportError(null)}
           onCancel={() => setImportError(null)}
         />
@@ -1800,6 +1788,7 @@ function CharArchiveView({
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [showUnsavedConfirm, setShowUnsavedConfirm] = useState<"back" | "cancel" | null>(null);
   const [showSaveVersionConfirm, setShowSaveVersionConfirm] = useState(false);
+  const [saveVersionMode, setSaveVersionMode] = useState<"backup" | "overwrite">("backup");
   const [showVersions, setShowVersions] = useState(false);
   const [versions, setVersions] = useState<CharacterVersion[]>([]);
   const [restoreTarget, setRestoreTarget] = useState<CharacterVersion | null>(null);
@@ -1956,6 +1945,7 @@ function CharArchiveView({
 
   function handleSave() {
     if (isExisting) {
+      setSaveVersionMode("backup");
       setShowSaveVersionConfirm(true);
     } else {
       commitSave(false);
@@ -2332,119 +2322,102 @@ function CharArchiveView({
       {archiveFrame}
 
       {showSaveVersionConfirm && (
-        <div className="fixed inset-0 z-[10020] flex items-center justify-center bg-black/45 px-5" role="dialog" aria-modal="true" aria-label="保存角色卡">
-          <div className="w-full max-w-sm rounded-2xl border border-[var(--c-panel-border)] bg-[var(--c-page-body-bg)] p-5 text-[var(--c-text)] shadow-2xl">
-            <div className="text-base font-bold">保存角色卡</div>
-            <p className="mt-2 ts-12 leading-relaxed opacity-75">
-              当前是 V{getCharacterCurrentVersion(char.id)}。你可以先保存修改前的旧卡，也可以覆盖当前版本。
-            </p>
-            <div className="mt-4 flex flex-col gap-2">
-              <button
-                type="button"
-                className="rounded-xl bg-[var(--c-text)] px-4 py-3 font-semibold text-[var(--c-page-body-bg)]"
-                onClick={() => {
-                  setShowSaveVersionConfirm(false);
-                  commitSave(true);
-                }}
-              >
-                备份旧卡并保存为 V{getCharacterNextVersion(char.id)}
-              </button>
-              <button
-                type="button"
-                className="rounded-xl border border-[var(--c-panel-border)] px-4 py-3 font-semibold"
-                onClick={() => {
-                  setShowSaveVersionConfirm(false);
-                  commitSave(false);
-                }}
-              >
-                覆盖当前版本
-              </button>
-              <button
-                type="button"
-                className="px-4 py-2 opacity-65"
-                onClick={() => setShowSaveVersionConfirm(false)}
-              >
-                取消
-              </button>
-            </div>
+        <CConfirm
+          title="保存角色卡"
+          message={`当前是 V${getCharacterCurrentVersion(char.id)}。先选一种保存方式：`}
+          cancelLabel="取消"
+          confirmLabel="保存"
+          onCancel={() => setShowSaveVersionConfirm(false)}
+          onConfirm={() => {
+            setShowSaveVersionConfirm(false);
+            commitSave(saveVersionMode === "backup");
+          }}
+        >
+          <div className="cf-choice" role="radiogroup" aria-label="保存方式">
+            <button
+              type="button"
+              role="radio"
+              aria-checked={saveVersionMode === "backup"}
+              className={saveVersionMode === "backup" ? "on" : ""}
+              onClick={() => setSaveVersionMode("backup")}
+            >
+              <i />
+              备份旧卡并保存为 V{getCharacterNextVersion(char.id)}
+            </button>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={saveVersionMode === "overwrite"}
+              className={saveVersionMode === "overwrite" ? "on" : ""}
+              onClick={() => setSaveVersionMode("overwrite")}
+            >
+              <i />
+              覆盖当前版本 V{getCharacterCurrentVersion(char.id)}
+            </button>
           </div>
-        </div>
+        </CConfirm>
       )}
 
       {showVersions && (
-        <div
-          className="fixed inset-0 z-[10020] flex items-end justify-center bg-black/45 sm:items-center sm:px-5"
-          role="dialog"
-          aria-modal="true"
-          aria-label="角色卡历史版本"
-          onPointerDown={(event) => {
-            if (event.target === event.currentTarget) setShowVersions(false);
-          }}
+        <CSheet
+          eyebrow="VERSION HISTORY"
+          title="历史版本"
+          ariaLabel="角色卡历史版本"
+          onClose={() => setShowVersions(false)}
+          footer={{ label: "关闭", onClick: () => setShowVersions(false) }}
         >
-          <div className="max-h-[78vh] w-full max-w-md overflow-hidden rounded-t-2xl border border-[var(--c-panel-border)] bg-[var(--c-page-body-bg)] text-[var(--c-text)] shadow-2xl sm:rounded-2xl">
-            <div className="flex items-center justify-between border-b border-[var(--c-panel-border)] px-5 py-4">
-              <div>
-                <div className="font-bold">历史版本</div>
-                <div className="mt-0.5 ts-10 opacity-60">当前生效：V{getCharacterCurrentVersion(char.id)}</div>
-              </div>
-              <button type="button" className="px-2 py-1 font-semibold" onClick={() => setShowVersions(false)}>关闭</button>
-            </div>
-            <div className="max-h-[62vh] overflow-y-auto p-4">
-              {versions.length === 0 ? (
-                <div className="py-10 text-center ts-12 opacity-60">还没有历史版本。编辑保存或由小卷修改后会自动生成。</div>
-              ) : (
-                <div className="flex flex-col gap-3">
-                  {versions.map((version) => (
-                    <div key={version.id} className="rounded-xl border border-[var(--c-panel-border)] p-4">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <div className="font-bold">V{version.version}</div>
-                          <div className="mt-1 ts-10 opacity-65">{version.label}</div>
-                          <div className="mt-1 ts-10 opacity-50">{new Date(version.createdAt).toLocaleString()}</div>
-                        </div>
-                        {getCharacterCurrentVersion(char.id) === version.version && (
-                          <span className="shrink-0 rounded-full border border-[var(--c-panel-border)] px-2 py-1 ts-10">当前</span>
-                        )}
-                      </div>
-                      <div className="mt-3 rounded-lg bg-black/5 p-3 ts-11 dark:bg-white/5">
-                        <div className="font-semibold">{version.data.name || "未命名角色"}</div>
-                        <div className="mt-1 line-clamp-3 whitespace-pre-wrap opacity-65">
-                          {version.data.persona || version.data.personality || "（无角色设定）"}
-                        </div>
-                      </div>
-                      <div className="mt-3 flex gap-2">
-                        <button
-                          type="button"
-                          className="flex-1 rounded-lg bg-[var(--c-text)] px-3 py-2 ts-12 font-semibold text-[var(--c-page-body-bg)] disabled:opacity-40"
-                          disabled={getCharacterCurrentVersion(char.id) === version.version}
-                          onClick={() => setRestoreTarget(version)}
-                        >
-                          切换到 V{version.version}
-                        </button>
-                        <button
-                          type="button"
-                          className="rounded-lg border border-red-400/60 px-3 py-2 ts-12 text-red-600"
-                          onClick={() => setDeleteVersionTarget(version)}
-                        >
-                          删除
-                        </button>
+          <p className="cm-lede">当前生效：V{getCharacterCurrentVersion(char.id)}。编辑保存或由小卷修改后会自动生成新版本。</p>
+          {versions.length === 0 ? (
+            <p className="cm-empty">还没有历史版本。</p>
+          ) : (
+            <div className="cm-ver-list">
+              {versions.map((version) => {
+                const isCurrent = getCharacterCurrentVersion(char.id) === version.version;
+                return (
+                  <div key={version.id} className="cm-ver">
+                    <div className="cm-ver-no">
+                      V{version.version}
+                      {isCurrent && <span className="cm-ver-current">当前</span>}
+                    </div>
+                    <div className="cm-ver-label">{version.label}</div>
+                    <div className="cm-ver-time">{new Date(version.createdAt).toLocaleString()}</div>
+                    <div className="cm-ver-snippet">
+                      <div className="cm-ver-name">{version.data.name || "未命名角色"}</div>
+                      <div className="cm-ver-bio">
+                        {version.data.persona || version.data.personality || "（无角色设定）"}
                       </div>
                     </div>
-                  ))}
-                </div>
-              )}
+                    <div className="cm-ver-actions">
+                      <button
+                        type="button"
+                        className="cm-ver-restore"
+                        disabled={isCurrent}
+                        onClick={() => setRestoreTarget(version)}
+                      >
+                        切换到 V{version.version}
+                      </button>
+                      <button
+                        type="button"
+                        className="cm-chip-btn"
+                        onClick={() => setDeleteVersionTarget(version)}
+                      >
+                        删除
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-          </div>
-        </div>
+          )}
+        </CSheet>
       )}
 
       {restoreTarget && (
-        <ConfirmDialog
+        <CConfirm
           title={`切换到 V${restoreTarget.version}？`}
           message="当前角色卡会切换为该快照。切走前会同步保存当前版本，切换本身不会创建新版本号。"
-          icon={History}
-          confirmLabel="确认切换"
           cancelLabel="取消"
+          confirmLabel="确认切换"
           onConfirm={() => {
             const target = restoreTarget;
             setRestoreTarget(null);
@@ -2456,89 +2429,80 @@ function CharArchiveView({
       )}
 
       {deleteVersionTarget && (
-        <ConfirmDialog
+        <CConfirm
           title={`删除 V${deleteVersionTarget.version}？`}
-          message="此历史快照删除后无法恢复，不会删除当前角色卡。"
-          icon={AlertCircle}
-          variant="danger"
-          confirmLabel="删除版本"
+          message={`这个历史快照会被永久删除，之后无法再切回 V${deleteVersionTarget.version}；当前角色卡不受影响。`}
           cancelLabel="取消"
+          confirmLabel="删除"
           onConfirm={() => removeVersion(deleteVersionTarget)}
           onCancel={() => setDeleteVersionTarget(null)}
         />
       )}
 
       {isEditing && showTimeZonePicker && (
-        <div
-          className="char-timezone-sheet-backdrop"
-          onPointerDown={e => {
-            if (e.target === e.currentTarget) closeTimeZonePicker();
-          }}
+        <CSheet
+          eyebrow="TIMEZONE"
+          title="选择时区"
+          ariaLabel="选择时区"
+          onClose={closeTimeZonePicker}
+          footer={{ label: "完成", onClick: applyTimeZoneSearch }}
         >
-          <div className="char-timezone-sheet" role="dialog" aria-modal="true" aria-label="Timezone">
-            <div className="char-timezone-sheet-header">
-              <span>TIMEZONE</span>
-              <button type="button" onClick={closeTimeZonePicker}>CLOSE</button>
-            </div>
-            <input
-              className="char-timezone-search"
-              value={timeZoneSearch}
-              onChange={e => setTimeZoneSearch(e.target.value)}
-              onKeyDown={e => {
-                if (e.key === "Escape") {
-                  closeTimeZonePicker();
-                } else if (e.key === "Enter") {
-                  e.preventDefault();
-                  if (filteredTimeZoneOptions[0]) selectTimeZoneOption(filteredTimeZoneOptions[0]);
-                  else applyTimeZoneSearch();
-                }
-              }}
-              placeholder="Asia/Shanghai"
-              spellCheck={false}
-              autoFocus
-            />
-            <div className="char-timezone-sheet-actions">
-              <button type="button" onClick={clearTimeZone}>SYSTEM</button>
-              <button type="button" onClick={applyTimeZoneSearch}>DONE</button>
-            </div>
-            <div className="char-timezone-options" role="listbox">
-              {filteredTimeZoneOptions.length > 0 ? (
-                <>
-                  {filteredTimeZoneOptions.map(option => (
-                    <button
-                      key={option}
-                      type="button"
-                      className="char-timezone-option"
-                      onClick={() => selectTimeZoneOption(option)}
-                      role="option"
-                      aria-selected={option === timeZone}
-                    >
-                      {option}
-                    </button>
-                  ))}
-                  {hasMoreTimeZoneOptions && (
-                    <div className="char-timezone-more">MORE RESULTS</div>
-                  )}
-                </>
-              ) : (
-                <div className="char-timezone-empty">NO MATCHES</div>
-              )}
-            </div>
+          <input
+            className="cm-input cm-tz-search"
+            value={timeZoneSearch}
+            onChange={e => setTimeZoneSearch(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === "Escape") {
+                closeTimeZonePicker();
+              } else if (e.key === "Enter") {
+                e.preventDefault();
+                if (filteredTimeZoneOptions[0]) selectTimeZoneOption(filteredTimeZoneOptions[0]);
+                else applyTimeZoneSearch();
+              }
+            }}
+            placeholder="Asia/Shanghai"
+            spellCheck={false}
+            autoFocus
+          />
+          <div className="cm-tz-system">
+            <button type="button" className="cm-text-btn" onClick={clearTimeZone}>使用系统时区</button>
           </div>
-        </div>
+          <div className="cm-list cm-tz-list" role="listbox">
+            {filteredTimeZoneOptions.length > 0 ? (
+              <>
+                {filteredTimeZoneOptions.map(option => (
+                  <button
+                    key={option}
+                    type="button"
+                    className={`cm-list-item ${option === timeZone ? "on" : ""}`}
+                    onClick={() => selectTimeZoneOption(option)}
+                    role="option"
+                    aria-selected={option === timeZone}
+                  >
+                    <span>{option}</span>
+                    {option === timeZone && <span className="cm-tz-check">✓</span>}
+                  </button>
+                ))}
+                {hasMoreTimeZoneOptions && (
+                  <div className="cm-empty">还有更多结果，输入可缩小范围。</div>
+                )}
+              </>
+            ) : (
+              <div className="cm-empty">没有匹配的时区。</div>
+            )}
+          </div>
+        </CSheet>
       )}
 
 
 
       {/* Unsaved changes confirmation dialog */}
       {showUnsavedConfirm && (
-        <ConfirmDialog
+        <CConfirm
           title="确定要放弃编辑吗？"
-          message="当前编辑内容尚未保存，离开后所有更改将丢失。"
-          icon={AlertCircle}
-          variant="danger"
-          confirmLabel="放弃更改"
+          message="当前编辑内容还没保存，离开后这次修改会全部丢失。"
           cancelLabel="继续编辑"
+          confirmLabel="放弃更改"
           onConfirm={() => {
             const action = showUnsavedConfirm;
             setShowUnsavedConfirm(null);
