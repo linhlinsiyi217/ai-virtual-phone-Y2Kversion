@@ -60,7 +60,22 @@ async function managementFetch(token: string, path: string, init?: RequestInit):
 async function handleOrganizations(token: string): Promise<NextResponse> {
   const response = await managementFetch(token, "/organizations");
   if (!response.ok) {
-    return NextResponse.json({ ok: false, error: await upstreamMessage(response) }, { status: response.status });
+    const message = await upstreamMessage(response);
+    // 项目名已被占用时，直接复用同名项目，而不是让用户卡在「部署失败」。
+    if (/already exists|already been taken|duplicate/i.test(message)) {
+      const list = await managementFetch(token, "/projects");
+      if (list.ok) {
+        const projects = await list.json() as { id?: string; name?: string; ref?: string }[];
+        const hit = Array.isArray(projects)
+          ? projects.find(item => item?.name === "AI Phone Personal Cloud")
+          : undefined;
+        const ref = typeof hit?.ref === "string" ? hit.ref : typeof hit?.id === "string" ? hit.id : "";
+        if (cleanProjectRef(ref)) {
+          return NextResponse.json({ ok: true, projectRef: ref, status: "ACTIVE_HEALTHY", reused: true });
+        }
+      }
+    }
+    return NextResponse.json({ ok: false, error: message }, { status: response.status });
   }
   const data = await response.json() as Array<{ id?: unknown; slug?: unknown; name?: unknown }>;
   const organizations = (Array.isArray(data) ? data : [])
