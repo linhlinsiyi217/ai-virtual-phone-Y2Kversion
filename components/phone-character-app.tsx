@@ -2807,138 +2807,116 @@ function NpcGeneratorSheet({ characters, onClose, onConfirm }: {
     || results.some(r => !r.name.trim() || !r.persona.trim());
 
   return (
-    <div
-      className="wt-modal"
-      onClick={busy ? undefined : onClose}
+    <CSheet
+      eyebrow={results ? "REVIEW NPC" : "GENERATE NPC"}
+      title={results ? "预览生成的配角" : "生成配角"}
+      ariaLabel="生成配角"
+      onClose={onClose}
+      closeDisabled={busy}
+      footer={results ? {
+        label: results.length > 1 ? `确认创建 ${results.length} 位` : "确认创建",
+        disabled: confirmDisabled,
+        onClick: () => { if (results) onConfirm(results, targetId, allowAutoPost); },
+      } : {
+        label: busy ? "生成中…" : "生成",
+        disabled: busy || !targetId,
+        onClick: handleGenerate,
+      }}
     >
-      <div
-        className="wt-paper"
-        onClick={e => e.stopPropagation()}
-      >
-        <div className="wt-paper-tape" />
-        <div className="wt-paper-kicker text-center">
-          {results ? "REVIEW NPC" : "GENERATE NPC"}
-        </div>
-
-        {!results ? (
-          <div className="flex flex-col">
-            <label className="wt-paper-label">为哪位角色生成配角</label>
-            <select className="wt-paper-input" value={targetId} onChange={e => setTargetId(e.target.value)}>
-              {characters.map(c => (
-                <option key={c.id} value={c.id}>{c.name || "未命名角色"}</option>
-              ))}
-            </select>
-            <label className="wt-paper-label mt-2">生成数量</label>
-            <div className="flex gap-2">
-              {[1, 2, 3, 4, 5].map(n => (
-                <button
-                  key={n}
-                  type="button"
-                  className={`wt-btn flex-1 ${count === n ? "wt-btn-primary" : ""}`}
-                  onClick={() => setCount(n)}
-                >
-                  {n}
-                </button>
-              ))}
-            </div>
-            <label className="wt-paper-label mt-2">补充要求（可选）</label>
-            <textarea
-              className="wt-paper-textarea"
-              style={{ minHeight: 64 }}
-              placeholder="例如：生成一个损友 / 她的亲妹妹 / 暗恋她的学长…"
-              value={hint}
-              onChange={e => setHint(e.target.value)}
-            />
-            <p className="wt-paper-hint mt-1">会带上 TA 的核心记忆与相关长期记忆——记忆里提过的人是最好的配角素材。</p>
-            {error && <p className="wt-paper-confirm mt-2">{error}</p>}
-
-            <div className="wt-paper-actions mt-4">
-              <button className="wt-btn flex-1" onClick={onClose} disabled={busy}>取消</button>
+      {!results ? (
+        <div className="cm-form">
+          <label className="cm-label" htmlFor="npc-target">为哪位角色生成配角</label>
+          <select id="npc-target" className="cm-input" value={targetId} onChange={e => setTargetId(e.target.value)}>
+            {characters.map(c => (
+              <option key={c.id} value={c.id}>{c.name || "未命名角色"}</option>
+            ))}
+          </select>
+          <label className="cm-label">生成数量</label>
+          <div className="cm-seg">
+            {[1, 2, 3, 4, 5].map(n => (
               <button
-                className="wt-btn wt-btn-primary flex-1"
-                onClick={handleGenerate}
-                disabled={busy || !targetId}
+                key={n}
+                type="button"
+                className={count === n ? "on" : ""}
+                onClick={() => setCount(n)}
               >
-                {busy ? "生成中…" : "生成"}
+                {n}
               </button>
-            </div>
-            {characters.length === 0 && <p className="wt-paper-hint mt-2">还没有角色，先创建一位主角。</p>}
+            ))}
           </div>
-        ) : (
-          <div className="flex flex-col">
-            {results.map((result, index) => (
-              <div key={index} className={index > 0 ? "mt-4 pt-3" : ""} style={index > 0 ? { borderTop: "1px dashed #c9b98a" } : undefined}>
-                <div className="flex items-center">
-                  <span className="wt-paper-kicker" style={{ marginBottom: 0 }}>NPC {index + 1} / {results.length}</span>
-                  <span className="wt-paper-spacer" />
-                  {results.length > 1 && (
-                    <button type="button" className="wt-btn wt-btn-danger wt-btn-small" onClick={() => removeAt(index)}>
-                      移除
-                    </button>
-                  )}
+          <label className="cm-label" htmlFor="npc-hint">补充要求（可选）</label>
+          <textarea
+            id="npc-hint"
+            className="cm-textarea"
+            style={{ minHeight: 84 }}
+            placeholder="例如：生成一个损友 / 她的亲妹妹 / 暗恋她的学长…"
+            value={hint}
+            onChange={e => setHint(e.target.value)}
+          />
+          <p className="cm-hint">会带上 TA 的核心记忆与相关长期记忆——记忆里提过的人是最好的配角素材。</p>
+          {error && <p className="cm-error">{error}</p>}
+          {characters.length === 0 && <p className="cm-hint">还没有角色，先创建一位主角。</p>}
+        </div>
+      ) : (
+        <div className="cm-form">
+          {results.map((result, index) => (
+            <div key={index} className="cm-result">
+              <div className="cm-result-head">
+                <span className="cm-eyebrow">NPC {index + 1} / {results.length}</span>
+                {results.length > 1 && (
+                  <button type="button" className="cm-chip-btn" onClick={() => removeAt(index)}>
+                    移除
+                  </button>
+                )}
+              </div>
+
+              <label className="cm-label">名字</label>
+              <input className="cm-input" value={result.name} onChange={e => patchAt(index, { name: e.target.value })} />
+
+              <label className="cm-label">人设（完整角色卡）</label>
+              <textarea
+                className="cm-textarea"
+                style={{ minHeight: 120 }}
+                value={result.persona}
+                onChange={e => patchAt(index, { persona: e.target.value })}
+              />
+
+              <label className="cm-label">性格</label>
+              <input className="cm-input" value={result.personality} onChange={e => patchAt(index, { personality: e.target.value })} />
+
+              <label className="cm-label">简量人设（注入给同世界角色）</label>
+              <textarea
+                className="cm-textarea"
+                style={{ minHeight: 84 }}
+                value={result.briefPersona}
+                onChange={e => patchAt(index, { briefPersona: e.target.value })}
+              />
+
+              <div className="cm-pair">
+                <div>
+                  <label className="cm-label">TA 是{targetName}的</label>
+                  <input className="cm-input" value={result.relationLabel} onChange={e => patchAt(index, { relationLabel: e.target.value })} />
                 </div>
-
-                <label className="wt-paper-label mt-2">名字</label>
-                <input className="wt-paper-input" value={result.name} onChange={e => patchAt(index, { name: e.target.value })} />
-
-                <label className="wt-paper-label mt-2">人设（完整角色卡）</label>
-                <textarea
-                  className="wt-paper-textarea"
-                  style={{ minHeight: 120 }}
-                  value={result.persona}
-                  onChange={e => patchAt(index, { persona: e.target.value })}
-                />
-
-                <label className="wt-paper-label mt-2">性格</label>
-                <input className="wt-paper-input" value={result.personality} onChange={e => patchAt(index, { personality: e.target.value })} />
-
-                <label className="wt-paper-label mt-2">简量人设（注入给同世界角色）</label>
-                <textarea
-                  className="wt-paper-textarea"
-                  style={{ minHeight: 64 }}
-                  value={result.briefPersona}
-                  onChange={e => patchAt(index, { briefPersona: e.target.value })}
-                />
-
-                <div className="flex gap-2 mt-2">
-                  <div className="flex-1 flex flex-col">
-                    <label className="wt-paper-label">TA 是{targetName}的</label>
-                    <input className="wt-paper-input" value={result.relationLabel} onChange={e => patchAt(index, { relationLabel: e.target.value })} />
-                  </div>
-                  <div className="flex-1 flex flex-col">
-                    <label className="wt-paper-label">{targetName}是 TA 的</label>
-                    <input className="wt-paper-input" value={result.reverseRelationLabel} onChange={e => patchAt(index, { reverseRelationLabel: e.target.value })} />
-                  </div>
+                <div>
+                  <label className="cm-label">{targetName}是 TA 的</label>
+                  <input className="cm-input" value={result.reverseRelationLabel} onChange={e => patchAt(index, { reverseRelationLabel: e.target.value })} />
                 </div>
               </div>
-            ))}
-
-            <label className="flex items-center gap-2 mt-3 wt-paper-label" style={{ fontWeight: 'normal' }}>
-              <input type="checkbox" checked={allowAutoPost} onChange={e => setAllowAutoPost(e.target.checked)} />
-              加好友后允许自动发朋友圈（本批全部生效）
-            </label>
-
-            {error && <p className="wt-paper-confirm mt-2">{error}</p>}
-
-            <div className="wt-paper-actions mt-4">
-              <button className="wt-btn flex-1" onClick={handleGenerate} disabled={busy}>
-                {busy ? "生成中…" : "重新生成"}
-              </button>
-              <button
-                className="wt-btn wt-btn-primary flex-1"
-                disabled={confirmDisabled}
-                onClick={() => results && onConfirm(results, targetId, allowAutoPost)}
-              >
-                {results.length > 1 ? `确认创建 ${results.length} 位` : "确认创建"}
-              </button>
             </div>
+          ))}
 
-            <div className="flex mt-2">
-              <button className="wt-btn flex-1" onClick={onClose} disabled={busy}>取消</button>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
+          <label className="cm-check">
+            <input type="checkbox" checked={allowAutoPost} onChange={e => setAllowAutoPost(e.target.checked)} />
+            加好友后允许自动发朋友圈（本批全部生效）
+          </label>
+
+          {error && <p className="cm-error">{error}</p>}
+
+          <button type="button" className="cm-text-btn" onClick={handleGenerate} disabled={busy}>
+            {busy ? "生成中…" : "重新生成"}
+          </button>
+        </div>
+      )}
+    </CSheet>
   );
 }
