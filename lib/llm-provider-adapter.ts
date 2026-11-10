@@ -236,6 +236,28 @@ function stripVisionParts(messages: LlmRequestMessage[]): LlmRequestMessage[] {
     });
 }
 
+
+/**
+ * 心声美化：用户若把「心声写法」改过，就在这里补一条系统说明。
+ * 没改过（还是默认那套）就什么都不加，保持原有请求完全不变。
+ */
+function customInnerVoiceInstruction(): string {
+    if (typeof window === "undefined") return "";
+    try {
+        const raw = window.localStorage.getItem("y2k:inner-voice-styles");
+        const activeId = window.localStorage.getItem("y2k:inner-voice-active") || "default";
+        if (!raw) return "";
+        const list = JSON.parse(raw) as Array<{ id: string; prompt?: string; scenePrompt?: string }>;
+        const hit = Array.isArray(list) ? list.find(item => item.id === activeId) : undefined;
+        if (!hit || !hit.prompt) return "";
+        const text = hit.prompt.trim();
+        if (!text) return "";
+        return `【心声写法】\n${text}`;
+    } catch {
+        return "";
+    }
+}
+
 export function buildProviderRequest(
     config: ApiConfig,
     preset: PresetConfig | null,
@@ -256,7 +278,11 @@ export function buildProviderRequest(
     // 图像识别关闭时的总闸：无论哪条路径塞入了 image_url part，一律降级为
     // "[图片]" 文本，避免不支持视觉的模型（如 DeepSeek）收到 multipart 返回 400。
     const guardedMessages = config.enableImageRecognition === true ? messages : stripVisionParts(messages);
-    const providerMessages = ensureProviderHasUserMessage(normalizeNativeToolMessageAdjacency(guardedMessages));
+    let providerMessages = ensureProviderHasUserMessage(normalizeNativeToolMessageAdjacency(guardedMessages));
+    const voice = customInnerVoiceInstruction();
+    if (voice) {
+        providerMessages = [{ role: "system", content: voice } as LlmRequestMessage, ...providerMessages];
+    }
 
     if (providerKind === "anthropic") {
         return buildAnthropicRequest(config, preset, baseUrl, providerMessages, options);
