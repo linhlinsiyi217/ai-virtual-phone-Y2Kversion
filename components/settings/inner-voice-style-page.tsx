@@ -11,6 +11,7 @@ import {
     newStyle,
     renderPreview,
 } from "@/lib/inner-voice-style";
+import { exportTicket, readTicket } from "@/lib/ticket-png";
 
 export function InnerVoiceStylePage({ onNotice }: { onNotice?: (text: string) => void }) {
     const [styles, setStyles] = useState<InnerVoiceStyle[]>(DEFAULT_STYLES);
@@ -72,19 +73,43 @@ export function InnerVoiceStylePage({ onNotice }: { onNotice?: (text: string) =>
         onNotice?.("已恢复默认");
     };
 
-    const exportJson = () => {
+    const exportJson = async () => {
         if (!draft) return;
-        const blob = new Blob([JSON.stringify({ format: "y2k-inner-voice", version: 1, style: draft }, null, 2)], { type: "application/json" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `y2k-innerVoice-${draft.name}-${new Date().toISOString().slice(0, 10)}.json`;
-        a.click();
-        URL.revokeObjectURL(url);
+        try {
+            const blob = await exportTicket({
+                format: "y2k-ticket",
+                version: 1,
+                id: `tk_${Date.now().toString(36)}`,
+                type: "innerVoice",
+                name: draft.name,
+                author: { name: "本机用户" },
+                createdAt: new Date().toISOString(),
+                modules: ["提示词", "字段", "HTML", "动效"],
+                payload: { style: draft },
+            });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `y2k-innerVoice-${draft.name}-${new Date().toISOString().slice(0, 10)}.png`;
+            a.click();
+            URL.revokeObjectURL(url);
+        } catch {
+            onNotice?.("导出失败");
+        }
     };
 
     const importJson = async (file: File) => {
         try {
+            if (file.type.startsWith("image/")) {
+                const ticket = readTicket(await file.arrayBuffer());
+                const style = (ticket?.payload as { style?: InnerVoiceStyle } | undefined)?.style;
+                if (!style || !style.name) throw new Error("bad");
+                const item: InnerVoiceStyle = { ...style, id: `style_${Date.now().toString(36)}` };
+                persist([...styles, item]);
+                setDraft(item);
+                onNotice?.("已导入这张票");
+                return;
+            }
             const text = await file.text();
             const parsed = JSON.parse(text) as { style?: InnerVoiceStyle };
             const style = parsed.style || (parsed as unknown as InnerVoiceStyle);
@@ -211,7 +236,7 @@ export function InnerVoiceStylePage({ onNotice }: { onNotice?: (text: string) =>
             <input
                 ref={fileRef}
                 type="file"
-                accept="application/json,.json"
+                accept="image/png,application/json,.json,.png"
                 hidden
                 onChange={e => {
                     const f = e.target.files?.[0];
