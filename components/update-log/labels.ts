@@ -51,17 +51,8 @@ export function itemsOf(entry: UpdateEntry, type: ChangeType): LogItem[] {
 }
 
 /** 更新公告只显示最新一版的每一条改动，一行一条 */
-export function noticeLines(entry: UpdateEntry): { type: ChangeType; text: string; sub?: string }[] {
-  const clip = (value: string) => {
-    const flat = value.replace(/\s+/g, " ").trim();
-    if (flat.length <= 46) return flat;
-    return flat.slice(0, 45) + "…";
-  };
+export function noticeLines(entry: UpdateEntry): { type: ChangeType; text: string }[] {
   return (entry.apps || []).flatMap((group) =>
-    (group.changes || []).map((change) => {
-      const head = change.head || change.text;
-      const sub = change.text && change.text !== head ? clip(change.text) : undefined;
-      return { type: change.type, text: head, sub };
-    }),
+    (group.changes || []).map((change) => ({ type: change.type, text: change.head || change.text })),
   );
 }

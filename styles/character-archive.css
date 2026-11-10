@@ -102,7 +102,7 @@ h1.t{text-align:center;font-size:28px;margin:0;letter-spacing:.06em}p.s{text-ali
 @keyframes cwave{50%{transform:rotate(14deg)}}
 @keyframes cz{0%{opacity:0;transform:translate(0,6px)}40%{opacity:.6}100%{opacity:0;transform:translate(6px,-8px)}}
 @keyframes cbell{50%{transform:rotate(12deg)}}
-@media(prefers-reduced-motion:reduce){.cat{animation:none!important;transition:none!important}}
+@media(prefers-reduced-motion:reduce){.cat }
 .cat{width:84px}
 /* 功能清单面板高度随内容增长，避免被手机外框裁掉 */
 .ph.ph-auto{height:auto;min-height:844px}

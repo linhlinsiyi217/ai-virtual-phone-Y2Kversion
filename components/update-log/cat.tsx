@@ -64,7 +64,7 @@ function catSvg(rawPose: CatPose = "stand", rawFace?: CatFace, acc?: string): st
 
   if (p === "box") {
     svg +=
-      '<rect class="ln wf" x="52" y="110" width="56" height="24" rx="6"/><path class="ln s" d="M52 118H108"/><path class="ln" d="M80 110C75 101 68 105 74 110M80 110C85 101 92 105 86 110"/><path class="gy2" d="M77 110h6v6h-6z"/>';
+      '<rect class="ln wf" x="50" y="112" width="60" height="26" rx="5"/><path class="ln s" d="M50 121H110M80 112V138"/><path class="ln" d="M80 112C72 103 66 109 72 112M80 112C88 103 94 109 88 112"/><ellipse class="ln s wf" cx="63" cy="112" rx="7" ry="5"/><ellipse class="ln s wf" cx="97" cy="112" rx="7" ry="5"/>';
   } else {
     svg += '<ellipse class="ln s wf" cx="63" cy="133" rx="7.5" ry="5.5"/>';
     if (p === "wave") {
