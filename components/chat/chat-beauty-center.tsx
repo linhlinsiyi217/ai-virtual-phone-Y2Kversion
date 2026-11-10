@@ -133,7 +133,7 @@ function ClassReference() {
   return <div className="beauty-page-body">
     <label className="beauty-search"><Search size={20} /><input value={query} onChange={e => setQuery(e.target.value)} placeholder="搜类名或说明（所有分类一起找）" /></label>
     <p className="beauty-footnote">点一行复制。这里列的是当前项目实际使用的入口；给 AI 时可以直接附上类名。</p>
-    {groups.map(group => <section className="beauty-class-group" key={group.title}><h3>{group.title}</h3>{group.rows.map(([label, selector]) => <button key={`${label}-${selector}`} onClick={() => copy(selector)}><span>{label}</span><code>{selector}</code>{copied === selector ? <Check size={16} /> : <Copy size={16} />}</button>)}</section>)}
+    {groups.map(group => <section className="beauty-class-group" key={group.title}><h3>{group.title}</h3>{group.rows.map(([label, selector, hint]) => <button key={`${label}-${selector}`} onClick={() => copy(selector)}><span>{label}<small className="beauty-class-hint">{hint}</small></span><code>{selector}</code>{copied === selector ? <Check size={16} /> : <Copy size={16} />}</button>)}</section>)}
   </div>;
 }
 

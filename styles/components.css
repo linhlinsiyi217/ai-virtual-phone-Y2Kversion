@@ -5900,3 +5900,6 @@ button.settings-overview-row { cursor: pointer; }
 
 /* 现实桥：云端未配置时的可点提示 */
 .rb-link-warn{ border:none; background:transparent; padding:0; font-size:13px; color:#c07b00; text-decoration:underline; }
+
+/* 类名参考：每行补一句中文说明 */
+.beauty-class-hint{ display:block; font-size:11px; line-height:15px; color:var(--ui-muted,#6e6e73); margin-top:2px; }

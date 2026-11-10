@@ -34,11 +34,36 @@ export const CHAT_BEAUTY_PRESETS: Record<ChatBeautyScope, Array<{ name: string; 
   offline: [{ name: "纸页线下", css: `.chat-offline-body { background:#f4f3ef !important; }\n[class*=\"chat-offline\"] { border-radius:22px !important; }` }],
 };
 
-export const CHAT_BEAUTY_CLASS_GROUPS = [
-  { title: "应用与悬浮 Dock", rows: [["整个聊天应用", ".chat-app"], ["页面内容", ".chat-main-content"], ["底部 Dock", ".chat-dock-cluster、.chat-tab-bar"], ["Dock 按钮", ".chat-tab、.chat-dock-plus"], ["快捷面板", ".chat-dock-quick-panel"]] },
-  { title: "消息与联系人", rows: [["消息页", ".chat-message-list-page"], ["联系人页", ".chat-contacts-page"], ["列表卡片", ".menu-item"], ["头像", ".chat-avatar、.chat-msg-avatar"]] },
-  { title: "聊天室", rows: [["聊天室", ".chat-room-wrapper"], ["消息滚动区", ".chat-scroll-anchored"], ["一整行消息", ".chat-msg-wrapper"], ["我的气泡", ".chat-bubble-role-user"], ["角色气泡", ".chat-bubble-role-assistant"], ["输入栏", ".chat-input-bar"], ["文字框", ".chat-input-textarea"], ["附件面板", ".chat-plus-menu、.emoji-panel、.sticker-panel"]] },
-  { title: "动态与我的", rows: [["动态页", ".moments-feed-page"], ["动态卡片", ".moments-post-card"], ["我的页面", ".user-profile-page-root"], ["HTML 装饰层", ".chat-html-decoration、[data-beauty-slot]"]] },
+export const CHAT_BEAUTY_CLASS_GROUPS: Array<{ title: string; rows: Array<[string, string, string?]> }> = [
+  { title: "应用与悬浮 Dock", rows: [
+    ["整个聊天应用", ".chat-app", "整个聊天应用的最外层，改背景色、字体最先落在这里"],
+    ["页面内容", ".chat-main-content", "两个页面之间的内容区，控制左右留白"],
+    ["底部 Dock", ".chat-dock-cluster、.chat-tab-bar", "底部那排图标所在的条，改高度、底色、圆角"],
+    ["Dock 按钮", ".chat-tab、.chat-dock-plus", "单个按钮，改图标颜色和按下反馈"],
+    ["快捷面板", ".chat-dock-quick-panel", "长按 Dock 弹出的面板"],
+  ] },
+  { title: "消息与联系人", rows: [
+    ["消息页", ".chat-message-list-page", "会话列表整页，改底色和列表间距"],
+    ["联系人页", ".chat-contacts-page", "联系人整页"],
+    ["列表卡片", ".menu-item", "列表里的一行，改圆角、底色、行高"],
+    ["头像", ".chat-avatar、.chat-msg-avatar", "列表和气泡旁的头像，改尺寸和圆角"],
+  ] },
+  { title: "聊天室", rows: [
+    ["聊天室", ".chat-room-wrapper", "聊天室最外层，改背景图、整体留白"],
+    ["消息滚动区", ".chat-scroll-anchored", "消息滚动的那块，改上下留白"],
+    ["一整行消息", ".chat-msg-wrapper", "一条消息连同头像那一行，改行间距"],
+    ["我的气泡", ".chat-bubble-role-user", "我发出去的气泡，改底色和圆角"],
+    ["角色气泡", ".chat-bubble-role-assistant", "角色发的气泡"],
+    ["输入栏", ".chat-input-bar", "底部输入区，改底色和高度"],
+    ["文字框", ".chat-input-textarea", "输入框本身"],
+    ["附件面板", ".chat-plus-menu、.emoji-panel、.sticker-panel", "表情、贴纸、附件这些弹出的面板"],
+  ] },
+  { title: "动态与我的", rows: [
+    ["动态页", ".moments-feed-page", "动态整页"],
+    ["动态卡片", ".moments-post-card", "一条动态的卡片"],
+    ["我的页面", ".user-profile-page-root", "「我的」整页"],
+    ["HTML 装饰层", ".chat-html-decoration、[data-beauty-slot]", "你自己写的装饰 HTML 会挂在这层上"],
+  ] },
 ];
 
 export function beautyCSSKey(scope: ChatBeautyScope) { return `chat-beauty-css:${scope}`; }
