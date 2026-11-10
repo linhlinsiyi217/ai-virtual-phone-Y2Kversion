@@ -3,10 +3,11 @@
 import { useMemo, useState } from "react";
 import { PageShell } from "@/components/ui/page-shell";
 import CSSSchemeBar from "@/components/ui/css-scheme-picker";
+import { InnerVoiceStylePage } from "@/components/settings/inner-voice-style-page";
 import { Check, ChevronRight, Code2, Copy, Layers3, MessageCircle, Palette, Search, Sparkles, UsersRound } from "lucide-react";
 import { CHAT_BEAUTY_CLASS_GROUPS, CHAT_BEAUTY_PRESETS, CHAT_BEAUTY_SCOPES, type ChatBeautyScope, loadChatBeauty, saveChatBeauty } from "@/lib/chat-beauty";
 
-type Page = "home" | "online" | "social" | "editor" | "classes" | "tutorial";
+type Page = "home" | "online" | "social" | "editor" | "classes" | "tutorial" | "innerVoice";
 
 export function ChatBeautyCenter({ onBack }: { onBack: () => void }) {
   const [page, setPage] = useState<Page>("home");
@@ -27,6 +28,7 @@ export function ChatBeautyCenter({ onBack }: { onBack: () => void }) {
       {page === "editor" && <BeautyEditor key={scope} scope={scope} />}
       {page === "classes" && <ClassReference />}
       {page === "tutorial" && <BeautyTutorial />}
+      {page === "innerVoice" && <InnerVoiceStylePage />}
     </PageShell>
   );
 }
@@ -36,6 +38,7 @@ function pageTitle(page: Page) {
   if (page === "social") return "消息页装饰";
   if (page === "classes") return "样式类名参考";
   if (page === "tutorial") return "完整美化教程";
+  if (page === "innerVoice") return "心声美化";
   if (page === "editor") return "编辑美化";
   return "美化";
 }
@@ -44,6 +47,7 @@ function BeautyHome({ onOpen }: { onOpen: (page: Page) => void }) {
   const rows: Array<{ page: Page; title: string; desc: string; icon: typeof Palette }> = [
     { page: "online", title: "聊天与线下美化", desc: "在线聊天室和线下模式分开设置", icon: MessageCircle },
     { page: "social", title: "消息页装饰", desc: "消息、联系人、动态、我的各自独立", icon: UsersRound },
+    { page: "innerVoice", title: "心声美化", desc: "改提示词、卡片模板和出现动效", icon: Sparkles },
     { page: "classes", title: "样式类名参考", desc: "可搜索、复制的真实 CSS 选择器", icon: Code2 },
     { page: "tutorial", title: "完整美化教程", desc: "从预设、CSS 到 HTML 装饰层", icon: Sparkles },
   ];

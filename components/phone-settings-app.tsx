@@ -81,7 +81,6 @@ const SETTINGS_MENU = [
     { id: "imageGeneration", icon: Image, label: "图像生成 API", desc: "模型、参考图与提示词", iconColor: CONTENT_APP_ACCENTS.moments , glass: "image-generation" },
     { id: "presets", icon: Fingerprint, label: "预设", desc: "角色预设", iconColor: BINDING_ACCENTS.preset , glass: "presets" },
     { id: "worldbook", icon: Globe, label: "世界书", desc: "世界观设定", iconColor: BINDING_ACCENTS.worldBook , glass: "worldbook" },
-    { id: "innerVoice", icon: Palette, label: "心声美化", desc: "提示词 / 模板 / 动效", iconColor: BINDING_ACCENTS.preset , glass: "palette" },
     { id: "regex", icon: Database, label: "正则规则", desc: "文本替换", iconColor: BINDING_ACCENTS.regex , glass: "regex" },
     { id: "data", icon: Layers, label: "数据管理", desc: "导入导出", iconColor: BINDING_ACCENTS.api , glass: "data" },
     { id: "binding", icon: Link2, label: "配置绑定", desc: "管理全局默认、角色与应用的配置绑定关系", iconColor: BINDING_ACCENTS.identity , glass: "binding" },
@@ -331,8 +330,6 @@ export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
                 return <PresetManager isActive />;
             case "worldbook":
                 return <WorldBookManager isActive />;
-            case "innerVoice":
-                return <InnerVoiceStylePage onNotice={onNotice} />;
             case "regex":
                 return <RegexManager isActive />;
             case "data":
@@ -440,7 +437,7 @@ export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
                             <h3 className="settings-menu-section-title">Data & Rules</h3>
                             <div className="mt-[10px] flex flex-col gap-3">
                                 <CardGrid
-                                    items={SETTINGS_MENU.filter(item => ["presets", "worldbook", "innerVoice", "regex", "data"].includes(item.id)).map(makeCardItem)}
+                                    items={SETTINGS_MENU.filter(item => ["presets", "worldbook", "regex", "data"].includes(item.id)).map(makeCardItem)}
                                 />
                                 <FeaturedCard item={bindingFeaturedItem} />
                             </div>

@@ -1418,7 +1418,23 @@ export function RealityBridgeApp({ onClose, onNotice, onOpenSettings }: {
               {/* 概览屏自带统计，这里只在其余分区显示一条紧凑状态行 */}
               {mainSec !== "overview" ? (
                 <div className="rb-statusline">
-                  <span className={ready ? "ok" : "warn"}>{ready ? "云端已连接" : "云端未配置"}</span>
+                  {ready ? (
+                    <span className="ok">云端已连接</span>
+                  ) : (
+                    <button
+                      type="button"
+                      className="rb-link-warn"
+                      onClick={() => {
+                        // 没配云服务时大部分按钮是灰的，这里直接给一条去配置的路
+                        window.dispatchEvent(new CustomEvent("open-app", { detail: { appId: "settings" } }));
+                        window.setTimeout(() => {
+                          window.dispatchEvent(new CustomEvent("settings-navigate", { detail: { page: "cloud" } }));
+                        }, 260);
+                      }}
+                    >
+                      云端未配置 · 去设置里配
+                    </button>
+                  )}
                   <em />
                   <span>今日 {feed.filter(entry => isToday(entry.receivedAt)).length} 条</span>
                   <em />
