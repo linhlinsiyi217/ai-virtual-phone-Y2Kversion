@@ -2006,6 +2006,18 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
             })
             .map(item => item.msg);
     }, [messages, transientMessages]);
+    // 心声按「回合」归属：一条用户消息之后的连续 AI 消息共用同一段心声。
+    // 点这一轮里任意一条 AI 消息的头像，弹的都是同一个。
+    const turnVoiceByMessageId = useMemo(() => {
+        const map = new Map<string, string>();
+        let current = "";
+        for (const item of displayMessages) {
+            if (item.role === "user") { current = ""; map.set(item.id, ""); continue; }
+            if (!current && item.innerMonologue) current = item.innerMonologue;
+            map.set(item.id, current);
+        }
+        return map;
+    }, [displayMessages]);
 
     useLayoutEffect(() => {
         const el = scrollRef.current;
@@ -6020,11 +6032,12 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
                                                         if (targetChar) sendRichMessage("poke", { pokeTarget: targetChar.name });
                                                     }} className="w-[40px] h-[40px] rounded-[20px] bg-[var(--c-input)] overflow-hidden cursor-pointer"
                                                         onClick={() => {
-                                                            if (!msg.innerMonologue) return;
+                                                            const turnVoice = turnVoiceByMessageId.get(msg.id) || msg.innerMonologue || "";
+                                                            if (!turnVoice) return;
                                                             setInnerVoiceSheet({
                                                                 name: senderChar?.name || character?.name || "TA",
                                                                 avatarUrl: senderChar?.avatar || character?.avatar || undefined,
-                                                                voice: msg.innerMonologue,
+                                                                voice: turnVoice,
                                                                 timeLabel: msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" }) : undefined,
                                                             });
                                                         }}>
