@@ -6038,6 +6038,7 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
                                                                 name: senderChar?.name || character?.name || "TA",
                                                                 avatarUrl: senderChar?.avatar || character?.avatar || undefined,
                                                                 voice: turnVoice,
+                                                                stateValues: cardStateValues,
                                                                 timeLabel: msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" }) : undefined,
                                                             });
                                                         }}>
