@@ -154,3 +154,24 @@ export function renderPreview(html: string): string {
     for (const [k, v] of Object.entries(SAMPLE)) out = out.split(k).join(v);
     return sanitize(out);
 }
+
+/** 用真实数据填进用户模板；调用方负责净化。 */
+export function fillTemplate(html: string, values: Record<string, string>): string {
+    let out = html;
+    for (const [k, v] of Object.entries(values)) out = out.split(`{{${k}}}`).join(v);
+    // 剩下的未知占位符清空，避免把 {{xxx}} 直接显示给用户
+    out = out.replace(/\{\{[^}]+\}\}/g, "");
+    return out;
+}
+
+/** 对外暴露的净化，供卡片渲染使用。 */
+export function sanitizeTemplate(html: string): string {
+    return sanitize(html);
+}
+
+/** 当前生效的那套样式（没有就用默认）。 */
+export function activeStyle(): InnerVoiceStyle {
+    const list = loadStyles();
+    const id = loadActiveStyleId();
+    return list.find(item => item.id === id) || list[0] || DEFAULT_STYLES[0];
+}

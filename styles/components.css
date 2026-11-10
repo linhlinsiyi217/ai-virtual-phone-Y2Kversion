@@ -5903,3 +5903,7 @@ button.settings-overview-row { cursor: pointer; }
 
 /* 类名参考：每行补一句中文说明 */
 .beauty-class-hint{ display:block; font-size:11px; line-height:15px; color:var(--ui-muted,#6e6e73); margin-top:2px; }
+
+/* 心声卡片：用户自定义模板渲染区 */
+.ivs-custom{ margin-top:12px; font-size:14px; line-height:22px; }
+.ivs-custom img{ max-width:100%; }

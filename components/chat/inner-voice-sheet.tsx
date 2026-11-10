@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { StateValue } from "@/lib/chat-storage";
+import { activeStyle, fillTemplate, sanitizeTemplate, DEFAULT_HTML } from "@/lib/inner-voice-style";
 
 /** 心声（内心独白）弹窗：点角色头像打开，点空白处关闭。 */
 export type InnerVoiceSheetData = {
@@ -16,6 +17,32 @@ export type InnerVoiceSheetData = {
 
 export function InnerVoiceSheet({ data, onClose }: { data: InnerVoiceSheetData; onClose: () => void }) {
     const [flipped, setFlipped] = useState(false);
+    const [customHtml, setCustomHtml] = useState<string | null>(null);
+
+    useEffect(() => {
+        try {
+            const style = activeStyle();
+            const tpl = (style?.html || "").trim();
+            if (!tpl || tpl === DEFAULT_HTML.trim()) { setCustomHtml(null); return; }
+            const values: Record<string, string> = {
+                char: data.name,
+                user: "",
+                time: data.timeLabel || "",
+                date: new Date().toLocaleDateString("zh-CN"),
+                stamp: String(Date.now()),
+                charAvatar: data.avatarUrl || "",
+                userAvatar: "",
+                "心情": data.mood || "",
+                "心声": data.voice,
+                "好感度": String((data.stateValues || []).find(v => v.name === "好感度")?.value ?? ""),
+            };
+            for (const v of data.stateValues || []) values[v.name] = String(v.value);
+            setCustomHtml(sanitizeTemplate(fillTemplate(tpl, values)));
+        } catch {
+            setCustomHtml(null);
+        }
+    }, [data]);
+
     useEffect(() => {
         const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
         window.addEventListener("keydown", onKey);
@@ -47,7 +74,11 @@ export function InnerVoiceSheet({ data, onClose }: { data: InnerVoiceSheetData; 
                             </span>
                         ) : null}
                     </div>
-                    <div className="ivs-voice">{data.voice}</div>
+                    {customHtml ? (
+                        <div className="ivs-custom" dangerouslySetInnerHTML={{ __html: customHtml }} />
+                    ) : (
+                        <div className="ivs-voice">{data.voice}</div>
+                    )}
                     <div className="ivs-hint">点一下卡片，看这一轮的状态</div>
                 </div>
                 <div className="ivs-face ivs-back">
