@@ -84,3 +84,51 @@ export function restoreScroll(app: string): void {
         }, 60);
     });
 }
+
+// ── 持续记录 ──────────────────────────────────────────────
+// 只在切换时保存是不够的：旧应用已经被隐藏，容器 scrollTop 往往已经归零。
+// 改成可见期间一直记，切换回来直接取最后记住的值。
+
+const live = new Map<string, number>();
+let tracking = false;
+
+export function startScrollTracking(getApp: () => string | null): () => void {
+    if (tracking) return () => {};
+    tracking = true;
+    let raf = 0;
+    const onScroll = (event: Event) => {
+        const app = getApp();
+        if (!app) return;
+        const el = event.target;
+        if (!(el instanceof HTMLElement)) return;
+        if (!isScrollable(el)) return;
+        cancelAnimationFrame(raf);
+        raf = requestAnimationFrame(() => {
+            if (el.scrollTop > 0) live.set(app, el.scrollTop);
+        });
+    };
+    document.addEventListener("scroll", onScroll, { capture: true, passive: true });
+    return () => {
+        document.removeEventListener("scroll", onScroll, { capture: true } as EventListenerOptions);
+        tracking = false;
+    };
+}
+
+export function saveScrollLive(app: string): void {
+    const el = findActiveScroller();
+    if (el && el.scrollTop > 0) live.set(app, el.scrollTop);
+}
+
+export function restoreScrollLive(app: string): boolean {
+    const top = live.get(app);
+    if (!top || top <= 0) return false;
+    requestAnimationFrame(() => {
+        const el = findActiveScroller();
+        if (!el) return;
+        const target = Math.min(top, Math.max(0, el.scrollHeight - el.clientHeight));
+        el.style.scrollBehavior = "auto";
+        el.scrollTop = target;
+        el.style.scrollBehavior = "";
+    });
+    return true;
+}

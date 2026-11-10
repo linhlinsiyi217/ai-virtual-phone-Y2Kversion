@@ -159,7 +159,7 @@ import type { DIYWidgetTemplate } from "@/lib/widget-types";
 import { DebugPromptPanel } from "@/components/debug-prompt-panel";
 import { QuickActionFloat } from "@/components/quick-action-float";
 import { installChatSoundListener } from "@/lib/chat-sound";
-import { saveScroll, restoreScroll } from "@/lib/scroll-memory";
+import { saveScroll, restoreScroll, startScrollTracking, saveScrollLive, restoreScrollLive } from "@/lib/scroll-memory";
 import { FloatingTools } from "@/components/floating-tools";
 import { CHAT_MESSAGE_PUSHED_EVENT, CHAT_REQUEST_REPLY_EVENT, hydrateChatStorage, loadChatSessions, loadChatMessages, pushChatMessage, type ChatMessage, type ChatSession } from "@/lib/chat-storage";
 import { ensureGlobalBindingDefaults, resolveUserIdentity } from "@/lib/settings-storage";
@@ -1109,8 +1109,8 @@ export function DesktopShell({ initialThemeProfile, initialThemeAssets }: Deskto
   const lastAppRef = useRef<DesktopIconId | null>(null);
   useEffect(() => {
     const prev = lastAppRef.current;
-    if (prev && prev !== activeApp) saveScroll(prev);
-    if (activeApp) restoreScroll(activeApp);
+    if (prev && prev !== activeApp) { saveScrollLive(prev); saveScroll(prev); }
+    if (activeApp && !restoreScrollLive(activeApp)) restoreScroll(activeApp);
     lastAppRef.current = activeApp;
   }, [activeApp]);
   const [customApps, setCustomApps] = useState<InstalledCustomApp[]>([]);
@@ -1126,6 +1126,7 @@ export function DesktopShell({ initialThemeProfile, initialThemeAssets }: Deskto
   const [customAppUpdateBusy, setCustomAppUpdateBusy] = useState(false);
   const customAppUpdateCheckingRef = useRef<Set<string>>(new Set());
   const activeAppRef = useRef<DesktopIconId | null>(null);
+  useEffect(() => startScrollTracking(() => activeAppRef.current), []);
   const [customAppBadges, setCustomAppBadges] = useState<Record<string, number>>({});
   const [customAppBackgroundRuns, setCustomAppBackgroundRuns] = useState<CustomAppBackgroundEventRun[]>([]);
   const [customAppBackgroundToolRuns, setCustomAppBackgroundToolRuns] = useState<CustomAppBackgroundToolRun[]>([]);
