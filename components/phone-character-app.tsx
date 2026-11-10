@@ -228,7 +228,7 @@ export function PhoneCharacterApp({ onClose, onNotice }: PhoneCharacterAppProps)
 
   return (
     <>
-      <div className="char-app">
+      <div className="ca-app">
         {view.type === "list" && (
           <CharListView
             characters={characters}
@@ -362,7 +362,7 @@ function FlipTransitionOverlay({ transit }: { transit: TransitionState }) {
   const [shellRect, setShellRect] = useState<DOMRect | null>(null);
 
   useEffect(() => {
-    const shell = document.querySelector(".char-app");
+    const shell = document.querySelector(".ca-app");
     if (shell) setShellRect(shell.getBoundingClientRect());
   }, []);
 
@@ -390,7 +390,7 @@ function FlipTransitionOverlay({ transit }: { transit: TransitionState }) {
 
   return (
     <div
-      className="char-flipper-container fixed"
+      className="ca-flipper-container fixed"
       style={{
         top: currentTop,
         left: currentLeft,
@@ -400,34 +400,34 @@ function FlipTransitionOverlay({ transit }: { transit: TransitionState }) {
       }}
     >
       <div
-        className="char-flipper-inner"
+        className="ca-flipper-inner"
         style={{
           transition: `transform ${duration} ease-in-out`,
           transform: isFlipped ? "rotateY(180deg)" : "rotateY(0deg)",
         }}
       >
-        <div className="char-flipper-front" style={{ padding: isStart ? 0 : "12px" }}>
+        <div className="ca-flipper-front" style={{ padding: isStart ? 0 : "12px" }}>
           {/* Polaroid Front */}
-          <div className="char-polaroid w-full h-full border-none shadow-none" style={{
+          <div className="ca-polaroid w-full h-full border-none shadow-none" style={{
             transition: `padding ${duration} ease`
           }}>
-            {isStart && <div className="char-polaroid-tape" />}
-            <div className="char-polaroid-img-wrapper" style={{
+            {isStart && <div className="ca-polaroid-tape" />}
+            <div className="ca-polaroid-img-wrapper" style={{
               height: isStart ? "auto" : "100%",
               aspectRatio: isStart ? "1/1" : "auto",
               transition: `all ${duration} ease`
             }}>
               {char.avatar ? (
-                <img src={char.avatar} className="char-polaroid-img" alt="" />
+                <img src={char.avatar} className="ca-polaroid-img" alt="" />
               ) : (
                 <div className="w-full h-full bg-[#9b8aaa]" />
               )}
             </div>
-            {isStart && <div className="char-polaroid-text">{char.name || "UNNAMED"}</div>}
+            {isStart && <div className="ca-polaroid-text">{char.name || "UNNAMED"}</div>}
           </div>
         </div>
 
-        <div className="char-flipper-back">
+        <div className="ca-flipper-back">
           {/* Scaled down or full archive rendering so it doesn't look weird */}
           <div className="absolute top-0 left-0" style={{
             width: targetWidth, height: targetHeight,
@@ -801,7 +801,7 @@ function CharListView({
       return;
     }
     if (!isEditing) return;
-    if ((e.target as HTMLElement).closest('.lib-card') || (e.target as HTMLElement).closest('.char-bg-item')) return;
+    if ((e.target as HTMLElement).closest('.lib-card') || (e.target as HTMLElement).closest('.ca-bg-item')) return;
     if (linkFromId) setLinkFromId(null); // 点空白处取消拉线
     isDraggingCanvasRef.current = true;
     canvasPointerIdRef.current = e.pointerId;
@@ -985,86 +985,86 @@ function CharListView({
     let extraAttrs: Record<string, string> = {};
 
     if (item.type === 'a4') {
-      baseClass = "char-paper-a4";
+      baseClass = "ca-paper-a4";
       content = (
         <>
-          {hasCrease && <div className="char-paper-crease" />}
-          <div className="char-paper-header">
+          {hasCrease && <div className="ca-paper-crease" />}
+          <div className="ca-paper-header">
             <span>Dept of Truth</span>
             <span>REF:{hash.toString(16).toUpperCase()}</span>
           </div>
-          <div className="char-barcode" />
-          <div className="char-paper-paragraph">
+          <div className="ca-barcode" />
+          <div className="ca-paper-paragraph">
             <strong>SUBJECT:</strong> Anomalous entity detected.
           </div>
-          <div className="char-paper-paragraph relative">
+          <div className="ca-paper-paragraph relative">
             All field agents must maintain high alert.
-            {hash % 4 === 0 && <div className="char-marker-circle" />}
+            {hash % 4 === 0 && <div className="ca-marker-circle" />}
           </div>
-          {hash % 2 === 0 && <div className="char-stamp-red" style={{ top: 120, right: 10 }}>RESTRICTED</div>}
-          {hash % 3 === 0 && <div className="char-handwriting red-ink" style={{ bottom: 20, right: 10 }}>* Verify ASAP *</div>}
+          {hash % 2 === 0 && <div className="ca-stamp-red" style={{ top: 120, right: 10 }}>RESTRICTED</div>}
+          {hash % 3 === 0 && <div className="ca-handwriting red-ink" style={{ bottom: 20, right: 10 }}>* Verify ASAP *</div>}
         </>
       );
     } else if (item.type === 'yellow-note') {
-      baseClass = "char-sticky-note";
+      baseClass = "ca-sticky-note";
       extraAttrs = { "data-color": "yellow" };
       content = (
         <>
           <div className="font-bold mb-1">REMINDER:</div>
-          <ul className="char-checkbox-list">
-            <li><span className="char-checkbox-box checked" /> Check logs</li>
-            <li><span className="char-checkbox-box" /> Verify target</li>
+          <ul className="ca-checkbox-list">
+            <li><span className="ca-checkbox-box checked" /> Check logs</li>
+            <li><span className="ca-checkbox-box" /> Verify target</li>
           </ul>
-          {hash % 5 === 0 && <div className="char-handwriting" style={{ bottom: -5, left: 10 }}>Who is this??</div>}
+          {hash % 5 === 0 && <div className="ca-handwriting" style={{ bottom: -5, left: 10 }}>Who is this??</div>}
         </>
       );
     } else if (item.type === 'blue-note') {
-      baseClass = "char-sticky-note";
+      baseClass = "ca-sticky-note";
       extraAttrs = { "data-color": "blue" };
       content = (
         <>
           <div className="font-bold border-b border-[#999] pb-0.5 mb-1">ROUTING SLIP</div>
           <div><strong>TO:</strong> Agent {hash % 99}</div>
           <div className="mt-2">Needs clearance.</div>
-          {hash % 2 !== 0 && <div className="char-stamp-red" style={{ top: 20, right: -15, fontSize: "calc(12px*var(--app-text-scale,1))", transform: 'rotate(10deg)' }}>URGENT</div>}
+          {hash % 2 !== 0 && <div className="ca-stamp-red" style={{ top: 20, right: -15, fontSize: "calc(12px*var(--app-text-scale,1))", transform: 'rotate(10deg)' }}>URGENT</div>}
         </>
       );
     } else if (item.type === 'torn') {
-      baseClass = "char-paper-torn";
+      baseClass = "ca-paper-torn";
       content = (
         <>
           <div className="font-bold mb-1">Log Day {hash % 30}</div>
-          <div className="char-paper-paragraph">
-            Subject exhibited <span className="char-redacted">unusual</span> behavior.
+          <div className="ca-paper-paragraph">
+            Subject exhibited <span className="ca-redacted">unusual</span> behavior.
           </div>
-          {hash % 4 === 0 && <div className="char-handwriting red-ink" style={{ bottom: 5, right: -10 }}>Liar.</div>}
+          {hash % 4 === 0 && <div className="ca-handwriting red-ink" style={{ bottom: 5, right: -10 }}>Liar.</div>}
         </>
       );
     } else if (item.type === 'grid') {
-      baseClass = "char-paper-grid";
+      baseClass = "ca-paper-grid";
       content = (
         <>
-          {hasCrease && <div className="char-paper-crease" />}
+          {hasCrease && <div className="ca-paper-crease" />}
           <div className="border-b border-[var(--c-panel-border)] mb-1"><strong>COORDINATES:</strong></div>
           <div className="ts-14 font-mono relative">
             [{hash % 90} N, {hash % 180} W]
-            {hash % 3 === 0 && <div className="char-marker-circle" style={{ borderColor: '#000080' }} />}
+            {hash % 3 === 0 && <div className="ca-marker-circle" style={{ borderColor: '#000080' }} />}
           </div>
-          <div className="char-barcode mt-2 h-4" />
+          <div className="ca-barcode mt-2 h-4" />
         </>
       );
     } else {
-      baseClass = "char-paper-scrap";
+      baseClass = "ca-paper-scrap";
       content = (
         <>
           <strong>EVIDENCE 0X4A-{hash % 10}</strong>
-          <div className="char-redacted mt-1">[EXPUNGED]</div>
+          <div className="ca-redacted mt-1">[EXPUNGED]</div>
         </>
       );
     }
 
     return (
-      <div className={`char-bg-item ${baseClass} ${isBurnt ? 'char-burnt-edges' : ''}`} {...extraAttrs}>
+      <div className={`ca-bg-item ${baseClass} ${isBurnt ? 'ca-burnt-edges' : ''}`} {...extraAttrs}>
         {content}
       </div>
     );
@@ -1088,7 +1088,7 @@ function CharListView({
 
   return (
     <>
-      <div className="lib lib-canvas char-archive-root">
+      <div className="lib lib-canvas ca-archive-root">
         <div className="lib-top">
           <div className="ey">CHARACTER ARCHIVE</div>
           <div className="lib-acts">
@@ -1127,7 +1127,7 @@ function CharListView({
         </div>
         <div
           ref={canvasElRef}
-          className="char-infinite-canvas lib-stage select-none"
+          className="ca-infinite-canvas lib-stage select-none"
           onPointerDown={handleCanvasPointerDown}
           onPointerMove={handleCanvasPointerMove}
           onPointerUp={handleCanvasPointerUp}
@@ -1143,7 +1143,7 @@ function CharListView({
         >
         {/* 拉线进行中的提示纸条 */}
         {linkFromId && (
-          <div className="wt-link-hint">
+          <div className="ca-link-hint">
             正在从 <strong>{nameById.get(linkFromId) ?? "?"}</strong> 拉线 · 点另一张照片牵上关系，点空白处取消
           </div>
         )}
@@ -1153,7 +1153,7 @@ function CharListView({
             <span>点下方 ＋ 新建档案，或把别的卷宗里的角色拖进来</span>
           </div>
         ) : (
-          <div className="char-infinite-container absolute w-0 h-0 origin-top-left" style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${pan.zoom})` }}>
+          <div className="ca-infinite-container absolute w-0 h-0 origin-top-left" style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${pan.zoom})` }}>
             {/* 连线原本在这里渲染，现在移到了下方，确保它覆盖在拍立得照片的上方 */}
 
             {worldBgItems.map(item => (
@@ -1182,7 +1182,7 @@ function CharListView({
                   x={char.canvasX} y={char.canvasY || 0} rot={char.canvasRot || 0} zIndex={char.canvasZIndex || 100}
                   onDragEnd={handleDragEndChar}
                   onClick={isEditing ? undefined : (e) => onSelect(char, e)}
-                  className={`ac lib-card ${linkFromId === char.id ? "wt-link-source" : ""}`}
+                  className={`ac lib-card ${linkFromId === char.id ? "ca-link-source" : ""}`}
                   w={169}
                   isEditing={isEditing}
                   onDeleteIntent={(id) => setDeleteConfirm({ id, type: 'char' })}
@@ -1202,7 +1202,7 @@ function CharListView({
                       : (char.name || "?").slice(0, 1)}
                   </div>
                   <button
-                    className="char-polaroid-menu-btn"
+                    className="ca-polaroid-menu-btn"
                     onClick={(e) => { e.stopPropagation(); setActiveMoveChar(char); }}
                     aria-label="转移世界"
                   >
@@ -1299,15 +1299,15 @@ function CharListView({
             }}
           >
             {pendingPlacementChar ? (
-              <div className="char-polaroid w-[100px]" style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.2)' }}>
-                <div className="char-polaroid-img-wrapper">
+              <div className="ca-polaroid w-[100px]" style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.2)' }}>
+                <div className="ca-polaroid-img-wrapper">
                   {pendingPlacementChar.avatar ? (
-                    <img src={pendingPlacementChar.avatar} className="char-polaroid-img" alt="" draggable={false} />
+                    <img src={pendingPlacementChar.avatar} className="ca-polaroid-img" alt="" draggable={false} />
                   ) : (
                     <CharAvatarFallback name={pendingPlacementChar.name} size="100%" />
                   )}
                 </div>
-                <div className="char-polaroid-text ts-10">{pendingPlacementChar.name || "UNNAMED"}</div>
+                <div className="ca-polaroid-text ts-10">{pendingPlacementChar.name || "UNNAMED"}</div>
               </div>
             ) : pendingBgType ? (
               <div className="scale-[0.6] origin-center">
@@ -1319,8 +1319,8 @@ function CharListView({
 
         {/* Placement mode banner */}
         {placementActive && (
-          <div className="char-placement-hint" style={{ zIndex: 999999 }}>
-            <span className="char-placement-hint-finger" aria-hidden="true">👆</span>
+          <div className="ca-placement-hint" style={{ zIndex: 999999 }}>
+            <span className="ca-placement-hint-finger" aria-hidden="true">👆</span>
             <span>点击画布放置 · ESC 取消</span>
           </div>
         )}
@@ -1328,7 +1328,7 @@ function CharListView({
         {/* Trash bin: z-index between normal items and dragged item */}
         <div
           ref={trashBinRef}
-          className={`char-trash-bin char-trash-bin-hitbox ${overTrashBin ? 'drag-over' : ''}`}
+          className={`ca-trash-bin ca-trash-bin-hitbox ${overTrashBin ? 'drag-over' : ''}`}
           style={{
             opacity: isAnyDragging ? 1 : 0,
             transform: overTrashBin ? 'translateX(-50%) translateY(-10px) scale(1.15)' : 'translateX(-50%) scale(1)',
@@ -1719,7 +1719,7 @@ function DraggableNode({
       e.preventDefault();
       return;
     }
-    if ((e.target as HTMLElement).closest('.char-polaroid-menu-btn')) {
+    if ((e.target as HTMLElement).closest('.ca-polaroid-menu-btn')) {
       return;
     }
     if (isEditing) {

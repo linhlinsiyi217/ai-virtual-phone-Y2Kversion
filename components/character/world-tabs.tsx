@@ -1,61 +1,11 @@
 "use client";
 
-// 世界卷宗 tab 条 + 卷宗编辑 sheet + 新建卷宗 sheet
-// 视觉隐喻：每个世界 = 一份牛皮纸案卷，激活的 tab 是「翻开的那份」，
-// 与画布纸面连成一体；编辑模式下拍立得可以拖到 tab 上「归档」进别的世界。
+// 卷宗编辑 sheet + 新建卷宗 sheet
 
 import { useState } from "react";
 import type { CharacterWorldGroup } from "@/lib/character-world-storage";
 import { DEFAULT_CHARACTER_WORLD_ID } from "@/lib/character-world-storage";
 import { CSheet, CConfirm } from "@/components/character/modal-kit";
-
-export function WorldTabStrip({
-  groups,
-  currentWorldId,
-  memberCounts,
-  dropTargetWorldId,
-  onSelect,
-  onOpenEditor,
-  onOpenCreate,
-}: {
-  groups: CharacterWorldGroup[];
-  currentWorldId: string;
-  memberCounts: Map<string, number>;
-  /** 拖拽拍立得悬停中的 tab（高亮为可归档状态） */
-  dropTargetWorldId: string | null;
-  onSelect: (worldId: string) => void;
-  /** 再次点按当前激活的 tab → 打开卷宗编辑 */
-  onOpenEditor: () => void;
-  onOpenCreate: () => void;
-}) {
-  return (
-    <div className="wt-strip" role="tablist" aria-label="世界卷宗">
-      {groups.map(group => {
-        const active = group.id === currentWorldId;
-        const dropping = group.id === dropTargetWorldId;
-        return (
-          <button
-            key={group.id}
-            type="button"
-            role="tab"
-            aria-selected={active}
-            data-world-tab-id={group.id}
-            className={`wt-tab ${active ? "wt-tab-active" : ""} ${dropping ? "wt-tab-drop" : ""}`}
-            onClick={() => (active ? onOpenEditor() : onSelect(group.id))}
-            title={active ? "点按编辑这份卷宗" : `打开「${group.name}」`}
-          >
-            <span className="wt-tab-name">{group.name}</span>
-            <span className="wt-tab-count">{memberCounts.get(group.id) ?? 0}</span>
-            {active && <span className="wt-tab-edit" aria-hidden>✎</span>}
-          </button>
-        );
-      })}
-      <button type="button" className="wt-tab wt-tab-new" onClick={onOpenCreate} aria-label="新建世界">
-        ＋
-      </button>
-    </div>
-  );
-}
 
 /** 卷宗编辑：改名 / 世界观描述 / 删除（角色并回默认世界） */
 export function WorldCaseSheet({
