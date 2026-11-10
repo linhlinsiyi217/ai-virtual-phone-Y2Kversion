@@ -544,6 +544,11 @@ function CharListView({
 
   // ── 世界卷宗：弹层与交互状态 ──
   const [showWorldEditor, setShowWorldEditor] = useState(false);
+  useEffect(() => {
+    const open = () => setShowWorldEditor(true);
+    document.addEventListener("character-open-world", open);
+    return () => document.removeEventListener("character-open-world", open);
+  }, []);
   const [showNewWorld, setShowNewWorld] = useState(false);
   const [dropTargetWorldId, setDropTargetWorldId] = useState<string | null>(null);
   // 拉线：编辑模式下点照片A→照片B
@@ -2072,10 +2077,25 @@ function CharArchiveView({
           <span>关系</span>
           <svg className="ic" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" /></svg>
         </button>
-        <div className="ri"><span>世界书</span><svg className="ic" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" /></svg></div>
-        <div className="ri"><span>声音</span><svg className="ic" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" /></svg></div>
-        <div className="ri"><span>记忆</span><svg className="ic" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" /></svg></div>
-        <div className="ri"><span>更多</span><svg className="ic" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" /></svg></div>
+        <button type="button" className="ri" onClick={() => document.dispatchEvent(new CustomEvent("character-open-world"))} aria-label="打开世界书">
+          <span>世界书</span>
+          <svg className="ic" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" /></svg>
+        </button>
+        <button type="button" className="ri" onClick={() => scrollToSection("soul")} aria-label="声音设定在人物设定里">
+          <span>声音</span>
+          <svg className="ic" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" /></svg>
+        </button>
+        <button type="button" className="ri" onClick={() => scrollToSection("relations")} aria-label="记忆与关系在同一处">
+          <span>记忆</span>
+          <svg className="ic" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" /></svg>
+        </button>
+        <button type="button" className="ri" onClick={() => {
+          const root = cbRef.current;
+          if (root) root.scrollTo({ top: root.scrollHeight, behavior: "smooth" });
+        }} aria-label="导出与删除在页面底部">
+          <span>更多</span>
+          <svg className="ic" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" /></svg>
+        </button>
         {!dummy && (
           <button type="button" className="ex" onClick={onExportPng} aria-label="导出档案图片" title="导出图片">
             <svg className="ic" viewBox="0 0 24 24"><path d="M10 5H6.5A2 2 0 004.5 7v10a2 2 0 002 2H10M14 8l4 4-4 4M18 12H9" /></svg>
