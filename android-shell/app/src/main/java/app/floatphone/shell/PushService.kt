@@ -84,7 +84,8 @@ class PushService : Service() {
         while (!stopped) {
             val config = fetchConfig()
             if (config == null) {
-                updateKeepAlive("未登录或站点不可达，稍后重试")
+                // 按真实原因给文案：以前三种情况都写成「未登录或站点不可达」，看不出该去做什么
+                updateKeepAlive(lastConfigReason)
                 sleepSec(60); continue
             }
             updateKeepAlive("已连接，等待角色消息")
@@ -100,8 +101,15 @@ class PushService : Service() {
     private data class PushConfig(val supabaseUrl: String, val anonKey: String, val userId: String)
 
     /** 借 WebView 的登录 Cookie 调站点接口获取连接参数。 */
+    /** 上一次取配置失败的原因；用于常驻通知文案，避免一句笼统的话看不出该怎么办。 */
+    private var lastConfigReason = "正在连接站点…"
+
     private fun fetchConfig(): PushConfig? = runCatching {
-        val cookie = CookieManager.getInstance().getCookie(MainActivity.SITE_URL) ?: return null
+        val cookie = CookieManager.getInstance().getCookie(MainActivity.SITE_URL)
+        if (cookie.isNullOrEmpty()) {
+            lastConfigReason = "未登录，打开应用登录账号"
+            return null
+        }
 
         fun getJson(path: String): JSONObject? {
             val request = Request.Builder()
@@ -115,14 +123,31 @@ class PushService : Service() {
             }
         }
 
-        val me = getJson("/api/auth/me") ?: return null
+        val me = getJson("/api/auth/me")
+        if (me == null) {
+            lastConfigReason = "站点连不上，正在重试…"
+            return null
+        }
         val userId = me.optJSONObject("account")?.optString("id").orEmpty()
-        if (userId.isEmpty()) return null
-        val online = getJson("/api/online/config") ?: return null
-        if (!online.optBoolean("configured")) return null
+        if (userId.isEmpty()) {
+            lastConfigReason = "未登录，打开应用登录账号"
+            return null
+        }
+        val online = getJson("/api/online/config")
+        if (online == null) {
+            lastConfigReason = "站点连不上，正在重试…"
+            return null
+        }
+        if (!online.optBoolean("configured")) {
+            lastConfigReason = "在线服务未配置，去设置里完成云服务部署"
+            return null
+        }
         val url = online.optString("supabaseUrl")
         val key = online.optString("anonKey")
-        if (url.isEmpty() || key.isEmpty()) return null
+        if (url.isEmpty() || key.isEmpty()) {
+            lastConfigReason = "在线服务未配置，去设置里完成云服务部署"
+            return null
+        }
         registerShellSubscription(cookie, userId)
         PushConfig(url.trimEnd('/'), key, userId)
     }.getOrNull()
