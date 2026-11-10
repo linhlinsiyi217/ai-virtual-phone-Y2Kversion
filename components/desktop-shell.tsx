@@ -159,6 +159,7 @@ import type { DIYWidgetTemplate } from "@/lib/widget-types";
 import { DebugPromptPanel } from "@/components/debug-prompt-panel";
 import { QuickActionFloat } from "@/components/quick-action-float";
 import { installChatSoundListener } from "@/lib/chat-sound";
+import { saveScroll, restoreScroll } from "@/lib/scroll-memory";
 import { FloatingTools } from "@/components/floating-tools";
 import { CHAT_MESSAGE_PUSHED_EVENT, CHAT_REQUEST_REPLY_EVENT, hydrateChatStorage, loadChatSessions, loadChatMessages, pushChatMessage, type ChatMessage, type ChatSession } from "@/lib/chat-storage";
 import { ensureGlobalBindingDefaults, resolveUserIdentity } from "@/lib/settings-storage";
@@ -1104,6 +1105,14 @@ export function DesktopShell({ initialThemeProfile, initialThemeAssets }: Deskto
   const [glassPaintPass, setGlassPaintPass] = useState(0);
   const [notice, setNotice] = useState<string | null>(null);
   const [activeApp, setActiveApp] = useState<DesktopIconId | null>(null);
+  // 进出应用时记住各自的滚动位置：退出前存，回来时瞬移回去（不做平滑滚动）
+  const lastAppRef = useRef<DesktopIconId | null>(null);
+  useEffect(() => {
+    const prev = lastAppRef.current;
+    if (prev && prev !== activeApp) saveScroll(prev);
+    if (activeApp) restoreScroll(activeApp);
+    lastAppRef.current = activeApp;
+  }, [activeApp]);
   const [customApps, setCustomApps] = useState<InstalledCustomApp[]>([]);
   // 自定义 APP 桌面图标样式偏好（global = 忽略上传图标走全局效果）
   const [customAppIconStyles, setCustomAppIconStyles] = useState<Record<string, CustomAppIconStyle>>({});
