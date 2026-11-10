@@ -20,6 +20,7 @@ import { EmojiPanel, StickerPanel } from "./emoji-panel";
 import { StickerSearchSuggest } from "./sticker-search-suggest";
 import { DrawingBoard, DrawingGlyph } from "./drawing-board";
 import { StateValuesPanel } from "./state-values-panel";
+import { InnerVoiceSheet, type InnerVoiceSheetData } from "./inner-voice-sheet";
 import { generateChatCompletion, generateOfflineChatCompletion, flattenCompletionResult, ChatEngineError } from "@/lib/chat-engine";
 import { formatOfflineTurnXml as formatOfflineTurnXmlShared, buildOfflinePromptHistory as buildOfflinePromptHistoryShared } from "@/lib/offline-prompt-builder";
 import { getStatusRegionConfig, isCustomStatusRegionActive } from "@/lib/chat-status-region";
@@ -1327,6 +1328,8 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
     const [selectedMessageIds, setSelectedMessageIds] = useState<Set<string>>(new Set());
     const [showConfirmMultiDelete, setShowConfirmMultiDelete] = useState(false);
     const [expandedMonologueId, setExpandedThinkingId] = useState<string | null>(null);
+    // 心声弹窗：点角色头像打开，点空白关闭
+    const [innerVoiceSheet, setInnerVoiceSheet] = useState<InnerVoiceSheetData | null>(null);
     // 思维链底部弹窗：存当前查看的 reasoning 文本，null = 关闭
     const [reasoningSheetText, setReasoningSheetText] = useState<string | null>(null);
     // 思维链翻译（弹窗内点击翻译按钮生成，切换弹窗内容时重置）
@@ -6015,7 +6018,16 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
                                                             ? groupCharMap.get(msg.senderCharacterId) || character
                                                             : character;
                                                         if (targetChar) sendRichMessage("poke", { pokeTarget: targetChar.name });
-                                                    }} className="w-[40px] h-[40px] rounded-[20px] bg-[var(--c-input)] overflow-hidden cursor-pointer">
+                                                    }} className="w-[40px] h-[40px] rounded-[20px] bg-[var(--c-input)] overflow-hidden cursor-pointer"
+                                                        onClick={() => {
+                                                            if (!msg.innerMonologue) return;
+                                                            setInnerVoiceSheet({
+                                                                name: senderChar?.name || character?.name || "TA",
+                                                                avatarUrl: senderChar?.avatar || character?.avatar || undefined,
+                                                                voice: msg.innerMonologue,
+                                                                timeLabel: msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" }) : undefined,
+                                                            });
+                                                        }}>
                                                         {senderChar?.avatar ? (
                                                             <img src={senderChar.avatar} className="w-full h-full object-cover" alt="" />
                                                         ) : (
@@ -6166,6 +6178,9 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
                         </div>
                     );
                 })}
+                {innerVoiceSheet ? (
+                    <InnerVoiceSheet data={innerVoiceSheet} onClose={() => setInnerVoiceSheet(null)} />
+                ) : null}
                 {/* 流式生成预览：生成中实时显示原文增量，结束后由正式消息替换 */}
                 {!offlineMode && streamPreview && (
                     <div className="chat-stream-preview" data-ui="stream-preview">
