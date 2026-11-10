@@ -30,7 +30,7 @@ export function InnerVoiceSheet({ data, onClose }: { data: InnerVoiceSheetData; 
             aria-label="心声"
             onClick={onClose}
         >
-            <div className={`ivs-card${flipped ? " is-flipped" : ""}${data.stateValues?.length ? " is-flippable" : ""}`} onClick={e => { e.stopPropagation(); if (data.stateValues?.length) setFlipped(v => !v); }}>
+            <div className={`ivs-card is-flippable${flipped ? " is-flipped" : ""}`} onClick={e => { e.stopPropagation(); setFlipped(v => !v); }}>
                 <div className="ivs-face ivs-front">
                     <div className="ivs-head">
                         <span className="ivs-avatar">
@@ -48,9 +48,7 @@ export function InnerVoiceSheet({ data, onClose }: { data: InnerVoiceSheetData; 
                         ) : null}
                     </div>
                     <div className="ivs-voice">{data.voice}</div>
-                    {data.stateValues && data.stateValues.length > 0 ? (
-                        <div className="ivs-hint">点一下卡片，看这一轮的状态</div>
-                    ) : null}
+                    <div className="ivs-hint">点一下卡片，看这一轮的状态</div>
                 </div>
                 <div className="ivs-face ivs-back">
                     <div className="ivs-back-title">这一轮的状态</div>

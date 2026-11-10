@@ -104,63 +104,109 @@ export function InnerVoiceStylePage({ onNotice }: { onNotice?: (text: string) =>
 
     return (
         <div className="ivs-page">
-            <div className="ivs-chips">
-                {styles.map(s => (
-                    <button
-                        key={s.id}
-                        type="button"
-                        className={`ivs-chip${s.id === draft.id ? " is-on" : ""}`}
-                        onClick={() => setDraft(s)}
-                    >
-                        {s.name}
-                        {s.id === activeId ? <span className="ivs-chip-dot" /> : null}
-                    </button>
-                ))}
-                <button type="button" className="ivs-chip ivs-chip-add" onClick={create}>＋ 新建</button>
-            </div>
+            {/* 顶部：当前在改哪一套 */}
+            <section className="ivs-card ivs-card-sets">
+                <div className="ivs-card-head">
+                    <h3 className="ivs-card-title">心声样式</h3>
+                    <span className="ivs-card-sub">{styles.length} 套 · 点选切换</span>
+                </div>
+                <div className="ivs-sets">
+                    {styles.map(s => (
+                        <button
+                            key={s.id}
+                            type="button"
+                            className={`ivs-set${s.id === draft.id ? " is-on" : ""}`}
+                            onClick={() => setDraft(s)}
+                        >
+                            <span className="ivs-set-name">{s.name}</span>
+                            {s.id === activeId ? <span className="ivs-set-badge">使用中</span> : null}
+                        </button>
+                    ))}
+                    <button type="button" className="ivs-set ivs-set-add" onClick={create}>＋ 新建</button>
+                </div>
+            </section>
 
-            <label className="ivs-label">名称</label>
-            <input className="ivs-input" value={draft.name} onChange={e => updateDraft({ name: e.target.value })} />
+            {/* 基本信息 */}
+            <section className="ivs-card">
+                <div className="ivs-card-head">
+                    <h3 className="ivs-card-title">名称</h3>
+                    <span className="ivs-card-sub">给这套样式起个名字</span>
+                </div>
+                <input className="ivs-input" value={draft.name} onChange={e => updateDraft({ name: e.target.value })} />
+            </section>
 
-            <label className="ivs-label">日常提示词</label>
-            <textarea className="ivs-textarea" rows={8} value={draft.prompt} onChange={e => updateDraft({ prompt: e.target.value })} />
+            {/* 提示词：主内容，用折叠/展开区分主次 */}
+            <section className="ivs-card">
+                <div className="ivs-card-head">
+                    <h3 className="ivs-card-title">提示词</h3>
+                    <span className="ivs-card-sub">决定心声怎么写</span>
+                </div>
+                <details className="ivs-fold" open>
+                    <summary>日常对话 <span className="ivs-fold-hint">平时聊天用这套</span></summary>
+                    <textarea className="ivs-textarea" rows={9} value={draft.prompt} onChange={e => updateDraft({ prompt: e.target.value })} />
+                </details>
+                <details className="ivs-fold">
+                    <summary>小剧场 <span className="ivs-fold-hint">有场景时才用</span></summary>
+                    <textarea className="ivs-textarea" rows={8} value={draft.scenePrompt} onChange={e => updateDraft({ scenePrompt: e.target.value })} />
+                </details>
+            </section>
 
-            <label className="ivs-label">小剧场提示词</label>
-            <textarea className="ivs-textarea" rows={7} value={draft.scenePrompt} onChange={e => updateDraft({ scenePrompt: e.target.value })} />
+            {/* 字段 */}
+            <section className="ivs-card">
+                <div className="ivs-card-head">
+                    <h3 className="ivs-card-title">字段</h3>
+                    <span className="ivs-card-sub">模型要输出的内容项</span>
+                </div>
+                <div className="ivs-list">
+                    {draft.fields.map((f, i) => (
+                        <div className="ivs-list-row" key={f.key + i}>
+                            <span className="ivs-list-key">{`{{${f.key}}}`}</span>
+                            <span className="ivs-list-hint">{f.hint}</span>
+                        </div>
+                    ))}
+                </div>
+            </section>
 
-            <label className="ivs-label">字段</label>
-            <div className="ivs-fields">
-                {draft.fields.map((f, i) => (
-                    <div className="ivs-field" key={f.key + i}>
-                        <span className="ivs-field-key">{`{{${f.key}}}`}</span>
-                        <span className="ivs-field-hint">{f.hint}</span>
+            {/* 模板 */}
+            <section className="ivs-card">
+                <div className="ivs-card-head">
+                    <h3 className="ivs-card-title">卡片模板</h3>
+                    <span className="ivs-card-sub">决定卡片长什么样</span>
+                </div>
+                <details className="ivs-fold">
+                    <summary>HTML 与样式</summary>
+                    <textarea className="ivs-textarea ivs-mono" rows={12} value={draft.html} onChange={e => updateDraft({ html: e.target.value })} />
+                </details>
+                <div className="ivs-motion">
+                    <span className="ivs-motion-label">出现动效</span>
+                    <div className="ivs-chips">
+                        {([["rise", "上浮"], ["fade", "淡入"], ["spring", "弹性"], ["none", "无"]] as const).map(([k, label]) => (
+                            <button key={k} type="button" className={`ivs-chip${draft.motion === k ? " is-on" : ""}`} onClick={() => updateDraft({ motion: k })}>{label}</button>
+                        ))}
                     </div>
-                ))}
-            </div>
+                </div>
+            </section>
 
-            <label className="ivs-label">HTML 模板</label>
-            <textarea className="ivs-textarea ivs-mono" rows={12} value={draft.html} onChange={e => updateDraft({ html: e.target.value })} />
+            {/* 预览 */}
+            <section className="ivs-card">
+                <div className="ivs-card-head">
+                    <h3 className="ivs-card-title">预览</h3>
+                    <button type="button" className="ivs-link" onClick={() => setPreviewKey(k => k + 1)}>重新预览</button>
+                </div>
+                <div className="ivs-preview" dangerouslySetInnerHTML={{ __html: previewHtml }} />
+            </section>
 
-            <label className="ivs-label">出现动效</label>
-            <div className="ivs-chips">
-                {([["rise", "上浮"], ["fade", "淡入"], ["spring", "弹性"], ["none", "无"]] as const).map(([k, label]) => (
-                    <button key={k} type="button" className={`ivs-chip${draft.motion === k ? " is-on" : ""}`} onClick={() => updateDraft({ motion: k })}>{label}</button>
-                ))}
-            </div>
+            <p className="ivs-note">模板只允许结构、文字与样式，脚本会被过滤。</p>
 
-            <label className="ivs-label">预览</label>
-            <div className="ivs-preview" dangerouslySetInnerHTML={{ __html: previewHtml }} />
-            <button type="button" className="ivs-chip" onClick={() => setPreviewKey(k => k + 1)}>重新预览</button>
-
-            <div className="ivs-actions">
+            {/* 底部固定主操作 */}
+            <div className="ivs-dock">
                 <button type="button" className="ivs-btn primary" onClick={saveDraft}>保存</button>
                 <button type="button" className="ivs-btn" onClick={useStyle}>设为当前</button>
-                <button type="button" className="ivs-btn" onClick={() => fileRef.current?.click()}>导入</button>
-                <button type="button" className="ivs-btn" onClick={exportJson}>导出</button>
-                <button type="button" className="ivs-btn" onClick={restoreDefault}>恢复默认</button>
-                <button type="button" className="ivs-btn danger" onClick={remove} disabled={styles.length <= 1}>删除</button>
+                <button type="button" className="ivs-btn icon" onClick={() => fileRef.current?.click()} aria-label="导入">导入</button>
+                <button type="button" className="ivs-btn icon" onClick={exportJson} aria-label="导出">导出</button>
+                <button type="button" className="ivs-btn icon" onClick={restoreDefault} aria-label="恢复默认">恢复</button>
+                <button type="button" className="ivs-btn icon danger" onClick={remove} disabled={styles.length <= 1} aria-label="删除">删除</button>
             </div>
-            <p className="ivs-note">模板只允许结构、文字与样式，脚本会被过滤。</p>
 
             <input
                 ref={fileRef}
