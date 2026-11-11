@@ -152,12 +152,6 @@ export function UserIdentitySettings() {
                 </div>
             </section>
 
-            <button className="profile-v2-bind jelly-button" type="button">
-                <span className="settings-overview-icon"><Link2 size={20} /></span>
-                <span><b>绑定虚拟账号</b><small>个人资料会同步给本机账号</small></span>
-                <ChevronRight size={18} />
-            </button>
-
             <section className="profile-v2-section profile-v2-profiles">
                 <div className="profile-v2-title-row"><h3>其他资料</h3><button onClick={add}><Plus size={15} />新增</button></div>
                 <div className="profile-v2-group">

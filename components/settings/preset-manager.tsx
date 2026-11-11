@@ -662,7 +662,11 @@ export function PresetManager({ isActive = true }: { isActive?: boolean } = {}) 
                                     role="button"
                                     tabIndex={0}
                                     aria-label={`编辑 ${preset.name || "预设"}`}
-                                    onClick={() => { setEditingId(preset.id); setViewMode("detail"); }}
+                                    onClick={() => {
+                                        setEditingId(preset.id);
+                                        setViewMode("detail");
+                                        try { window.localStorage.setItem("y2k:last-preset-id", preset.id); } catch { /* 忽略 */ }
+                                    }}
                                     onKeyDown={(event) => {
                                         if (event.target !== event.currentTarget) return;
                                         if (event.key === "Enter" || event.key === " ") {
