@@ -1,5 +1,6 @@
 "use client";
 
+import { parsePersonaDoc } from "@/lib/persona-doc-parser";
 import { useEffect, useState } from "react";
 import { Camera, Check, ChevronRight, Link2, Plus, Trash2, User } from "lucide-react";
 import { loadUserIdentities, saveUserIdentities } from "@/lib/settings-storage";
@@ -125,6 +126,33 @@ export function UserIdentitySettings() {
                     <span><Camera size={13} /></span>
                 </button>
                 <button type="button" className="profile-v2-change" onClick={uploadAvatar}>更换照片</button>
+                <label className="profile-v2-change" style={{ marginLeft: 8 }}>
+                    从文档导入
+                    <input
+                        type="file"
+                        accept=".txt,.md,.json,text/plain"
+                        hidden
+                        onChange={async event => {
+                            const file = event.target.files?.[0];
+                            event.target.value = "";
+                            if (!file) return;
+                            try {
+                                const parsed = parsePersonaDoc(await file.text());
+                                const patch: Record<string, string> = {};
+                                if (parsed.nickname) patch.nickname = parsed.nickname;
+                                if (parsed.realName) patch.realName = parsed.realName;
+                                if (parsed.gender) patch.gender = parsed.gender;
+                                if (parsed.signature) patch.signature = parsed.signature;
+                                if (parsed.bio) patch.bio = parsed.bio;
+                                if (parsed.portraitDescription) patch.portraitDescription = parsed.portraitDescription;
+                                if (!Object.keys(patch).length) { alert("这份文档里没认出字段，试试纯文本的 txt。"); return; }
+                                update(patch);
+                            } catch {
+                                alert("文件读不出来");
+                            }
+                        }}
+                    />
+                </label>
                 <h2>{active.nickname || active.name}</h2>
             </section>
 
