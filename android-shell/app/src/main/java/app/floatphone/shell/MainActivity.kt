@@ -568,6 +568,32 @@ class MainActivity : AppCompatActivity() {
         @JavascriptInterface
         fun getVersion(): String = VERSION
 
+        /**
+         * 网页侧导出的文件（票据 PNG、备份等）经这里落到公共「下载」目录。
+         * blob: 地址系统下载器不认，所以把二进制转 base64 传进来自己写。
+         */
+        @JavascriptInterface
+        fun saveBase64File(base64: String, fileName: String, mimeType: String): Boolean {
+            return runCatching {
+                val bytes = android.util.Base64.decode(base64, android.util.Base64.DEFAULT)
+                val safeName = fileName.replace(Regex("[\\\\/:*?\"<>|]"), "_").ifBlank { "y2k-file" }
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                    val values = android.content.ContentValues().apply {
+                        put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, safeName)
+                        put(android.provider.MediaStore.MediaColumns.MIME_TYPE, mimeType.ifBlank { "application/octet-stream" })
+                        put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, android.os.Environment.DIRECTORY_DOWNLOADS)
+                    }
+                    val uri = contentResolver.insert(android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI, values) ?: return false
+                    contentResolver.openOutputStream(uri)?.use { it.write(bytes) } ?: return false
+                } else {
+                    val dir = android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS)
+                    if (!dir.exists()) dir.mkdirs()
+                    java.io.File(dir, safeName).writeBytes(bytes)
+                }
+                true
+            }.getOrDefault(false)
+        }
+
         /** 实测系统状态栏高度（CSS px）。页面侧兜底轮询用；主要注入路径见 injectStatusBarHeight。 */
         @JavascriptInterface
         fun getStatusBarHeightPx(): Int = statusBarHeightCssPx

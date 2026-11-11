@@ -12,6 +12,7 @@ import {
     renderPreview,
 } from "@/lib/inner-voice-style";
 import { exportTicket, readTicket } from "@/lib/ticket-png";
+import { saveFileToDevice } from "@/lib/device-save";
 
 export function InnerVoiceStylePage({ onNotice }: { onNotice?: (text: string) => void }) {
     const [styles, setStyles] = useState<InnerVoiceStyle[]>(DEFAULT_STYLES);
@@ -87,12 +88,11 @@ export function InnerVoiceStylePage({ onNotice }: { onNotice?: (text: string) =>
                 modules: ["提示词", "字段", "HTML", "动效"],
                 payload: { style: draft },
             });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = `y2k-innerVoice-${draft.name}-${new Date().toISOString().slice(0, 10)}.png`;
-            a.click();
-            URL.revokeObjectURL(url);
+            const name = `y2k-innerVoice-${draft.name}-${new Date().toISOString().slice(0, 10)}.png`;
+            const where = await saveFileToDevice(blob, name);
+            if (where === "device") onNotice?.("已保存到「下载」目录");
+            else if (where === "download") onNotice?.("已开始下载");
+            else onNotice?.("导出失败：这台设备存不了文件");
         } catch {
             onNotice?.("导出失败");
         }
