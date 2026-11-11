@@ -11,7 +11,9 @@
 @import "../styles/chat-drawing.css";
 @import "../styles/photo-album.css";
 @import "../styles/imessage26.css";
+/* 回归小笼包外观：暂时停用 chat-social-apple.css
 @import "../styles/chat-social-apple.css";
+*/
 @import "../styles/character.css";
 @import "../styles/animations.css";
 @import "../styles/music.css";
@@ -42,7 +44,9 @@
 @import "../styles/kuaichuan.css";
 @import "../styles/lifesim.css";
 @import "../styles/chat-ui-mode.css";
+/* 回归小笼包外观：暂时停用 chat-monochrome-ui.css
 @import "../styles/chat-monochrome-ui.css";
+*/
 @import "../styles/chat-beauty-center.css";
 @import "../styles/shell-monochrome-ui.css";
 @import "../styles/update-log.css";
