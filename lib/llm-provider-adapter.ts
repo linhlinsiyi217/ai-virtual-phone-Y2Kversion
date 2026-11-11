@@ -252,7 +252,20 @@ function customInnerVoiceInstruction(): string {
         if (!hit || !hit.prompt) return "";
         const text = hit.prompt.trim();
         if (!text) return "";
-        return `【心声写法】\n${text}`;
+        // 必须包在 [内心] 里，解析器只认这个壳；否则标签会原样显示在气泡里
+        return [
+            "【心声写法】",
+            text,
+            "",
+            "【输出格式（必须遵守）】",
+            "上面这些内容要放进 [内心] ... [/内心] 这一对标签里，标签内按字段换行写，例如：",
+            "[内心]",
+            "心情：有点烦",
+            "心声：……（按上面的写法）",
+            "好感度：68",
+            "[/内心]",
+            "不要用别的标签，也不要省略这对标签。",
+        ].join("\n");
     } catch {
         return "";
     }

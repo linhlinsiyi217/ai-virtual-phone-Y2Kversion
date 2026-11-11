@@ -192,7 +192,7 @@ export function listeningRoomPrompt(characterId: string, sessionId?: string): st
     return `${facts ? facts + "\n" : ""}你正在与用户一起听歌。${track ? `当前${snapshot!.isPlaying ? "播放" : "暂停"}：${track.title} · ${track.artist}。` : "尚未播放歌曲。"}换歌、歌曲结束或暂停不结束一起听，无需重新邀请；仅任一方主动退出才结束。${sharedEffect}具体歌词仅以用户分享的歌词卡或输入文字为准。继续当前对话；想结束时自然说明并附[一起听:${current.id}:退出]。`;
 }
 export function applyListeningRoomReply(text: string, sessionId: string, actorId?: string, batchId?: string): string {
-    const cleaned = text.replace(/\[一起听邀请(?::([^\]\n]*))?\]/g, (_, song: string | undefined) => {
+    const cleaned = text.replace(/\[一起听邀请(?::([^\]]*))?\]/g, (_, song: string | undefined) => {
         const session = loadChatSessions().find(item => item.id === sessionId);
         if (!session) return "";
         if (session.isGroup) {
