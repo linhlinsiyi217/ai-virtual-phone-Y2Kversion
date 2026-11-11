@@ -393,19 +393,19 @@ export function UserProfilePanel({ onClose, className, openBeautyRequest = 0 }: 
                     <div className="mx-4 mb-4 bg-[var(--c-card)] rounded-2xl flex items-center justify-between p-4 px-6"
                          style={{ boxShadow: "0 8px 24px rgba(0,0,0,0.025)" }}>
                         <button className="flex flex-col items-center gap-2 flex-1" onClick={() => { window.dispatchEvent(new CustomEvent("chat-hide-tabbar", { detail: true })); setShowMomentsSettings(true); }}>
-                            <div className="w-[42px] h-[42px] rounded-[14px] bg-[#f0f0f1] text-black flex items-center justify-center">
+                            <div className="w-[42px] h-[42px] rounded-[14px] flex items-center justify-center" style={{ background: "#E9F0FE", color: "#2F80ED" }}>
                                 <Radio size={22} strokeWidth={2} />
                             </div>
                             <span className="ts-12 font-semibold text-[var(--c-text-title)]">朋友圈互动</span>
                         </button>
                         <button className="flex flex-col items-center gap-2 flex-1" onClick={() => { window.dispatchEvent(new CustomEvent("chat-hide-tabbar", { detail: true })); setShowStickerManager(true); }}>
-                            <div className="w-[42px] h-[42px] rounded-[14px] bg-[#f0f0f1] text-black flex items-center justify-center">
+                            <div className="w-[42px] h-[42px] rounded-[14px] flex items-center justify-center" style={{ background: "#FDF2E6", color: "#D88B2A" }}>
                                 <Sticker size={22} strokeWidth={2} />
                             </div>
                             <span className="ts-12 font-semibold text-[var(--c-text-title)]">表情包仓储</span>
                         </button>
                         <button className="flex flex-col items-center gap-2 flex-1" onClick={() => { window.dispatchEvent(new CustomEvent("chat-hide-tabbar", { detail: true })); setShowCSSEditor(true); }}>
-                            <div className="w-[42px] h-[42px] rounded-[14px] bg-[#f0f0f1] text-black flex items-center justify-center">
+                            <div className="w-[42px] h-[42px] rounded-[14px] flex items-center justify-center" style={{ background: "#FCEBF3", color: "#D83F87" }}>
                                 <Palette size={22} strokeWidth={2} />
                             </div>
                             <span className="ts-12 font-semibold text-[var(--c-text-title)]">美化工坊</span>
