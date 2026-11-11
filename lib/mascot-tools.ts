@@ -310,6 +310,8 @@ const UPDATE_USER_PROFILE_SCHEMA = {
         bio: { type: "string", description: "自我介绍或人设正文，可以多段" },
         portraitDescription: { type: "string", description: "外貌描述，用于生成头像时保持长相" },
         targetNickname: { type: "string", description: "要改哪一份资料（按网名找）；不传则改当前使用的那份" },
+        rawText: { type: "string", description: "用户发来的人设文档原文（中英混排/各种模板都行）。传这个就不用手动拆字段，工具会自己识别。" },
+        apply: { type: "boolean", description: "false（默认）只返回识别结果供确认；用户确认后再传 true 写入。" },
     },
     additionalProperties: false,
 };
@@ -2014,6 +2016,7 @@ async function handleCreateCharacter(args: Record<string, unknown>): Promise<Too
 async function handleUpdateUserProfile(args: Record<string, unknown>): Promise<ToolResult> {
     const { loadUserIdentities, saveUserIdentities } = await import("./settings-storage");
     const { loadBindingConfig, resolveBinding } = await import("./settings-storage");
+    const { parsePersonaDoc } = await import("./persona-doc-parser");
 
     const list = loadUserIdentities();
     if (!Array.isArray(list) || list.length === 0) {
@@ -2033,39 +2036,48 @@ async function handleUpdateUserProfile(args: Record<string, unknown>): Promise<T
         } catch { /* 用第一份 */ }
     }
 
-    const next: Record<string, unknown> = { ...list[index] };
-    const map: Array<[string, string]> = [
-        ["nickname", "nickname"],
-        ["realName", "realName"],
-        ["name", "name"],
-        ["gender", "gender"],
-        ["signature", "signature"],
-        ["bio", "bio"],
-        ["portraitDescription", "portraitDescription"],
-    ];
-    const changed: string[] = [];
-    for (const [argKey, field] of map) {
-        const value = args[argKey];
-        if (typeof value !== "string") continue;
-        const text = value.trim();
-        if (!text) continue;
-        if (String(next[field] || "") === text) continue;
-        next[field] = text;
-        changed.push(field);
+    const patch: Record<string, string> = {};
+    if (typeof args.rawText === "string" && args.rawText.trim()) {
+        const parsed = parsePersonaDoc(args.rawText);
+        for (const [k, v] of Object.entries(parsed)) {
+            if (typeof v === "string" && v.trim()) patch[k] = v.trim();
+        }
+        if (Object.keys(patch).length === 0) {
+            return { name: "更新我的资料", success: false, error: "这份文档里没认出可用的字段，把它发我看看，或者直接说「网名是X、真名是Y」。" };
+        }
     }
-    if (changed.length === 0) {
-        return { name: "更新我的资料", success: true, data: "资料和现在一致，没有需要改的地方。" };
+    for (const key of ["nickname", "realName", "name", "gender", "signature", "bio", "portraitDescription"]) {
+        const value = args[key];
+        if (typeof value === "string" && value.trim()) patch[key] = value.trim();
     }
-    list[index] = next as typeof list[number];
-    saveUserIdentities(list);
+
     const label: Record<string, string> = {
         nickname: "网名", realName: "真实姓名", name: "显示名", gender: "性别",
         signature: "签名", bio: "自我介绍", portraitDescription: "外貌描述",
     };
+    const changes = Object.entries(patch).filter(([k, v]) => String((list[index] as unknown as Record<string, unknown>)[k] || "") !== v);
+
+    if (!changes.length) {
+        return { name: "更新我的资料", success: true, data: "识别出来的内容和现在一致，没有需要改的地方。" };
+    }
+
+    if (args.apply !== true) {
+        const preview = changes.map(([k, v]) => `${label[k] || k}：${v.length > 40 ? v.slice(0, 40) + "…" : v}`).join("\n");
+        return {
+            name: "更新我的资料",
+            success: true,
+            data: `识别结果如下，还没有写入：\n${preview}\n\n确认无误后让我再执行一次（传 apply=true）。`,
+        };
+    }
+
+    const next: Record<string, unknown> = { ...list[index] };
+    for (const [k, v] of changes) next[k] = v;
+    list[index] = next as typeof list[number];
+    saveUserIdentities(list);
     return {
         name: "更新我的资料",
         success: true,
-        data: `已更新 ${label[changed[0]] || changed[0]} 等 ${changed.length} 项：${changed.map(k => label[k] || k).join("、")}。网名用于对外显示，真名只在熟识场景出现。`,
+        data: `已写入 ${changes.length} 项：${changes.map(([k]) => label[k] || k).join("、")}。网名用于对外显示，真名只在熟识场景出现。`,
     };
 }
 
