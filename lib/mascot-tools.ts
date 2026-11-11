@@ -274,6 +274,18 @@ const CREATE_CHARACTER_SCHEMA = {
     additionalProperties: false,
 };
 
+const SET_CHARACTER_AVATAR_SCHEMA = {
+    type: "object",
+    properties: {
+        name: { type: "string", description: "角色名" },
+        sourceImageId: { type: "string", description: "用户图片 id，从「列出用户图片」获取；不传则用最近一张" },
+        messageOffset: { type: "number", description: "可选：第几条带图用户消息，0=最近；传 sourceImageId 时忽略" },
+        imageIndex: { type: "number", description: "可选：同一条消息里的第几张图，0=第一张" },
+    },
+    required: ["name"],
+    additionalProperties: false,
+};
+
 const UPDATE_CHARACTER_FIELD_SCHEMA = {
     type: "object",
     properties: {
@@ -980,6 +992,7 @@ export const MASCOT_TOOL_PACKAGES: MascotToolPackage[] = [
             { name: "读取角色", description: "不传 name 时列出所有角色；传 name 时返回完整字段。", parameterSchema: READ_CHARACTER_SCHEMA },
             { name: "创建角色", description: "新建一张角色卡。persona 必须包含 7 段式人设（基础信息/外貌/世界观/性格/补充信息/经历）。", parameterSchema: CREATE_CHARACTER_SCHEMA },
             { name: "更新角色字段", description: "修改某角色的单个字段（name/persona/personality）。", parameterSchema: UPDATE_CHARACTER_FIELD_SCHEMA },
+            { name: "设置角色头像", description: "把用户上传的某张图片设为角色头像；用户说「把这张图换成谁的头像」时用这个。", parameterSchema: SET_CHARACTER_AVATAR_SCHEMA },
         ],
         usageGuide: CHARACTER_CARD_PROMPT,
     },
@@ -1216,6 +1229,7 @@ const MASCOT_NATIVE_TOOL_NAMES: Record<string, string> = {
     "读取角色": "mascot_read_character",
     "创建角色": "mascot_create_character",
     "更新角色字段": "mascot_update_character_field",
+    "设置角色头像": "mascot_set_character_avatar",
     "列出世界卷宗": "mascot_list_character_worlds",
     "创建世界卷宗": "mascot_create_character_world",
     "重命名世界卷宗": "mascot_rename_character_world",
@@ -1374,6 +1388,7 @@ export async function executeMascotToolCall(call: ToolCall, ctx: MascotToolConte
             case "读取角色": return await handleReadCharacter(call.args);
             case "创建角色": return await handleCreateCharacter(call.args);
             case "更新角色字段": return await handleUpdateCharacterField(call.args, ctx);
+            case "设置角色头像": return await handleSetCharacterAvatar(call.args, ctx);
 
             // ─── 角色世界（世界卷宗）───
             case "列出世界卷宗": return await handleListCharacterWorlds();
@@ -1960,6 +1975,65 @@ async function handleCreateCharacter(args: Record<string, unknown>): Promise<Too
     chars.push(newChar as typeof chars[number]);
     saveCharacters(chars);
     return { name: "创建角色", success: true, data: `已创建角色 ${newChar.name} (${newChar.id})${briefPersona ? "，含简量人设" : ""}` };
+}
+
+async function handleSetCharacterAvatar(args: Record<string, unknown>, ctx: MascotToolContext): Promise<ToolResult> {
+    const { loadCharacters, saveCharacters } = await import("./character-storage");
+    const { backupCharacterVersion, getCharacterCurrentVersion } = await import("./character-version-storage");
+    const { resolveCompressedImageDataUrl } = await import("./chat-engine");
+
+    const chars = loadCharacters();
+    const idx = chars.findIndex((c) => c.name === args.name);
+    if (idx < 0) return { name: "设置角色头像", success: false, error: `找不到角色：${args.name}` };
+
+    type HistMsg = { role?: string; images?: string[] };
+    const history = (ctx.history ?? []) as HistMsg[];
+    const wanted = typeof args.sourceImageId === "string" ? args.sourceImageId : "";
+    const wantOffset = typeof args.messageOffset === "number" ? args.messageOffset : 0;
+    const wantIndex = typeof args.imageIndex === "number" ? args.imageIndex : 0;
+
+    let picked: string | null = null;
+    let counter = 1;
+    let offset = 0;
+    for (let i = history.length - 1; i >= 0 && !picked; i -= 1) {
+        const msg = history[i];
+        if (msg?.role !== "user" || !Array.isArray(msg.images) || msg.images.length === 0) continue;
+        for (let j = 0; j < msg.images.length; j += 1) {
+            const ref = msg.images[j];
+            if (!ref) continue;
+            const id = `user_image_${counter}`;
+            const hit = wanted ? id === wanted : (offset === wantOffset && j === wantIndex);
+            if (hit) { picked = ref; break; }
+            counter += 1;
+        }
+        offset += 1;
+    }
+    if (!picked) {
+        outer: for (let i = history.length - 1; i >= 0; i -= 1) {
+            const msg = history[i];
+            if (msg?.role !== "user" || !Array.isArray(msg.images)) continue;
+            for (const ref of msg.images) { if (ref) { picked = ref; break outer; } }
+        }
+    }
+    if (!picked) return { name: "设置角色头像", success: false, error: "最近的对话里没有找到可用的图片。" };
+
+    const dataUrl = await resolveCompressedImageDataUrl(picked);
+    if (!dataUrl) return { name: "设置角色头像", success: false, error: "这张图片读不出来，换一张试试。" };
+
+    const backupIds = ctx.characterBackupIds ?? (ctx.characterBackupIds = new Set<string>());
+    const didBackup = !backupIds.has(chars[idx].id);
+    const nextVersion = didBackup
+        ? backupCharacterVersion(chars[idx], "mascot", "小卷换头像前自动备份")
+        : getCharacterCurrentVersion(chars[idx].id);
+    backupIds.add(chars[idx].id);
+
+    chars[idx] = { ...chars[idx], avatar: dataUrl, updatedAt: new Date().toISOString() };
+    saveCharacters(chars);
+    return {
+        name: "设置角色头像",
+        success: true,
+        data: `${didBackup ? "已备份旧卡，并" : "继续"}把头像换成你给的那张；当前版本 V${nextVersion}`,
+    };
 }
 
 async function handleUpdateCharacterField(args: Record<string, unknown>, ctx: MascotToolContext): Promise<ToolResult> {
