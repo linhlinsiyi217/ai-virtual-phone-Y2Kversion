@@ -412,18 +412,7 @@ export function UserProfilePanel({ onClose, className, openBeautyRequest = 0 }: 
                         </button>
                     </div>
 
-                    <button
-                        type="button"
-                        className="mx-4 mb-4 bg-[var(--c-card)] rounded-[24px] px-4 py-4 flex items-center gap-3 text-left"
-                        style={{ boxShadow: "0 10px 30px rgba(0,0,0,0.035)" }}
-                        onClick={() => {
-                            window.dispatchEvent(new CustomEvent("chat-open-account-gate"));
-                        }}
-                    >
-                        <span className="w-10 h-10 rounded-[14px] bg-black text-white grid place-items-center"><QrCode size={20} /></span>
-                        <span className="flex-1 flex flex-col gap-0.5"><b className="ts-14">聊天账号</b><small className="ts-11 opacity-55">登录、换号与删除本机账号</small></span>
-                        <ChevronRight size={17} className="opacity-40" />
-                    </button>
+                    
 
                     {/* 主动消息 */}
                     <div className="mx-4 mb-4 bg-[var(--c-card)] rounded-2xl px-4 py-1 flex flex-col"
