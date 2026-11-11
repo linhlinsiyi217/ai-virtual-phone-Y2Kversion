@@ -299,6 +299,21 @@ const BATCH_UPDATE_CHARACTERS_SCHEMA = {
     additionalProperties: false,
 };
 
+const UPDATE_USER_PROFILE_SCHEMA = {
+    type: "object",
+    properties: {
+        nickname: { type: "string", description: "网名：所有人都看得到的称呼，界面、群聊都用它" },
+        realName: { type: "string", description: "真实姓名：只有真正认识用户的人知道" },
+        name: { type: "string", description: "资料卡上显示的主名字，一般等于网名" },
+        gender: { type: "string", description: "男 / 女 / 其他" },
+        signature: { type: "string", description: "个性签名，一句话" },
+        bio: { type: "string", description: "自我介绍或人设正文，可以多段" },
+        portraitDescription: { type: "string", description: "外貌描述，用于生成头像时保持长相" },
+        targetNickname: { type: "string", description: "要改哪一份资料（按网名找）；不传则改当前使用的那份" },
+    },
+    additionalProperties: false,
+};
+
 const UPDATE_CHARACTER_FIELD_SCHEMA = {
     type: "object",
     properties: {
@@ -1007,6 +1022,7 @@ export const MASCOT_TOOL_PACKAGES: MascotToolPackage[] = [
             { name: "更新角色字段", description: "修改某角色的单个字段（name/persona/personality）。", parameterSchema: UPDATE_CHARACTER_FIELD_SCHEMA },
             { name: "设置角色头像", description: "把用户上传的某张图片设为角色头像；用户说「把这张图换成谁的头像」时用这个。", parameterSchema: SET_CHARACTER_AVATAR_SCHEMA },
             { name: "批量修改角色", description: "一次修改多个角色的同一字段。默认只预览，用户确认后传 apply=true 才写入。", parameterSchema: BATCH_UPDATE_CHARACTERS_SCHEMA },
+            { name: "更新我的资料", description: "改用户自己的资料（网名、真名、性别、签名、自我介绍、外貌）。用户发人设文档时，先自己提取字段再调用。", parameterSchema: UPDATE_USER_PROFILE_SCHEMA },
         ],
         usageGuide: CHARACTER_CARD_PROMPT,
     },
@@ -1245,6 +1261,7 @@ const MASCOT_NATIVE_TOOL_NAMES: Record<string, string> = {
     "更新角色字段": "mascot_update_character_field",
     "设置角色头像": "mascot_set_character_avatar",
     "批量修改角色": "mascot_batch_update_characters",
+    "更新我的资料": "mascot_update_user_profile",
     "列出世界卷宗": "mascot_list_character_worlds",
     "创建世界卷宗": "mascot_create_character_world",
     "重命名世界卷宗": "mascot_rename_character_world",
@@ -1405,6 +1422,7 @@ export async function executeMascotToolCall(call: ToolCall, ctx: MascotToolConte
             case "更新角色字段": return await handleUpdateCharacterField(call.args, ctx);
             case "设置角色头像": return await handleSetCharacterAvatar(call.args, ctx);
             case "批量修改角色": return await handleBatchUpdateCharacters(call.args, ctx);
+            case "更新我的资料": return await handleUpdateUserProfile(call.args);
 
             // ─── 角色世界（世界卷宗）───
             case "列出世界卷宗": return await handleListCharacterWorlds();
@@ -1991,6 +2009,64 @@ async function handleCreateCharacter(args: Record<string, unknown>): Promise<Too
     chars.push(newChar as typeof chars[number]);
     saveCharacters(chars);
     return { name: "创建角色", success: true, data: `已创建角色 ${newChar.name} (${newChar.id})${briefPersona ? "，含简量人设" : ""}` };
+}
+
+async function handleUpdateUserProfile(args: Record<string, unknown>): Promise<ToolResult> {
+    const { loadUserIdentities, saveUserIdentities } = await import("./settings-storage");
+    const { loadBindingConfig, resolveBinding } = await import("./settings-storage");
+
+    const list = loadUserIdentities();
+    if (!Array.isArray(list) || list.length === 0) {
+        return { name: "更新我的资料", success: false, error: "本机还没有用户资料，先去设置里建一份。" };
+    }
+    const targetNickname = typeof args.targetNickname === "string" ? args.targetNickname.trim() : "";
+    let index = 0;
+    if (targetNickname) {
+        index = list.findIndex(item => (item.nickname || item.name) === targetNickname);
+        if (index < 0) return { name: "更新我的资料", success: false, error: `没找到这份资料：${targetNickname}` };
+    } else {
+        try {
+            const resolved = resolveBinding(loadBindingConfig(), undefined, "chat");
+            const boundId = resolved.userIdentityId;
+            const found = boundId ? list.findIndex(item => item.id === boundId) : -1;
+            if (found >= 0) index = found;
+        } catch { /* 用第一份 */ }
+    }
+
+    const next: Record<string, unknown> = { ...list[index] };
+    const map: Array<[string, string]> = [
+        ["nickname", "nickname"],
+        ["realName", "realName"],
+        ["name", "name"],
+        ["gender", "gender"],
+        ["signature", "signature"],
+        ["bio", "bio"],
+        ["portraitDescription", "portraitDescription"],
+    ];
+    const changed: string[] = [];
+    for (const [argKey, field] of map) {
+        const value = args[argKey];
+        if (typeof value !== "string") continue;
+        const text = value.trim();
+        if (!text) continue;
+        if (String(next[field] || "") === text) continue;
+        next[field] = text;
+        changed.push(field);
+    }
+    if (changed.length === 0) {
+        return { name: "更新我的资料", success: true, data: "资料和现在一致，没有需要改的地方。" };
+    }
+    list[index] = next as typeof list[number];
+    saveUserIdentities(list);
+    const label: Record<string, string> = {
+        nickname: "网名", realName: "真实姓名", name: "显示名", gender: "性别",
+        signature: "签名", bio: "自我介绍", portraitDescription: "外貌描述",
+    };
+    return {
+        name: "更新我的资料",
+        success: true,
+        data: `已更新 ${label[changed[0]] || changed[0]} 等 ${changed.length} 项：${changed.map(k => label[k] || k).join("、")}。网名用于对外显示，真名只在熟识场景出现。`,
+    };
 }
 
 async function handleBatchUpdateCharacters(args: Record<string, unknown>, ctx: MascotToolContext): Promise<ToolResult> {
