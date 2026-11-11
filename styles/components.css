@@ -5907,3 +5907,31 @@ button.settings-overview-row { cursor: pointer; }
 /* 心声卡片：用户自定义模板渲染区 */
 .ivs-custom{ margin-top:12px; font-size:14px; line-height:22px; }
 .ivs-custom img{ max-width:100%; }
+
+/* 美化工坊：问号按钮与说明弹窗 */
+.beauty-help-btn{ width:30px; height:30px; border-radius:50%; border:none; background:var(--ui-group,#f4f4f6); color:var(--ui-muted,#6e6e73); display:grid; place-items:center; }
+.beauty-help-backdrop{ position:fixed; inset:0; z-index:1300; background:rgba(0,0,0,.28); display:flex; align-items:center; justify-content:center; padding:24px; }
+.beauty-help-card{ width:min(340px,100%); background:#fff; border-radius:22px; padding:18px; box-shadow:0 18px 48px rgba(0,0,0,.18); }
+.beauty-help-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
+.beauty-help-head b{ font-size:16px; }
+.beauty-help-head button{ border:none; background:transparent; color:var(--ui-muted,#6e6e73); padding:4px; }
+.beauty-help-card p{ font-size:13.5px; line-height:21px; color:var(--ui-muted,#6e6e73); }
+
+/* 美化工坊首页：A 的排版 + C 的分区 */
+.beauty-hero{ padding:18px 0 6px; }
+.beauty-hero-kicker{ display:block; font-size:11px; letter-spacing:.16em; color:var(--ui-muted,#6e6e73); }
+.beauty-hero h2{ font-size:30px; line-height:36px; font-weight:700; letter-spacing:-.02em; margin-top:8px; }
+.beauty-hero p{ font-size:13px; line-height:20px; color:var(--ui-muted,#6e6e73); margin-top:6px; }
+.beauty-tabs{ display:flex; gap:6px; padding:14px 0 10px; }
+.beauty-tab{ flex:1; border:none; background:var(--ui-group,#f4f4f6); color:var(--ui-muted,#6e6e73); font-size:13px; padding:9px 0; border-radius:12px; }
+.beauty-tab.is-on{ background:var(--ui-ink,#0a0a0a); color:#fff; }
+.beauty-list{ border-top:1px solid var(--ui-hair,#e6e6ea); }
+.beauty-item{ display:flex; align-items:center; gap:13px; width:100%; border:none; background:transparent; padding:16px 2px; border-bottom:1px solid var(--ui-hair,#e6e6ea); text-align:left; color:var(--ui-ink,#0a0a0a); border-radius:0; }
+.beauty-item:active{ background:var(--ui-ink,#0a0a0a); color:#fff; }
+.beauty-item:active .beauty-item-icon{ background:rgba(255,255,255,.16); color:#fff; }
+.beauty-item:active small{ color:rgba(255,255,255,.7); }
+.beauty-item-icon{ width:36px; height:36px; border-radius:11px; background:var(--ui-group,#f4f4f6); display:grid; place-items:center; color:var(--ui-ink,#0a0a0a); flex:none; }
+.beauty-item-text{ display:flex; flex-direction:column; min-width:0; }
+.beauty-item-text strong{ font-size:16px; line-height:22px; font-weight:500; }
+.beauty-item-text small{ font-size:12px; line-height:17px; color:var(--ui-muted,#6e6e73); margin-top:1px; }
+.beauty-item-chev{ margin-left:auto; color:#c4c4c8; flex:none; }

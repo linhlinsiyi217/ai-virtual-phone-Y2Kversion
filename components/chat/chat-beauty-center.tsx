@@ -4,14 +4,25 @@ import { useMemo, useState } from "react";
 import { PageShell } from "@/components/ui/page-shell";
 import CSSSchemeBar from "@/components/ui/css-scheme-picker";
 import { InnerVoiceStylePage } from "@/components/settings/inner-voice-style-page";
-import { Check, ChevronRight, Code2, Copy, Layers3, MessageCircle, Palette, Search, Sparkles, UsersRound } from "lucide-react";
+import { Check, ChevronRight, Code2, Copy, HelpCircle, Layers3, MessageCircle, Palette, Search, Sparkles, UsersRound, X } from "lucide-react";
 import { CHAT_BEAUTY_CLASS_GROUPS, CHAT_BEAUTY_PRESETS, CHAT_BEAUTY_SCOPES, type ChatBeautyScope, loadChatBeauty, saveChatBeauty } from "@/lib/chat-beauty";
+
+const HELP_TEXT: Record<string, string> = {
+  "美化": "这里把能改的地方分成三组：聊天、内容、参考。点任意一项进去单独改，改坏了能一键回到预设，其他界面不受影响。",
+  "聊天与线下美化": "在线聊天室和线下模式是两套外观，分开保存。进错组不会影响另一个。",
+  "消息页装饰": "消息列表、联系人、动态、我的，四个页面各自独立；在里面写 CSS 只作用于那一个页面。",
+  "心声美化": "决定角色「心里那句话」怎么写、卡片长什么样、出现时用什么动效。可以建多套来回切。",
+  "样式类名参考": "列出项目里真实使用的选择器，每行下面写着它管哪块。点一行复制，贴到自定义 CSS 里就能改那一块。",
+  "完整美化教程": "五步走完一遍：选界面、挑预设、写 CSS、加装饰、存成自己的预设。",
+  "编辑美化": "这里写当前这个界面的 CSS。右下角保存只存这个界面；想给别的界面用，先切到那个界面再写。",
+};
 
 type Page = "home" | "online" | "social" | "editor" | "classes" | "tutorial" | "innerVoice";
 
 export function ChatBeautyCenter({ onBack }: { onBack: () => void }) {
   const [page, setPage] = useState<Page>("home");
   const [scope, setScope] = useState<ChatBeautyScope>("room");
+  const [help, setHelp] = useState<string | null>(null);
 
   const goEditor = (next: ChatBeautyScope) => { setScope(next); setPage("editor"); };
   const back = () => {
@@ -21,7 +32,16 @@ export function ChatBeautyCenter({ onBack }: { onBack: () => void }) {
   };
 
   return (
-    <PageShell title={pageTitle(page)} onBack={back} className="chat-beauty-center">
+    <PageShell
+      title={pageTitle(page)}
+      onBack={back}
+      className="chat-beauty-center"
+      rightAction={
+        <button type="button" className="beauty-help-btn" aria-label="说明" onClick={() => setHelp(pageTitle(page))}>
+          <HelpCircle size={22} strokeWidth={1.6} />
+        </button>
+      }
+    >
       {page === "home" && <BeautyHome onOpen={setPage} />}
       {page === "online" && <ScopeList group="online" onOpen={goEditor} />}
       {page === "social" && <ScopeList group="social" onOpen={goEditor} />}
@@ -29,6 +49,17 @@ export function ChatBeautyCenter({ onBack }: { onBack: () => void }) {
       {page === "classes" && <ClassReference />}
       {page === "tutorial" && <BeautyTutorial />}
       {page === "innerVoice" && <InnerVoiceStylePage />}
+      {help ? (
+        <div className="beauty-help-backdrop" onClick={() => setHelp(null)}>
+          <div className="beauty-help-card" onClick={e => e.stopPropagation()}>
+            <div className="beauty-help-head">
+              <b>{help}</b>
+              <button type="button" aria-label="关闭" onClick={() => setHelp(null)}><X size={18} strokeWidth={1.8} /></button>
+            </div>
+            <p>{HELP_TEXT[help] || "这一页能改的东西都在下面，改完只会影响对应界面。"}</p>
+          </div>
+        </div>
+      ) : null}
     </PageShell>
   );
 }
@@ -44,30 +75,49 @@ function pageTitle(page: Page) {
 }
 
 function BeautyHome({ onOpen }: { onOpen: (page: Page) => void }) {
-  const rows: Array<{ page: Page; title: string; desc: string; icon: typeof Palette }> = [
-    { page: "online", title: "聊天与线下美化", desc: "在线聊天室和线下模式分开设置", icon: MessageCircle },
-    { page: "social", title: "消息页装饰", desc: "消息、联系人、动态、我的各自独立", icon: UsersRound },
-    { page: "innerVoice", title: "心声美化", desc: "改提示词、卡片模板和出现动效", icon: Sparkles },
-    { page: "classes", title: "样式类名参考", desc: "可搜索、复制的真实 CSS 选择器", icon: Code2 },
-    { page: "tutorial", title: "完整美化教程", desc: "从预设、CSS 到 HTML 装饰层", icon: Sparkles },
+  const [group, setGroup] = useState<"chat" | "content" | "ref">("chat");
+  const rows: Array<{ page: Page; title: string; desc: string; icon: typeof Palette; group: "chat" | "content" | "ref" }> = [
+    { page: "online", title: "聊天与线下美化", desc: "气泡、背景、输入栏，分开设置", icon: MessageCircle, group: "chat" },
+    { page: "social", title: "消息页装饰", desc: "列表、联系人、动态、我的", icon: UsersRound, group: "chat" },
+    { page: "innerVoice", title: "心声美化", desc: "写法、卡片模板、出现动效", icon: Sparkles, group: "content" },
+    { page: "classes", title: "样式类名参考", desc: "可复制的选择器，带中文说明", icon: Code2, group: "ref" },
+    { page: "tutorial", title: "完整美化教程", desc: "五步走完一遍", icon: Layers3, group: "ref" },
   ];
+  const list = rows.filter(row => row.group === group);
   return (
     <div className="beauty-page-body">
-      <section className="beauty-intro-card">
-        <span>APPEARANCE LAB</span>
-        <h2>每个界面，单独设计。</h2>
-        <p>预设、CSS 与 HTML 装饰不会再挤在同一页。旧的全局 CSS 仍然兼容。</p>
+      <section className="beauty-hero">
+        <span className="beauty-hero-kicker">APPEARANCE LAB</span>
+        <h2>把界面改成你的</h2>
+        <p>选一个界面单独改，其他界面保持原样。</p>
       </section>
-      <section className="beauty-list-card">
-        {rows.map(({ page, title, desc, icon: Icon }) => (
-          <button key={page} className="beauty-list-row" onClick={() => onOpen(page)}>
-            <span className="beauty-row-icon"><Icon size={22} /></span>
-            <span><strong>{title}</strong><small>{desc}</small></span>
-            <ChevronRight size={19} />
+
+      <div className="beauty-tabs" role="tablist">
+        {([["chat", "聊天"], ["content", "内容"], ["ref", "参考"]] as const).map(([key, label]) => (
+          <button
+            key={key}
+            role="tab"
+            aria-selected={group === key}
+            className={`beauty-tab${group === key ? " is-on" : ""}`}
+            onClick={() => setGroup(key)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      <section className="beauty-list">
+        {list.map(({ page, title, desc, icon: Icon }) => (
+          <button key={page} className="beauty-item" onClick={() => onOpen(page)}>
+            <span className="beauty-item-icon"><Icon size={20} strokeWidth={1.7} /></span>
+            <span className="beauty-item-text">
+              <strong>{title}</strong>
+              <small>{desc}</small>
+            </span>
+            <ChevronRight size={18} strokeWidth={1.7} className="beauty-item-chev" />
           </button>
         ))}
       </section>
-      <p className="beauty-footnote">应用预设后仍可继续改 CSS；HTML 仅作为无交互装饰层使用，脚本与危险标签会自动移除。</p>
     </div>
   );
 }
