@@ -466,6 +466,8 @@ type ChatRoomProps = {
     session: ChatSession;
     lyricQuote?: MusicListeningContext;
     onLyricQuoteConsumed?: () => void;
+    contactCallRequest?: { id: string; type: "voice" | "video" };
+    onContactCallHandled?: () => void;
     onBack: () => void;
     /** 会话在设置页被删除后回调：由外层卸载本聊天室并回到列表 */
     onDeleted?: () => void;
@@ -1106,7 +1108,7 @@ const OfflineTextInputBar = memo(forwardRef<OfflineTextInputHandle, {
     );
 }));
 
-export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteConsumed }: ChatRoomProps) {
+export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteConsumed, contactCallRequest, onContactCallHandled }: ChatRoomProps) {
     const [liveCSS, setLiveCSS] = useState(session.customCSS || "");
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [transientMessages, setTransientMessages] = useState<ChatMessage[]>([]);
@@ -1157,6 +1159,17 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
     const [callMinimized, setCallMinimized] = useState(false);
     const [callInitiator, setCallInitiator] = useState<"user" | "character">("user");
     const [callInitiatorName, setCallInitiatorName] = useState<string>("");
+    const handledContactCall = useRef<string | null>(null);
+    useEffect(() => {
+        if (!contactCallRequest || handledContactCall.current === contactCallRequest.id) return;
+        handledContactCall.current = contactCallRequest.id;
+        cancelFollowUp(session.id);
+        setShowPlusMenu(false);
+        setCallInitiator("user");
+        if (contactCallRequest.type === "voice") setShowVoiceCall(true);
+        else setShowVideoCall(true);
+        onContactCallHandled?.();
+    }, [contactCallRequest, onContactCallHandled, session.id]);
     const [userIdentity, setUserIdentity] = useState<UserIdentity | null>(null);
     const [enterToSendEnabled, setEnterToSendEnabled] = useState(() => loadChatAppSettings().enterToSendEnabled === true);
 

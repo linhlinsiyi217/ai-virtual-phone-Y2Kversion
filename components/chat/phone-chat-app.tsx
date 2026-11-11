@@ -44,6 +44,8 @@ export const PhoneChatApp = memo(function PhoneChatApp({ onClose, initialSession
     const [activeTab, setActiveTab] = useState<TabKey>("messages");
     const [activeSession, setActiveSession] = useState<ChatSession | null>(null);
     const [activeMascot, setActiveMascot] = useState(false);
+    const [contactProfileOpen, setContactProfileOpen] = useState(false);
+    const [contactCall, setContactCall] = useState<{ id: string; sessionId: string; type: "voice" | "video" } | null>(null);
     const [lyricQuote, setLyricQuote] = useState<{ sessionId: string; context: MusicListeningContext } | null>(null);
     // Chat app-level custom CSS (affects all chat pages, lower priority than per-session CSS)
     const [chatAppCSS, setChatAppCSS] = useState(() =>
@@ -309,7 +311,7 @@ export const PhoneChatApp = memo(function PhoneChatApp({ onClose, initialSession
             className="chat-app absolute inset-0 flex flex-col overflow-hidden z-10"
             data-active-tab={activeTab}
             {...(activeSession || activeMascot ? { "data-room-active": "" } : {})}
-            {...(hideTabBar ? { "data-tabbar-hidden": "" } : {})}
+            {...(hideTabBar || contactProfileOpen ? { "data-tabbar-hidden": "" } : {})}
         >
             {/* Chat app-level custom CSS (lower priority than per-session CSS) */}
             {chatAppCSS && <SessionCustomCSS css={chatAppCSS} scope=".chat-app" />}
@@ -324,6 +326,18 @@ export const PhoneChatApp = memo(function PhoneChatApp({ onClose, initialSession
                     <ChatContactsList
                         onCloseApp={onClose}
                         onSelectSession={handleSelectContact}
+                        selectForShare={Boolean(sharePayload)}
+                        onSubpageChange={setContactProfileOpen}
+                        onStartCall={(session, type) => {
+                            setContactCall({
+                                id: `contact-call-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+                                sessionId: session.id,
+                                type,
+                            });
+                            setActiveMascot(false);
+                            setActiveSession(session);
+                            setActiveTab("messages");
+                        }}
                         onSelectMascot={handleSelectMascot}
                         pendingAddContactId={pendingAddContactId}
                         onPendingAddContactConsumed={() => setPendingAddContactId(null)}
@@ -343,7 +357,7 @@ export const PhoneChatApp = memo(function PhoneChatApp({ onClose, initialSession
             </div>
 
             {/* Bottom Navigation Bar — hide when inside a chat room */}
-            <div className={`chat-dock-cluster ${dockOpen ? "is-open" : ""}`} style={{ display: activeSession || activeMascot || hideTabBar ? "none" : undefined }}>
+            <div className={`chat-dock-cluster ${dockOpen ? "is-open" : ""}`} style={{ display: activeSession || activeMascot || hideTabBar || contactProfileOpen ? "none" : undefined }}>
             <div className="chat-dock-quick-panel" aria-hidden={!dockOpen}>
                 {[
                     { label: "消息", icon: MessageCircle, run: () => setActiveTab("messages") },
@@ -394,6 +408,8 @@ export const PhoneChatApp = memo(function PhoneChatApp({ onClose, initialSession
                 <div key={sess.id} style={{ display: activeSession?.id === sess.id ? undefined : 'none' }} className="chat-room-layer absolute inset-0">
                     <ChatRoom
                         session={sess}
+                        contactCallRequest={contactCall?.sessionId === sess.id ? contactCall : undefined}
+                        onContactCallHandled={() => setContactCall(null)}
                         lyricQuote={lyricQuote?.sessionId === sess.id ? lyricQuote.context : undefined}
                         onLyricQuoteConsumed={() => setLyricQuote(null)}
                         onBack={() => setActiveSession(null)}
