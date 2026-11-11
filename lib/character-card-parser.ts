@@ -47,6 +47,9 @@ function cleanName(value: string): string {
         .replace(/[（(][^）)]*[）)]?\s*$/, "")
         .replace(/^[\s"'“”‘’「」『』【】<>《》:：-]+|[\s"'“”‘’「」『』【】<>《》:：,，。！？!?-]+$/g, "")
         .replace(/^(?:角色名称|角色名|姓名|名字|name)\s*[:：]?\s*/i, "")
+        // 模型有时把整行塞进名字：孟凡 relation: 大学室友 / 沈岚 age: 46
+        .replace(/\s+(?:relation|nickname|nick\s*name|age|gender|height|identity|archetype|persona|tagline|signature|关系|身份|年龄|性别|身高)\s*[:：].*$/i, "")
+        .replace(/^([^:：]{1,12})[:：].*$/, "$1")
         .replace(/[（(].*?[）)]\s*$/, "")
         .trim()
         .slice(0, 60);
