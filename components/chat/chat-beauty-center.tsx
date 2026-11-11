@@ -76,12 +76,12 @@ function pageTitle(page: Page) {
 
 function BeautyHome({ onOpen }: { onOpen: (page: Page) => void }) {
   const [group, setGroup] = useState<"chat" | "content" | "ref">("chat");
-  const rows: Array<{ page: Page; title: string; desc: string; icon: typeof Palette; group: "chat" | "content" | "ref" }> = [
-    { page: "online", title: "聊天与线下美化", desc: "气泡、背景、输入栏，分开设置", icon: MessageCircle, group: "chat" },
-    { page: "social", title: "消息页装饰", desc: "列表、联系人、动态、我的", icon: UsersRound, group: "chat" },
-    { page: "innerVoice", title: "心声美化", desc: "写法、卡片模板、出现动效", icon: Sparkles, group: "content" },
-    { page: "classes", title: "样式类名参考", desc: "可复制的选择器，带中文说明", icon: Code2, group: "ref" },
-    { page: "tutorial", title: "完整美化教程", desc: "五步走完一遍", icon: Layers3, group: "ref" },
+  const rows: Array<{ page: Page; title: string; desc: string; icon: typeof Palette; group: "chat" | "content" | "ref"; tint: string; ink: string }> = [
+    { page: "online", title: "聊天与线下美化", desc: "气泡、背景、输入栏，分开设置", icon: MessageCircle, group: "chat", tint: "#E8F6EC", ink: "#22A85A" },
+    { page: "social", title: "消息页装饰", desc: "列表、联系人、动态、我的", icon: UsersRound, group: "chat", tint: "#E9F0FE", ink: "#2F80ED" },
+    { page: "innerVoice", title: "心声美化", desc: "写法、卡片模板、出现动效", icon: Sparkles, group: "content", tint: "#FCEBF3", ink: "#D83F87" },
+    { page: "classes", title: "样式类名参考", desc: "可复制的选择器，带中文说明", icon: Code2, group: "ref", tint: "#F1ECFD", ink: "#7C3AED" },
+    { page: "tutorial", title: "完整美化教程", desc: "五步走完一遍", icon: Layers3, group: "ref", tint: "#FDF2E6", ink: "#D88B2A" },
   ];
   const list = rows.filter(row => row.group === group);
   return (
@@ -107,9 +107,9 @@ function BeautyHome({ onOpen }: { onOpen: (page: Page) => void }) {
       </div>
 
       <section className="beauty-list">
-        {list.map(({ page, title, desc, icon: Icon }) => (
+        {list.map(({ page, title, desc, icon: Icon, tint, ink }) => (
           <button key={page} className="beauty-item" onClick={() => onOpen(page)}>
-            <span className="beauty-item-icon"><Icon size={20} strokeWidth={1.7} /></span>
+            <span className="beauty-item-icon" style={{ background: tint, color: ink }}><Icon size={20} strokeWidth={1.8} /></span>
             <span className="beauty-item-text">
               <strong>{title}</strong>
               <small>{desc}</small>

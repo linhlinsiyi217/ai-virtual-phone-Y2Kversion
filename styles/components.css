@@ -5928,7 +5928,7 @@ button.settings-overview-row { cursor: pointer; }
 .beauty-list{ border-top:1px solid var(--ui-hair,#e6e6ea); }
 .beauty-item{ display:flex; align-items:center; gap:13px; width:100%; border:none; background:transparent; padding:16px 2px; border-bottom:1px solid var(--ui-hair,#e6e6ea); text-align:left; color:var(--ui-ink,#0a0a0a); border-radius:0; }
 .beauty-item:active{ background:var(--ui-ink,#0a0a0a); color:#fff; }
-.beauty-item:active .beauty-item-icon{ background:rgba(255,255,255,.16); color:#fff; }
+.beauty-item:active .beauty-item-icon{ background:rgba(255,255,255,.16) !important; color:#fff !important; }
 .beauty-item:active small{ color:rgba(255,255,255,.7); }
 .beauty-item-icon{ width:36px; height:36px; border-radius:11px; background:var(--ui-group,#f4f4f6); display:grid; place-items:center; color:var(--ui-ink,#0a0a0a); flex:none; }
 .beauty-item-text{ display:flex; flex-direction:column; min-width:0; }
