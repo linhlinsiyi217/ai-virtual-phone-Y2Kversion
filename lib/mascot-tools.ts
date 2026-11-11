@@ -286,6 +286,19 @@ const SET_CHARACTER_AVATAR_SCHEMA = {
     additionalProperties: false,
 };
 
+const BATCH_UPDATE_CHARACTERS_SCHEMA = {
+    type: "object",
+    properties: {
+        names: { type: "array", items: { type: "string" }, description: "要修改的角色名列表；传空数组或 [\"全部\"] 表示所有角色" },
+        field: { type: "string", enum: ["persona", "personality", "briefPersona"], description: "要改的字段" },
+        value: { type: "string", description: "新值（所有目标角色写成同一份）" },
+        append: { type: "boolean", description: "true 表示追加到原内容后面，默认 false 表示整段替换" },
+        apply: { type: "boolean", description: "false（默认）只预览会改哪些角色；用户确认后再传 true 真正写入" },
+    },
+    required: ["names", "field", "value"],
+    additionalProperties: false,
+};
+
 const UPDATE_CHARACTER_FIELD_SCHEMA = {
     type: "object",
     properties: {
@@ -993,6 +1006,7 @@ export const MASCOT_TOOL_PACKAGES: MascotToolPackage[] = [
             { name: "创建角色", description: "新建一张角色卡。persona 必须包含 7 段式人设（基础信息/外貌/世界观/性格/补充信息/经历）。", parameterSchema: CREATE_CHARACTER_SCHEMA },
             { name: "更新角色字段", description: "修改某角色的单个字段（name/persona/personality）。", parameterSchema: UPDATE_CHARACTER_FIELD_SCHEMA },
             { name: "设置角色头像", description: "把用户上传的某张图片设为角色头像；用户说「把这张图换成谁的头像」时用这个。", parameterSchema: SET_CHARACTER_AVATAR_SCHEMA },
+            { name: "批量修改角色", description: "一次修改多个角色的同一字段。默认只预览，用户确认后传 apply=true 才写入。", parameterSchema: BATCH_UPDATE_CHARACTERS_SCHEMA },
         ],
         usageGuide: CHARACTER_CARD_PROMPT,
     },
@@ -1230,6 +1244,7 @@ const MASCOT_NATIVE_TOOL_NAMES: Record<string, string> = {
     "创建角色": "mascot_create_character",
     "更新角色字段": "mascot_update_character_field",
     "设置角色头像": "mascot_set_character_avatar",
+    "批量修改角色": "mascot_batch_update_characters",
     "列出世界卷宗": "mascot_list_character_worlds",
     "创建世界卷宗": "mascot_create_character_world",
     "重命名世界卷宗": "mascot_rename_character_world",
@@ -1389,6 +1404,7 @@ export async function executeMascotToolCall(call: ToolCall, ctx: MascotToolConte
             case "创建角色": return await handleCreateCharacter(call.args);
             case "更新角色字段": return await handleUpdateCharacterField(call.args, ctx);
             case "设置角色头像": return await handleSetCharacterAvatar(call.args, ctx);
+            case "批量修改角色": return await handleBatchUpdateCharacters(call.args, ctx);
 
             // ─── 角色世界（世界卷宗）───
             case "列出世界卷宗": return await handleListCharacterWorlds();
@@ -1975,6 +1991,66 @@ async function handleCreateCharacter(args: Record<string, unknown>): Promise<Too
     chars.push(newChar as typeof chars[number]);
     saveCharacters(chars);
     return { name: "创建角色", success: true, data: `已创建角色 ${newChar.name} (${newChar.id})${briefPersona ? "，含简量人设" : ""}` };
+}
+
+async function handleBatchUpdateCharacters(args: Record<string, unknown>, ctx: MascotToolContext): Promise<ToolResult> {
+    const { loadCharacters, saveCharacters } = await import("./character-storage");
+    const { backupCharacterVersion, getCharacterCurrentVersion } = await import("./character-version-storage");
+
+    const field = String(args.field || "");
+    if (!["persona", "personality", "briefPersona"].includes(field)) {
+        return { name: "批量修改角色", success: false, error: `不支持批量改这个字段：${field}` };
+    }
+    const value = String(args.value || "");
+    if (!value.trim()) return { name: "批量修改角色", success: false, error: "新内容不能为空。" };
+    const append = args.append === true;
+    const apply = args.apply === true;
+
+    const chars = loadCharacters();
+    const rawNames = Array.isArray(args.names) ? args.names.map(String) : [];
+    const all = rawNames.length === 0 || rawNames.includes("全部");
+    const targets = all
+        ? chars
+        : chars.filter(c => rawNames.includes(c.name));
+    if (targets.length === 0) {
+        return { name: "批量修改角色", success: false, error: `没找到这些角色：${rawNames.join("、")}` };
+    }
+
+    const preview = targets.map(c => `${c.name}（${String((c as unknown as Record<string, unknown>)[field] || "") ? "已有内容" : "原本为空"}）`).join("、");
+    if (!apply) {
+        return {
+            name: "批量修改角色",
+            success: true,
+            data: `将要修改 ${targets.length} 个角色的「${field}」：${preview}。\n确认无误后，用同样的参数再调用一次并传 apply=true，我才会真的写入。`,
+        };
+    }
+
+    const now = new Date().toISOString();
+    const backupIds = ctx.characterBackupIds ?? (ctx.characterBackupIds = new Set<string>());
+    let changed = 0;
+    for (const target of targets) {
+        const idx = chars.findIndex(c => c.id === target.id);
+        if (idx < 0) continue;
+        const next: Record<string, unknown> = { ...chars[idx] };
+        const old = String((next[field] as string) || "");
+        next[field] = append && old ? `${old}\n${value}` : value;
+        if (field === "briefPersona") next.briefPersonaUpdatedAt = now;
+        next.updatedAt = now;
+        if (!backupIds.has(chars[idx].id)) {
+            backupCharacterVersion(chars[idx], "mascot", "小卷批量修改前自动备份");
+            backupIds.add(chars[idx].id);
+        } else {
+            getCharacterCurrentVersion(chars[idx].id);
+        }
+        chars[idx] = next as typeof chars[number];
+        changed += 1;
+    }
+    saveCharacters(chars);
+    return {
+        name: "批量修改角色",
+        success: true,
+        data: `已修改 ${changed} 个角色的「${field}」${append ? "（追加）" : ""}。每个角色改之前都自动备份过，可以在各自的版本记录里退回。`,
+    };
 }
 
 async function handleSetCharacterAvatar(args: Record<string, unknown>, ctx: MascotToolContext): Promise<ToolResult> {
