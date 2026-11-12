@@ -138,6 +138,7 @@ function normalizePhoto(raw: unknown): PhotoRecord | null {
     manualFields: uniqueStrings(item.manualFields),
     usageHistory: normalizeUsageHistory(item.usageHistory),
     origin: item.origin === "generated" ? "generated" : "upload",
+    generationPrompt: cleanOptional(item.generationPrompt, 4000),
     sourceAppId: cleanOptional(item.sourceAppId, 60),
     sourceAccountId: cleanOptional(item.sourceAccountId, 180),
     seriesId: cleanOptional(item.seriesId, 120),

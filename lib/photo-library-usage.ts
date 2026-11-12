@@ -3,6 +3,11 @@ import type { PhotoRecord, PhotoUsageChannel } from "./photo-library-types";
 const PRIVATE_CHANNELS = new Set<PhotoUsageChannel>(["dm_user", "moments", "bubble", "dm_char", "sms", "twitter_alt"]);
 const PUBLIC_CHANNELS = new Set<PhotoUsageChannel>(["wvs_artist", "twitter_main", "wvs_official", "wvs", "other"]);
 
+/** Generated photos already have a useful semantic description in their creation prompt. */
+export function hasPhotoMatchDescription(photo: PhotoRecord): boolean {
+  return photo.visionStatus === "done" || (photo.origin === "generated" && Boolean(photo.generationPrompt?.trim()));
+}
+
 export function photoUsageLabel(channel: PhotoUsageChannel): string {
   return ({ dm_user: "Chat", moments: "朋友圈", bubble: "Lysn", dm_char: "私聊", sms: "SMS", twitter_alt: "X 副号", twitter_main: "X 主号", wvs_artist: "WVS 艺人号", wvs_official: "WVS 官号", wvs: "WVS", other: "X" } as Record<PhotoUsageChannel, string>)[channel];
 }

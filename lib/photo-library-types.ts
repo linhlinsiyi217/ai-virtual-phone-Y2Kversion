@@ -66,6 +66,8 @@ export type PhotoRecord = {
   usageHistory: PhotoUsageRecord[];
 
   origin?: "upload" | "generated";
+  /** The effective prompt used to create an AI-generated image. */
+  generationPrompt?: string;
   sourceAppId?: string;
   sourceAccountId?: string;
   seriesId?: string;

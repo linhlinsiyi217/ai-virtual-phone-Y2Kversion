@@ -3,6 +3,7 @@ import type { ChatMessage } from "./chat-storage";
 import { loadPhotoLibrary } from "./photo-library-storage";
 import { getChatImageFromIndexedDB, saveChatImageToIndexedDB } from "./chat-asset-storage";
 import { appendLysn, loadLysn, saveLysn } from "./lysn-storage";
+import { hasPhotoMatchDescription } from "./photo-library-usage";
 
 const COOLDOWN = 14 * 24 * 60 * 60 * 1000;
 export function explicitLysnProfileRequest(history: ChatMessage[], sessionId: string): boolean {
@@ -20,7 +21,7 @@ export function lysnProfilePrompt(character: Character, requested = false): stri
   if (!state.subscribedIds.includes(character.id)) return null;
   const profile = state.profiles[character.id];
   const eligible = requested || ((!profile?.updatedAt || Date.now() - profile.updatedAt > COOLDOWN) && Math.random() < 0.015);
-  const candidates = loadPhotoLibrary().photos.filter(x => x.linkedCharacterIds.includes(character.id) && x.aiUsable && x.visionStatus === "done").slice(-10).map(x => `${x.id}: ${x.subject || x.visionSummary || "角色照片"}`);
+  const candidates = loadPhotoLibrary().photos.filter(x => x.linkedCharacterIds.includes(character.id) && x.aiUsable && hasPhotoMatchDescription(x)).slice(-10).map(x => `${x.id}: ${x.generationPrompt || x.subject || x.visionSummary || "角色照片"}`);
   return ["【Lysn 资料行为】Lysn/Bubble 是订阅粉丝频道，资料独立于 Chat/WVS。", `当前昵称：${profile?.name || character.name}；头像：${profile?.avatar ? "已设置" : "使用默认头像"}。`, requested ? "用户明确要求现在修改 LYSN 资料。你可以接受、拒绝或先讨论，不是强制修改。" : eligible ? "你偶尔可以自己决定更改 LYSN 资料，但一般聊天不要改；谈到资料或询问意见不等于已经决定更换。" : "你可以自然讨论或询问头像昵称，但这轮不要立刻修改。", eligible ? `如果真的决定换昵称，附隐藏动作：[资料更新 "lysn"]{"name":"新昵称","requested":${requested}}[/资料更新]。` : "", candidates.length && eligible ? `如果决定从 Photos 中自主挑头像，限以下真实素材：${candidates.join("；")}。动作：[资料更新 "lysn"]{"avatarPhotoId":"已有 photoId","requested":${requested}}[/资料更新]。` : "", "若本轮用户直接发图推荐头像，使用已有头像推荐接受/拒绝机制，别另选相册图。若没有决定修改，就不要输出资料更新动作。"].filter(Boolean).join("\n");
 }
 /** A rare independent choice; mentioning a profile in a fan message never grants permission. */
@@ -31,7 +32,7 @@ export function lysnAutonomousProfilePrompt(characterId: string): string | null 
   if (profile?.updatedAt && Date.now() - profile.updatedAt < COOLDOWN) return null;
   if (Math.random() >= 0.04) return null;
   const photos = loadPhotoLibrary().photos
-    .filter(photo => photo.linkedCharacterIds.includes(characterId) && photo.aiUsable && photo.visionStatus === "done")
+    .filter(photo => photo.linkedCharacterIds.includes(characterId) && photo.aiUsable && hasPhotoMatchDescription(photo))
     .slice(-8);
   return [
     "这是一次很偶然的自主资料选择机会，不需要更换也不应为了使用功能而更换。粉丝提到头像或昵称，只能算聊天话题，不构成修改指令。",
@@ -63,7 +64,7 @@ export async function applyLysnProfileAction(characterId: string, content: strin
   let name = current.name; let avatar = current.avatar;
   if (typeof value.name === "string") name = value.name.trim().slice(0, 40) || name;
   if (typeof value.avatarPhotoId === "string") {
-    const photo = loadPhotoLibrary().photos.find(x => x.id === value.avatarPhotoId && x.linkedCharacterIds.includes(characterId) && x.aiUsable && x.visionStatus === "done");
+    const photo = loadPhotoLibrary().photos.find(x => x.id === value.avatarPhotoId && x.linkedCharacterIds.includes(characterId) && x.aiUsable && hasPhotoMatchDescription(x));
     if (photo && await getChatImageFromIndexedDB(photo.assetId).catch(() => null)) avatar = `asset://${photo.assetId}`;
   }
   if (name === current.name && avatar === current.avatar) return false;
