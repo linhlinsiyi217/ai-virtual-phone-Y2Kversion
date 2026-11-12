@@ -6721,7 +6721,12 @@
 .chat-reasoning-trigger {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
+  /* 小胶囊：气泡上方一颗「思考过程」，点开才展开全文 */
+  padding: 3px 10px !important;
+  border-radius: 999px;
+  background: var(--c-input, #f0f0f2) !important;
+  color: var(--c-icon) !important;
   /* 与消息气泡的宽度上限（max-w-[70%]）一致，避免触发条比气泡还长 */
   max-width: 70%;
   min-width: 0;

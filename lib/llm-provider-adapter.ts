@@ -277,14 +277,9 @@ function customInnerVoiceInstruction(): string {
  * 这样不依赖模型原生 reasoning —— 任何模型只要照着写 <thinking>，前端就能显示。
  */
 function thinkingFormatInstruction(preset: PresetConfig | null): string {
-    if (!preset) return "";
-    const online = preset.online_thinking_enabled === true;
-    const offline = preset.offline_thinking_enabled === true;
-    if (!online && !offline) return "";
-    const tag = (online
-        ? preset.online_thinking_tag
-        : preset.thinking_tag
-    )?.trim() || "thinking";
+    // 固定注入：不管预设开关、不管模型有没有原生思考，都要求先写一段思考。
+    // 预设里的开关退化为「改标签名」。
+    const tag = (preset?.online_thinking_tag || preset?.thinking_tag)?.trim() || "thinking";
     return [
         "【思维链（必须先写）】",
         `在正式回复之前，先输出一段 <${tag}> … </${tag}>。`,

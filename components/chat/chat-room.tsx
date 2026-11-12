@@ -5634,7 +5634,7 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
                                             aria-label="查看思考过程"
                                         >
                                             <Clock size={13} strokeWidth={1.8} className="chat-reasoning-trigger-icon" />
-                                            <span className="chat-reasoning-trigger-text">{reasoningPreviewLine(turn.thinkingText || turn.reasoningText || "")}</span>
+                                            <span className="chat-reasoning-trigger-text">思考过程</span>
                                             <ChevronRight size={14} strokeWidth={1.8} className="chat-reasoning-trigger-icon" />
                                         </button>
                                     )}
@@ -5912,7 +5912,7 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
                                         aria-label="查看思考过程"
                                     >
                                         <Clock size={13} strokeWidth={1.8} className="chat-reasoning-trigger-icon" />
-                                        <span className="chat-reasoning-trigger-text">{reasoningPreviewLine(renderMsg.reasoningText)}</span>
+                                        <span className="chat-reasoning-trigger-text">思考过程</span>
                                         <ChevronRight size={14} strokeWidth={1.8} className="chat-reasoning-trigger-icon" />
                                     </button>
                                 </div>

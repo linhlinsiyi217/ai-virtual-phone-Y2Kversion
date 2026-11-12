@@ -2388,7 +2388,9 @@ async function generateNativeChatCompletion(
     const expandableSourceKeys = new Set(enabledTools.filter(tool => !isNativeSingleTool(tool)).map(nativeToolSourceKey));
 
     const maxToolRounds = getMaxToolRounds();
-    const onlineThinkingEnabled = preset?.online_thinking_enabled === true;
+    // 思维链固定显示：不依赖用户在预设里打开开关，任何模型都会被要求先写 <thinking>。
+    // 预设里的开关现在只用来「改标签名」，不再作为显示的前置条件。
+    const onlineThinkingEnabled = true;
     const onlineThinkingTag = preset?.online_thinking_tag?.trim() || "thinking";
     for (let round = 0; round < maxToolRounds; round += 1) {
         let result: LLMToolRequestResult;
@@ -2863,7 +2865,7 @@ async function generateChatCompletionCore(
 
     const maxToolRounds = getMaxToolRounds();
     const onlineThinking = {
-        enabled: preset?.online_thinking_enabled === true,
+        enabled: true,
         tag: preset?.online_thinking_tag?.trim() || "thinking",
         reasoning: undefined as string | undefined,
     };
