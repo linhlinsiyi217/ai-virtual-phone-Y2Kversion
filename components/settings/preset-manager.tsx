@@ -665,7 +665,6 @@ export function PresetManager({ isActive = true }: { isActive?: boolean } = {}) 
                                     onClick={() => {
                                         setEditingId(preset.id);
                                         setViewMode("detail");
-                                        try { window.localStorage.setItem("y2k:last-preset-id", preset.id); } catch { /* 忽略 */ }
                                     }}
                                     onKeyDown={(event) => {
                                         if (event.target !== event.currentTarget) return;

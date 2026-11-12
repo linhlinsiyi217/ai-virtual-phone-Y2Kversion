@@ -2009,13 +2009,6 @@ export async function buildChatPromptMessages(
 
     const presets = loadPresets();
     let preset = activeSlot.presetId ? presets.find(p => p.id === activeSlot.presetId) || null : null;
-    // 没绑定时优先用「最近在预设页里打开过的那套」，省得每次都去配置绑定里点一遍
-    if (!preset && typeof window !== "undefined") {
-        try {
-            const lastId = window.localStorage.getItem("y2k:last-preset-id");
-            if (lastId) preset = presets.find(p => p.id === lastId) || null;
-        } catch { /* 读不到就用内置 */ }
-    }
     if (!preset) preset = presets.find(p => p.builtIn) ?? null;
     const promptProfile = options?.promptProfile;
     if (preset && promptProfile) {

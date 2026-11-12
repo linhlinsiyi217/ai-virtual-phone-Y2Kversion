@@ -299,11 +299,16 @@ export function sanitizeCharacterDraft(args: Record<string, unknown>): ParsedCha
     const recovered = looksLikeTranscript ? parseCharacterCardText(rawPersona, rawPersonality) : null;
     const persona = recovered?.persona || cleanCharacterText(rawPersona, { keepHeadings: true });
     const personality = recovered?.personality || cleanCharacterText(rawPersonality).slice(0, 1200);
+    // 角色卡里常把用户写成裸词 user（从别人模板抄来的），模型会照着念「user额」。
+    // 统一收成 {{user}} 宏，渲染时才会换成真实网名。
+    const asMacro = (text: string) => text
+        .replace(/(?<![A-Za-z0-9_])user(?![A-Za-z0-9_])/gi, "{{user}}")
+        .replace(/\{\{\s*\{\{\s*user\s*\}\}\s*\}\}/gi, "{{user}}");
     return {
         name,
-        persona: persona || rawPersona.slice(0, 16000),
-        personality: personality || "按照角色卡设定行动，保持身份与关系边界一致",
-        briefPersona: typeof args.briefPersona === "string" ? cleanCharacterText(args.briefPersona).slice(0, 800) || undefined : undefined,
+        persona: asMacro(persona || rawPersona.slice(0, 16000)),
+        personality: asMacro(personality || "按照角色卡设定行动，保持身份与关系边界一致"),
+        briefPersona: typeof args.briefPersona === "string" ? (asMacro(cleanCharacterText(args.briefPersona)).slice(0, 800) || undefined) : undefined,
     };
 }
 

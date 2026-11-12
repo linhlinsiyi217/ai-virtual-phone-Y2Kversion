@@ -739,6 +739,31 @@ function parseSegment(segment: string, parts: ParsedMessagePart[]) {
     parts.push({ content: segment });
 }
 
+
+/**
+ * 兼容「字段式」心声：有些提示词会要求模型直接写
+ *   [心情: 嘴硬心软]
+ *   [心声: ……]
+ *   [好感度: 71]
+ * 这种没有 [内心] 外壳的写法。这里把它收拢成标准块，
+ * 否则这三行会原样显示在气泡里，卡片也出不来。
+ */
+function normalizeFieldStyleInnerVoice(text: string): string {
+    if (!/\[(?:心情|心声|好感度)\s*[:：]/.test(text)) return text;
+    if (/\[内心\]/.test(text)) return text;
+    const lines = text.split(/\r?\n/);
+    const picked: string[] = [];
+    const rest: string[] = [];
+    for (const line of lines) {
+        const m = /^\s*\[(心情|心声|好感度)\s*[:：]\s*([\s\S]*?)\]\s*$/.exec(line);
+        if (m) picked.push(`${m[1]}：${m[2].trim()}`);
+        else rest.push(line);
+    }
+    if (!picked.length) return text;
+    const cleaned = rest.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+    return `${cleaned}${cleaned ? '\n\n' : ''}[内心]\n${picked.join('\n')}\n[/内心]`;
+}
+
 // ── Main parser ──────────────────────────────────────────
 
 export function parseAIResponse(rawText: string, previousState: StateValue[]): ParsedAIResponse {
@@ -779,6 +804,9 @@ export function parseAIResponse(rawText: string, previousState: StateValue[]): P
         }
         return r;
     };
+
+    // 0.5 兼容「[心情:…][心声:…][好感度:…]」这种没有 [内心] 外壳的写法
+    protected_ = normalizeFieldStyleInnerVoice(protected_);
 
     // 1. Parse state values
     const parsedSV = parseStateValues(protected_);
