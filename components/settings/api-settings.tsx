@@ -152,7 +152,23 @@ export function ApiSettings() {
             const headers: Record<string, string> = { "Content-Type": "application/json" };
             if (!isGoogleNative) headers["Authorization"] = `Bearer ${config.apiKey}`;
 
-            const response = await fetch(url, { method: "GET", headers });
+            // 第三方中转站常不返回 CORS 头，浏览器直连会抛 "Failed to fetch"。
+            // 这种情况改走同源的 /api/llm-proxy 再取一次，与聊天请求同一套兜底。
+            let response: Response;
+            try {
+                response = await fetch(url, { method: "GET", headers });
+            } catch {
+                const proxied = await fetch("/api/llm-proxy", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ url, headers, method: "GET", timeoutMs: 30000 }),
+                });
+                if (!proxied.ok) {
+                    const detail = await proxied.json().catch(() => ({} as { error?: string }));
+                    throw new Error(detail?.error || `代理请求失败（${proxied.status}）`);
+                }
+                response = proxied;
+            }
 
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}));

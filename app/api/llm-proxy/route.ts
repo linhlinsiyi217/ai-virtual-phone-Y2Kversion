@@ -59,6 +59,7 @@ export async function POST(request: NextRequest) {
             headers?: unknown;
             body?: unknown;
             timeoutMs?: unknown;
+            method?: unknown;
         };
         upstreamUrl = typeof payload.url === "string" ? payload.url : "";
         if (!upstreamUrl) return NextResponse.json({ error: "缺少 API 地址" }, { status: 400 });
@@ -66,8 +67,12 @@ export async function POST(request: NextRequest) {
         if (blocked) return NextResponse.json({ error: blocked }, { status: 400 });
 
         const headers = safeHeaders(payload.headers);
-        const body = typeof payload.body === "string" ? payload.body : JSON.stringify(payload.body ?? {});
-        if (!headers["Content-Type"] && !headers["content-type"]) headers["Content-Type"] = "application/json";
+        // GET 用于拉模型列表这类只读接口：不带 body，也不该塞 Content-Type
+        const method = typeof payload.method === "string" && payload.method.toUpperCase() === "GET" ? "GET" : "POST";
+        const body = method === "GET"
+            ? undefined
+            : (typeof payload.body === "string" ? payload.body : JSON.stringify(payload.body ?? {}));
+        if (method === "POST" && !headers["Content-Type"] && !headers["content-type"]) headers["Content-Type"] = "application/json";
 
         const requestedTimeout = Number(payload.timeoutMs);
         const timeoutMs = Number.isFinite(requestedTimeout) && requestedTimeout > 0
@@ -78,8 +83,8 @@ export async function POST(request: NextRequest) {
         try {
             const dispatcher = getProxyDispatcher();
             const upstream = await (dispatcher
-                ? undiciFetch(upstreamUrl, { method: "POST", headers, body, signal: controller.signal, dispatcher }) as unknown as Response
-                : fetch(upstreamUrl, { method: "POST", headers, body, signal: controller.signal }));
+                ? undiciFetch(upstreamUrl, { method, headers, body, signal: controller.signal, dispatcher }) as unknown as Response
+                : fetch(upstreamUrl, { method, headers, body, signal: controller.signal }));
             const responseHeaders = new Headers();
             const contentType = upstream.headers.get("content-type");
             if (contentType) responseHeaders.set("content-type", contentType);
