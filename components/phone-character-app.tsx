@@ -1852,6 +1852,11 @@ function CharArchiveView({
       const rootTop = root.getBoundingClientRect().top;
       const offset = root.scrollTop;
       if (offset < 24) { setActiveRail("top"); return; }
+      // 内容不多、已经滑到底时，高亮落在最后一段，避免一直停在档案
+      if (offset + root.clientHeight >= root.scrollHeight - 2) {
+        setActiveRail("persona");
+        return;
+      }
       let current: RailKey = "top";
       root.querySelectorAll<HTMLElement>("[data-sec]").forEach(el => {
         const key = el.dataset.sec as RailKey | undefined;
