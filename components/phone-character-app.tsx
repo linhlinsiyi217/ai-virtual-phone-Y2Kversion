@@ -50,6 +50,10 @@ import {
   type CharacterVersion,
 } from "@/lib/character-version-storage";
 import { notifyMascotPageContext } from "@/lib/mascot-events";
+import { loadWorldBooks } from "@/lib/settings-storage";
+import type { WorldBookConfig } from "@/lib/settings-types";
+import { loadMemoryEntries } from "@/lib/memory-storage";
+import type { MemoryEntry } from "@/lib/memory-types";
 import { kvGet, kvSet } from "@/lib/kv-db";
 import { normalizeTimeZone } from "@/lib/character-time";
 import { removeCharacterChatReferences } from "@/lib/character-chat-cleanup";
@@ -1816,6 +1820,68 @@ function CharArchiveView({
   const fileRef = useRef<HTMLInputElement>(null);
   const cbRef = useRef<HTMLDivElement>(null);
 
+  // ── 侧边栏：当前高亮分区 + 弹层面板 ──
+  type RailKey = "top" | "soul" | "relations" | "persona";
+  const [activeRail, setActiveRail] = useState<RailKey>("top");
+  const [railSheet, setRailSheet] = useState<"world" | "memory" | "more" | null>(null);
+  const [worldBooks, setWorldBooks] = useState<WorldBookConfig[]>([]);
+  const [memories, setMemories] = useState<MemoryEntry[] | null>(null);
+  const [memoryLoading, setMemoryLoading] = useState(false);
+
+  // 世界书与记忆按需读取
+  useEffect(() => {
+    setWorldBooks(loadWorldBooks());
+  }, []);
+
+  useEffect(() => {
+    if (railSheet !== "memory" || !char.id) return;
+    let alive = true;
+    setMemoryLoading(true);
+    loadMemoryEntries(char.id)
+      .then(list => { if (alive) setMemories(list); })
+      .catch(() => { if (alive) setMemories([]); })
+      .finally(() => { if (alive) setMemoryLoading(false); });
+    return () => { alive = false; };
+  }, [railSheet, char.id]);
+
+  // 滚动时让侧边栏高亮跟着走
+  useEffect(() => {
+    const root = cbRef.current;
+    if (!root) return;
+    const onScroll = () => {
+      const rootTop = root.getBoundingClientRect().top;
+      const offset = root.scrollTop;
+      if (offset < 24) { setActiveRail("top"); return; }
+      let current: RailKey = "top";
+      root.querySelectorAll<HTMLElement>("[data-sec]").forEach(el => {
+        const key = el.dataset.sec as RailKey | undefined;
+        if (!key) return;
+        const delta = el.getBoundingClientRect().top - rootTop + offset;
+        if (offset + 48 >= delta) current = key;
+      });
+      setActiveRail(current);
+    };
+    onScroll();
+    root.addEventListener("scroll", onScroll, { passive: true });
+    return () => root.removeEventListener("scroll", onScroll);
+  }, []);
+
+  // 与当前角色相关的世界书条目：常驻条目 + 关键词命中
+  const charKeys = [name.trim(), char.name, ...tags]
+    .map(k => (k || "").trim().toLowerCase())
+    .filter(Boolean);
+  const worldMatches = worldBooks
+    .map(book => ({
+      book,
+      entries: book.entries.filter(entry => {
+        if (entry.disable) return false;
+        if (entry.constant) return true;
+        const text = `${entry.key} ${entry.comment}`.toLowerCase();
+        return charKeys.some(k => text.includes(k));
+      }),
+    }))
+    .filter(item => item.entries.length > 0);
+
   // Send mascot page context (on mount + field changes)
   useEffect(() => {
     notifyMascotPageContext({
@@ -2028,15 +2094,18 @@ function CharArchiveView({
   const updatedLabel = char.updatedAt ? char.updatedAt.slice(0, 10).replace(/-/g, "/") : "—";
   const railName = name.trim() || char.name || "未命名";
 
-  function scrollToSection(section: "top" | "soul" | "relations") {
+  function scrollToSection(section: "top" | "soul" | "relations" | "persona") {
     const root = cbRef.current;
     if (!root) return;
+    setActiveRail(section);
     if (section === "top") {
       root.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
     const target = root.querySelector<HTMLElement>(`[data-sec="${section}"]`);
-    if (target) root.scrollTo({ top: Math.max(0, target.offsetTop - root.offsetTop - 8), behavior: "smooth" });
+    if (!target) return;
+    const delta = target.getBoundingClientRect().top - root.getBoundingClientRect().top + root.scrollTop - 8;
+    root.scrollTo({ top: Math.max(0, delta), behavior: "smooth" });
   }
 
   const editTextStyle: React.CSSProperties = {
@@ -2065,34 +2134,46 @@ function CharArchiveView({
           )}
         </div>
         <div className="hd">@{railName}</div>
-        <button type="button" className="ri" onClick={() => scrollToSection("top")}>
+        <button type="button" className={`ri${activeRail === "top" ? " on" : ""}`} onClick={() => scrollToSection("top")}>
           <span className="pl">档案</span>
           <svg className="ic" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" /></svg>
         </button>
-        <button type="button" className="ri" onClick={() => scrollToSection("soul")}>
+        <button type="button" className={`ri${activeRail === "soul" ? " on" : ""}`} onClick={() => scrollToSection("soul")}>
           <span>设定</span>
           <svg className="ic" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" /></svg>
         </button>
-        <button type="button" className="ri" onClick={() => scrollToSection("relations")}>
+        <button type="button" className={`ri${activeRail === "relations" ? " on" : ""}`} onClick={() => scrollToSection("relations")}>
           <span>关系</span>
           <svg className="ic" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" /></svg>
         </button>
-        <button type="button" className="ri" onClick={() => document.dispatchEvent(new CustomEvent("character-open-world"))} aria-label="打开世界书">
+        <button type="button" className={`ri${activeRail === "persona" ? " on" : ""}`} onClick={() => scrollToSection("persona")}>
+          <span>人设</span>
+          <svg className="ic" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" /></svg>
+        </button>
+        <button
+          type="button"
+          className={`ri${railSheet === "world" ? " on" : ""}`}
+          onClick={() => setRailSheet("world")}
+          aria-label="查看角色相关的世界书条目"
+        >
           <span>世界书</span>
           <svg className="ic" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" /></svg>
         </button>
-        <button type="button" className="ri" onClick={() => scrollToSection("soul")} aria-label="声音设定在人物设定里">
-          <span>声音</span>
-          <svg className="ic" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" /></svg>
-        </button>
-        <button type="button" className="ri" onClick={() => scrollToSection("relations")} aria-label="记忆与关系在同一处">
+        <button
+          type="button"
+          className={`ri${railSheet === "memory" ? " on" : ""}`}
+          onClick={() => setRailSheet("memory")}
+          aria-label="查看这个角色的长期记忆"
+        >
           <span>记忆</span>
           <svg className="ic" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" /></svg>
         </button>
-        <button type="button" className="ri" onClick={() => {
-          const root = cbRef.current;
-          if (root) root.scrollTo({ top: root.scrollHeight, behavior: "smooth" });
-        }} aria-label="导出与删除在页面底部">
+        <button
+          type="button"
+          className={`ri${railSheet === "more" ? " on" : ""}`}
+          onClick={() => setRailSheet("more")}
+          aria-label="导出、历史版本与删除"
+        >
           <span>更多</span>
           <svg className="ic" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" /></svg>
         </button>
@@ -2151,6 +2232,7 @@ function CharArchiveView({
             <b>{completeness}%</b>
           </div>
 
+          <div className="sec-card" data-sec="top">
           <div className="lab">标签<em>TAGS</em></div>
           <div className="tgs">
             {tags.map((t, i) => (
@@ -2229,10 +2311,11 @@ function CharArchiveView({
           ) : (
             <div className="ln muted">还没有填写</div>
           )}
+          </div>
 
-          <div data-sec="soul">
+          <div className="sec-card" data-sec="soul">
             <div className="sh sec-row">
-              <span className="sec-title"><i>×</i><b>简量人设</b><em>BRIEF PERSONA</em></span>
+              <span className="sec-title"><i>×</i><b>简版人设</b><em>BRIEF PERSONA</em></span>
               {isEditing && (
                 <button type="button" className="btn" disabled={briefBusy} onClick={handleGenerateBrief}>
                   {briefBusy ? "生成中…" : briefPersona.trim() ? "重新生成" : "AI 生成"}
@@ -2259,7 +2342,7 @@ function CharArchiveView({
             )}
           </div>
 
-          <div data-sec="relations">
+          <div className="sec-card" data-sec="relations">
             <div className="sh"><i>×</i><b>关系网</b><em>RELATIONSHIPS</em></div>
             <div className="sl">· {relations.length} 位</div>
             {relations.length > 0 ? (
@@ -2269,19 +2352,21 @@ function CharArchiveView({
             )}
           </div>
 
-          <div className="sh"><i>×</i><b>人物设定</b><em>PERSONA</em></div>
-          {isEditing ? (
-            <AutoResizingTextarea
-              className="ta"
-              value={persona}
-              onChange={setPersona}
-              placeholder="描述背景、性格、说话方式…"
-              minHeight={150}
-              style={editTextStyle}
-            />
-          ) : (
-            <div className="ln">{persona.trim() ? persona : "NO DATA AVAILABLE."}</div>
-          )}
+          <div className="sec-card" data-sec="persona">
+            <div className="sh"><i>×</i><b>人物设定</b><em>PERSONA</em></div>
+            {isEditing ? (
+              <AutoResizingTextarea
+                className="ta"
+                value={persona}
+                onChange={setPersona}
+                placeholder="描述背景、性格、说话方式…"
+                minHeight={150}
+                style={editTextStyle}
+              />
+            ) : (
+              <div className="ln">{persona.trim() ? persona : "还没有填写"}</div>
+            )}
+          </div>
         </div>
 
         {!dummy && (
@@ -2511,6 +2596,141 @@ function CharArchiveView({
       )}
 
 
+
+      {/* 世界书：只显示和这个角色有关的条目 */}
+      {railSheet === "world" && (
+        <CSheet
+          eyebrow="WORLD BOOK"
+          title="世界书"
+          ariaLabel="角色相关的世界书"
+          onClose={() => setRailSheet(null)}
+          footer={{ label: "关闭", onClick: () => setRailSheet(null) }}
+        >
+          <p className="cm-lede">这里只列出和「{railName}」有关的条目：常驻条目，加上关键词命中名字或标签的条目。</p>
+          {worldMatches.length === 0 ? (
+            <div className="cm-empty">
+              还没有和这个角色相关的世界书条目。
+              <br />
+              在设置的世界书里把关键词写成角色名或标签，就会自动出现在这里。
+            </div>
+          ) : (
+            worldMatches.map(({ book, entries }) => (
+              <div className="ca-panel-block" key={book.id}>
+                <div className="ca-panel-head">
+                  <b>{book.name || "未命名世界书"}</b>
+                  <em>{entries.length} 条相关</em>
+                </div>
+                {entries.map(entry => (
+                  <div className="ca-panel-item" key={entry.uid}>
+                    <b>{entry.comment || entry.key || "未命名条目"}</b>
+                    {entry.content}
+                  </div>
+                ))}
+              </div>
+            ))
+          )}
+        </CSheet>
+      )}
+
+      {/* 记忆：读这个角色的长期记忆 */}
+      {railSheet === "memory" && (
+        <CSheet
+          eyebrow="MEMORY"
+          title="长期记忆"
+          ariaLabel="角色的长期记忆"
+          onClose={() => setRailSheet(null)}
+          footer={{ label: "关闭", onClick: () => setRailSheet(null) }}
+        >
+          <p className="cm-lede">聊天被整理成记忆后，这里会留下 TA 记住的事。条数越多，说话越像认识你很久。</p>
+          {memoryLoading ? (
+            <div className="cm-empty">正在读取记忆…</div>
+          ) : (memories ?? []).length === 0 ? (
+            <div className="cm-empty">还没有留下长期记忆。<br />多聊几轮，系统整理后就会出现在这里。</div>
+          ) : (
+            <>
+              {(["core", "long_term"] as const).map(kind => {
+                const list = (memories ?? [])
+                  .filter(item => item.type === kind)
+                  .slice()
+                  .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+                if (list.length === 0) return null;
+                return (
+                  <div className="ca-panel-block" key={kind}>
+                    <div className="ca-panel-head">
+                      <b>{kind === "core" ? "核心记忆" : "长期记忆"}</b>
+                      <em>{list.length} 条</em>
+                    </div>
+                    {list.map(item => (
+                      <div className="ca-panel-item" key={item.id}>
+                        <span>{item.createdAt.slice(0, 10).replace(/-/g, "/")} · 重要度 {Math.round((item.importance || 0) * 100)}%</span>
+                        {item.content}
+                      </div>
+                    ))}
+                  </div>
+                );
+              })}
+            </>
+          )}
+        </CSheet>
+      )}
+
+      {/* 更多：导出、历史版本、删除 */}
+      {railSheet === "more" && (
+        <CSheet
+          eyebrow="MORE"
+          title="更多操作"
+          ariaLabel="更多操作"
+          onClose={() => setRailSheet(null)}
+          footer={{ label: "关闭", onClick: () => setRailSheet(null) }}
+        >
+          <button
+            type="button"
+            className="ca-more-btn"
+            onClick={() => {
+              setRailSheet(null);
+              void onExportPng();
+            }}
+          >
+            <span>导出档案图片</span>
+            <em>PNG 图片</em>
+          </button>
+          <button
+            type="button"
+            className="ca-more-btn"
+            onClick={() => {
+              setRailSheet(null);
+              onExportJson();
+            }}
+          >
+            <span>导出档案数据</span>
+            <em>JSON 备份</em>
+          </button>
+          {isExisting && (
+            <button
+              type="button"
+              className="ca-more-btn"
+              onClick={() => {
+                setRailSheet(null);
+                openVersionHistory();
+              }}
+            >
+              <span>历史版本</span>
+              <em>当前 V{getCharacterCurrentVersion(char.id)}</em>
+            </button>
+          )}
+          <button
+            type="button"
+            className="ca-more-btn danger"
+            onClick={() => {
+              setRailSheet(null);
+              setConfirmDelete(true);
+            }}
+          >
+            <span>删除这份档案</span>
+            <em>不可恢复</em>
+          </button>
+        </CSheet>
+      )}
 
       {/* Unsaved changes confirmation dialog */}
       {showUnsavedConfirm && (
