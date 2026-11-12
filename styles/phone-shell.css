@@ -1152,6 +1152,17 @@
     display: none;
   }
 
+  /* iOS 添加到主屏幕后，viewport-fit=auto 可能把 CSS safe-area 归零，但底部
+     Home Indicator 仍会占空间。只在已安装的 WebKit PWA 中补一档，不影响
+     Safari 标签页、Android WebView 或桌面壳。 */
+  @supports (-webkit-touch-callout: none) {
+    @media (display-mode: standalone) and (min-height: 740px) {
+      .phone-shell .dock {
+        margin-bottom: max(var(--home-dock-lift, 0px), env(safe-area-inset-bottom, 0px), 34px);
+      }
+    }
+  }
+
   .app-root.splash-root {
     width: 100vw;
     height: 100lvh;
