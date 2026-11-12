@@ -57,6 +57,50 @@ function cleanText(value: unknown, maxLength: number): string {
   return String(value ?? "").replace(/\u0000/g, "").trim().slice(0, maxLength);
 }
 
+/**
+ * Turn the common "HTML was imported as source text" shapes back into a real
+ * document.  Community packages are often copied from an AI reply, so the
+ * entry can arrive wrapped in a Markdown fence, JSON string, or with every
+ * angle bracket HTML-escaped.  Feeding any of those directly to iframe.srcdoc
+ * produces a page full of code instead of the app.
+ */
+export function normalizeCustomAppEntryHtml(value: unknown): string {
+  let text = cleanText(value, MAX_TEXT_LENGTH).replace(/^\uFEFF/, "").trim();
+  if (!text) return "";
+
+  // Some export tools serialize the complete HTML document as one JSON string.
+  if (text.startsWith('"') && text.endsWith('"')) {
+    try {
+      const decoded = JSON.parse(text) as unknown;
+      if (typeof decoded === "string" && /<(?:!doctype|html|head|body|style|script|main|div)\b/i.test(decoded)) {
+        text = decoded.trim();
+      }
+    } catch { /* not a JSON string */ }
+  }
+
+  const fenced = text.match(/^```(?:html?|htm)?\s*\r?\n([\s\S]*?)\r?\n```\s*$/i);
+  if (fenced?.[1]) text = fenced[1].trim();
+
+  // A frequent copy/paste leaves the language label but loses the backticks.
+  if (/^html\s*\r?\n\s*</i.test(text)) text = text.replace(/^html\s*\r?\n/i, "").trim();
+
+  const hasRealStructure = /<(?:!doctype|html|head|body|style|script|main|section|div)\b/i.test(text);
+  const hasEscapedStructure = /&lt;(?:!doctype|html|head|body|style|script|main|section|div)\b/i.test(text);
+  if (!hasRealStructure && hasEscapedStructure) {
+    const decodeEntities = (source: string) => source
+      .replace(/&#(\d+);/g, (_match, decimal: string) => String.fromCodePoint(Number(decimal)))
+      .replace(/&#x([0-9a-f]+);/gi, (_match, hex: string) => String.fromCodePoint(Number.parseInt(hex, 16)))
+      .replace(/&lt;/gi, "<")
+      .replace(/&gt;/gi, ">")
+      .replace(/&quot;/gi, '"')
+      .replace(/&#(?:39|x27);/gi, "'")
+      .replace(/&amp;/gi, "&");
+    text = decodeEntities(text).trim();
+  }
+
+  return text.slice(0, MAX_TEXT_LENGTH);
+}
+
 function cleanId(value: unknown): string {
   return cleanText(value, 80)
     .toLowerCase()
@@ -723,7 +767,7 @@ function normalizeInstalledApp(raw: unknown): InstalledCustomApp | null {
   try {
     const manifest = normalizeCustomAppManifest(record.manifest);
     const id = cleanId(record.id) || manifest.id;
-    const entryHtml = cleanText(record.entryHtml, MAX_TEXT_LENGTH);
+    const entryHtml = normalizeCustomAppEntryHtml(record.entryHtml);
     if (!id || !entryHtml) return null;
     const assets: Record<string, CustomAppAsset> = {};
     if (record.assets && typeof record.assets === "object") {
@@ -1067,7 +1111,7 @@ export async function loadCustomAppPackage(file: File): Promise<InstalledCustomA
   const entryPath = normalizeAssetPath(manifest.entry || "index.html");
   const entryFile = zip.file(entryPath);
   if (!entryFile) throw new Error(`应用包缺少入口文件：${entryPath}`);
-  const entryHtml = cleanText(await entryFile.async("text"), MAX_TEXT_LENGTH);
+  const entryHtml = normalizeCustomAppEntryHtml(await entryFile.async("text"));
   if (!entryHtml) throw new Error("入口文件为空。");
 
   const assets: Record<string, CustomAppAsset> = {};
@@ -1109,7 +1153,7 @@ export async function loadCustomAppPackage(file: File): Promise<InstalledCustomA
 }
 
 export async function loadSingleHtmlCustomApp(file: File): Promise<InstalledCustomApp> {
-  const entryHtml = cleanText(await file.text(), MAX_TEXT_LENGTH);
+  const entryHtml = normalizeCustomAppEntryHtml(await file.text());
   const name = file.name.replace(/\.[^.]+$/, "") || "自定义 APP";
   const id = generateCustomAppRuntimeId(name);
   const permissions: CustomAppPermission[] = [

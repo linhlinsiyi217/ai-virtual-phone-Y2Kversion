@@ -5,6 +5,7 @@ import { CheckCircle2, Circle, FileJson, Layers, LoaderCircle, MoreHorizontal, R
 
 import type { InstalledCustomApp } from "@/lib/custom-app-types";
 import {
+  normalizeCustomAppEntryHtml,
   readCustomAppCollection,
   uninstallCustomAppAsync,
   writeCustomAppCollection,
@@ -133,7 +134,7 @@ function rewriteAssetRefs(html: string, app: InstalledCustomApp): string {
 function createCustomAppSrcDoc(app: InstalledCustomApp, frameId: string, launchContext?: Record<string, unknown> | null, embedded = false): string {
   let localSnapshot: Record<string, string> = {};
   try { localSnapshot = JSON.parse(kvGet(`ai_phone_custom_app_data_v1:${app.id}/browser-storage`) ?? "{}"); } catch {}
-  const body = rewriteAssetRefs(app.entryHtml.trim(), app);
+  const body = rewriteAssetRefs(normalizeCustomAppEntryHtml(app.entryHtml), app);
   const base = /<html[\s>]/i.test(body)
     ? body
     : `<!doctype html>
@@ -239,9 +240,20 @@ html, body { min-height: 100%; }
     }
     return false;
   }
+  function looksLikeSourceDump(){
+    if (!document.body || document.body.children.length > 0) return false;
+    var text = String(document.body.textContent || '').trim();
+    return /<(?:!doctype|html|head|body|style|script|main|section|div)\b/i.test(text)
+      || /&lt;(?:!doctype|html|head|body|style|script|main|section|div)\b/i.test(text);
+  }
   var blankChecks = 0;
   function checkBlank(){
     blankChecks += 1;
+    if (document.readyState === 'complete' && looksLikeSourceDump()) {
+      reportError('入口文件被当成了源码文本，未形成可交互页面。请重新导入 HTML 应用包。');
+      parent.postMessage({ source:'ai-phone-custom-app-frame', type:'app.blank', frameId:frameId, appId:appId, errors: bootErrors.slice(0, 5) }, '*');
+      return;
+    }
     if (renderedSomething()) return;
     // 首屏还在加载、或应用在等一次异步请求时会短暂为空，连续几次都空才算真白屏
     if (blankChecks < 4 || document.readyState !== 'complete') {

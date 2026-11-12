@@ -10,11 +10,13 @@ import {
   CUSTOM_APP_PLACE_DESKTOP_EVENT,
   installCustomApp,
   loadInstalledCustomApps,
+  saveInstalledCustomApps,
 } from "@/lib/custom-app-storage";
 import type { CustomAppManifest, CustomAppPermission } from "@/lib/custom-app-types";
 
 // ── 首次安装标记（存在即不再扫描）──
-const MIYA_DEEP_APPS_FLAG = "miya_deep_apps_installed_v1";
+const MIYA_DEEP_APPS_FLAG = "miya_deep_apps_installed_v2";
+const MIYA_DEEP_APPS_VERSION = "1.0.1";
 
 type MiyaDeepAppDef = {
   appId: string;
@@ -550,17 +552,48 @@ const MIYA_DEEP_APPS: MiyaDeepAppDef[] = [
 export function ensureMiyaDeepAppsInstalled(): void {
   if (typeof window === "undefined") return;
   if (kvGet(MIYA_DEEP_APPS_FLAG) === "1") return;
-  kvSet(MIYA_DEEP_APPS_FLAG, "1");
 
-  const installedIds = new Set(loadInstalledCustomApps().map(app => app.id));
+  let installed = loadInstalledCustomApps();
+  const installedIds = new Set(installed.map(app => app.id));
   const now = new Date().toISOString();
   for (const def of MIYA_DEEP_APPS) {
-    if (installedIds.has(def.appId)) continue;
+    if (installedIds.has(def.appId)) {
+      const index = installed.findIndex(app => app.id === def.appId);
+      const current = index >= 0 ? installed[index] : null;
+      const isBundledMiyaApp = current?.author === "Miya" || current?.manifest.primaryTags?.includes("miya");
+      if (current && isBundledMiyaApp && current.version !== MIYA_DEEP_APPS_VERSION) {
+        const upgraded = {
+          ...current,
+          name: def.name,
+          version: MIYA_DEEP_APPS_VERSION,
+          author: "Miya",
+          description: def.description,
+          iconDataUrl: emojiIconDataUrl(def.emoji, def.bg),
+          entryHtml: def.entryHtml,
+          permissions: def.permissions,
+          manifest: {
+            ...current.manifest,
+            id: def.appId,
+            name: def.name,
+            version: MIYA_DEEP_APPS_VERSION,
+            author: "Miya",
+            description: def.description,
+            permissions: def.permissions,
+            primaryTags: ["miya"],
+            network: def.network,
+          },
+          updatedAt: now,
+        };
+        installed[index] = upgraded;
+        installed = saveInstalledCustomApps(installed);
+      }
+      continue;
+    }
     try {
       installCustomApp({
         id: def.appId,
         name: def.name,
-        version: "1.0.0",
+        version: MIYA_DEEP_APPS_VERSION,
         author: "Miya",
         description: def.description,
         iconDataUrl: emojiIconDataUrl(def.emoji, def.bg),
@@ -569,7 +602,7 @@ export function ensureMiyaDeepAppsInstalled(): void {
         manifest: {
           id: def.appId,
           name: def.name,
-          version: "1.0.0",
+          version: MIYA_DEEP_APPS_VERSION,
           author: "Miya",
           description: def.description,
           permissions: def.permissions,
@@ -580,9 +613,11 @@ export function ensureMiyaDeepAppsInstalled(): void {
         installedAt: now,
         updatedAt: now,
       });
+      installed = loadInstalledCustomApps();
       window.dispatchEvent(new CustomEvent(CUSTOM_APP_PLACE_DESKTOP_EVENT, { detail: { appId: def.appId } }));
     } catch {
       // 单个 App 安装失败（如 id 冲突）不阻塞其余 App
     }
   }
+  kvSet(MIYA_DEEP_APPS_FLAG, "1");
 }
