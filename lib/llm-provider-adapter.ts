@@ -271,6 +271,29 @@ function customInnerVoiceInstruction(): string {
     }
 }
 
+
+/**
+ * 通用思维链：开了「线上/线下思维链解析」的预设，在请求里补一条格式要求。
+ * 这样不依赖模型原生 reasoning —— 任何模型只要照着写 <thinking>，前端就能显示。
+ */
+function thinkingFormatInstruction(preset: PresetConfig | null): string {
+    if (!preset) return "";
+    const online = preset.online_thinking_enabled === true;
+    const offline = preset.offline_thinking_enabled === true;
+    if (!online && !offline) return "";
+    const tag = (online
+        ? preset.online_thinking_tag
+        : preset.thinking_tag
+    )?.trim() || "thinking";
+    return [
+        "【思维链（必须先写）】",
+        `在正式回复之前，先输出一段 <${tag}> … </${tag}>。`,
+        "里面用中文写你这一轮真实的考量：你在意什么、准备怎么回应、哪些话不打算说出口。",
+        "二到四句，口语，不要复述设定，不要写给用户看的台词，也不要写“我作为AI”。",
+        `写完 </${tag}> 再开始正式回复；正式回复里不要再出现这个标签。`,
+    ].join("\n");
+}
+
 export function buildProviderRequest(
     config: ApiConfig,
     preset: PresetConfig | null,
@@ -295,6 +318,10 @@ export function buildProviderRequest(
     const voice = customInnerVoiceInstruction();
     if (voice) {
         providerMessages = [{ role: "system", content: voice } as LlmRequestMessage, ...providerMessages];
+    }
+    const thinkingInstruction = thinkingFormatInstruction(preset);
+    if (thinkingInstruction) {
+        providerMessages = [{ role: "system", content: thinkingInstruction } as LlmRequestMessage, ...providerMessages];
     }
 
     if (providerKind === "anthropic") {

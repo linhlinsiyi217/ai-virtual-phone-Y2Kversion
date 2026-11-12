@@ -6179,29 +6179,6 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
                                     )}
                                 </div>
                             )}
-                            {/* Inner monologue card (sticky note / journal style) */}
-                            {hasFoldedPanel && expandedMonologueId === msg.id && renderMsg.innerMonologue && (
-                                <div className="chat-thought-card">
-                                    {/* Decorative washi tape */}
-                                    <div className="chat-thought-tape-left" />
-                                    <div className="chat-thought-tape-right" />
-                                    {/* Title */}
-                                    <div className="chat-thought-title">
-                                        💭 内心独白
-                                    </div>
-                                    {/* State values panel */}
-                                    {cardStateValues && cardStateValues.length > 0 && (
-                                        <StateValuesPanel stateValues={cardStateValues} />
-                                    )}
-                                    <div className="chat-thought-body">
-                                        <BilingualTextBlock text={msg.displayProjected ? renderMsg.innerMonologue : renderDisplayText(renderMsg.innerMonologue, 6, false)} mode="markdown" defaultExpanded={session.collapseBilingualTranslation !== false ? false : true} />
-                                    </div>
-                                    {/* Signature */}
-                                    <div className="chat-thought-sig">
-                                        — {session.isGroup ? (msg.senderName || "群成员") : (character?.name || "TA")}
-                                    </div>
-                                </div>
-                            )}
                         </div>
                     );
                 })}
