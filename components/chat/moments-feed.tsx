@@ -22,6 +22,7 @@ import { AlertCircle } from "lucide-react";
 import { kvGet, kvSet, registerKvMigration } from "@/lib/kv-db";
 import { onUserComment, MOMENT_PHOTO_GENERATION_FAILED_EVENT } from "@/lib/moments-engine";
 import { GeneratedImageErrorDialog } from "./generated-image-error-dialog";
+import { CharacterMomentsActions } from "./character-moments-actions";
 
 const COVER_ASSET_KEY = "moments_cover_asset_id";
 registerKvMigration(COVER_ASSET_KEY);
@@ -60,6 +61,7 @@ export function MomentsFeed({ onCloseApp, compact: _compact, onUserPublished: _o
     const profileSession = profileCharacterId ? loadChatSessions().find(item => !item.isGroup && item.contactId === profileCharacterId) : undefined;
     const profileAvatar = profileCharacter ? getChatCharacterAvatar(profileSession, profileCharacter) : null;
     const [profileRevision, setProfileRevision] = useState(0);
+    const [coverMenuOpen, setCoverMenuOpen] = useState(false);
     const [posts, setPosts] = useState<MomentPost[]>([]);
     const [showCompose, setShowCompose] = useState(false);
     const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
@@ -499,7 +501,7 @@ export function MomentsFeed({ onCloseApp, compact: _compact, onUserPublished: _o
         >
                 {/* Cover card + avatar wrapper */}
                 {profileCharacterId ? <section className="contact-moments-header">
-                    <button type="button" className="contact-moments-cover" aria-label="更换角色朋友圈封面" onClick={() => coverInputRef.current?.click()}>
+                    <button type="button" className="contact-moments-cover" aria-label="更换角色朋友圈封面" onClick={() => setCoverMenuOpen(value => !value)}>
                         {coverUrl ? <img src={coverUrl} alt="朋友圈封面" /> : <span>轻触设置朋友圈封面</span>}
                     </button>
                     <input ref={coverInputRef} type="file" accept="image/*" className="hidden" onChange={handleCoverUpload} />
@@ -519,6 +521,13 @@ export function MomentsFeed({ onCloseApp, compact: _compact, onUserPublished: _o
                             onKeyDown={event => { if (event.key === "Enter") event.currentTarget.blur(); }}
                         /> : <button type="button" onClick={() => setEditingSignature(true)}>{signature || "添加个性签名"}</button>}
                     </div>
+                    <CharacterMomentsActions
+                        key={profileCharacterId}
+                        characterId={profileCharacterId}
+                        coverOpen={coverMenuOpen}
+                        onCoverClose={() => setCoverMenuOpen(false)}
+                        onUpload={() => coverInputRef.current?.click()}
+                    />
                 </section> : <div className="feed-cover-shell w-full relative mb-4">
 
                     {/* Background Absolute Cover */}
