@@ -2151,7 +2151,7 @@ function CharArchiveView({
             <b>{completeness}%</b>
           </div>
 
-          <div className="lab">TAGS · 标签</div>
+          <div className="lab">标签<em>TAGS</em></div>
           <div className="tgs">
             {tags.map((t, i) => (
               <span className="tg" key={`${t}-${i}`}>
@@ -2192,8 +2192,7 @@ function CharArchiveView({
             </>
           )}
 
-          <div className="sh"><i>×</i><b>ABOUT ME</b></div>
-          <div className="sl">基本信息</div>
+          <div className="sh"><i>×</i><b>基本信息</b><em>ABOUT ME</em></div>
           <div className="ln">
             <span>网名</span>
             {isEditing ? (
@@ -2215,8 +2214,7 @@ function CharArchiveView({
           </div>
           <div className="ln"><span>更新</span>{updatedLabel}</div>
 
-          <div className="sh"><i>×</i><b>PERSONALITY</b></div>
-          <div className="sl">角色性格</div>
+          <div className="sh"><i>×</i><b>角色性格</b><em>PERSONALITY</em></div>
           {isEditing ? (
             <AutoResizingTextarea
               className="ta"
@@ -2234,14 +2232,13 @@ function CharArchiveView({
 
           <div data-sec="soul">
             <div className="sh sec-row">
-              <span className="sec-title"><i>×</i><b>BRIEF PERSONA</b></span>
+              <span className="sec-title"><i>×</i><b>简量人设</b><em>BRIEF PERSONA</em></span>
               {isEditing && (
                 <button type="button" className="btn" disabled={briefBusy} onClick={handleGenerateBrief}>
                   {briefBusy ? "生成中…" : briefPersona.trim() ? "重新生成" : "AI 生成"}
                 </button>
               )}
             </div>
-            <div className="sl">简量人设</div>
             {!isEditing && isBriefPersonaStale(char) && (
               <div className="hint" style={{ margin: "0 0 8px 25px" }}>⚠ 设定已更新，建议重新生成简介。</div>
             )}
@@ -2263,8 +2260,8 @@ function CharArchiveView({
           </div>
 
           <div data-sec="relations">
-            <div className="sh"><i>×</i><b>RELATIONSHIPS</b></div>
-            <div className="sl">关系网 · {relations.length} 位</div>
+            <div className="sh"><i>×</i><b>关系网</b><em>RELATIONSHIPS</em></div>
+            <div className="sl">· {relations.length} 位</div>
             {relations.length > 0 ? (
               <div className="ln">{relations.map(r => `${r.name} · ${r.label}`).join("\n")}</div>
             ) : (
@@ -2272,8 +2269,7 @@ function CharArchiveView({
             )}
           </div>
 
-          <div className="sh"><i>×</i><b>PERSONA</b></div>
-          <div className="sl">人物设定</div>
+          <div className="sh"><i>×</i><b>人物设定</b><em>PERSONA</em></div>
           {isEditing ? (
             <AutoResizingTextarea
               className="ta"

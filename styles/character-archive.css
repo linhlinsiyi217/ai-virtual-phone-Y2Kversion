@@ -1501,10 +1501,10 @@ h1.t{text-align:center;font-size:28px;margin:0;letter-spacing:.06em}p.s{text-ali
 .card{position:absolute;left:96px;right:8px;top:54px;bottom:12px;background:#fff;border-radius:34px;box-shadow:0 2px 24px rgba(0,0,0,.05);overflow:hidden;display:flex;flex-direction:column}
 .ch{height:66px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 22px;border-bottom:1px solid var(--line)}.ch b{font-size:17px;font-weight:650;letter-spacing:.03em}.ch u{text-decoration:none;color:#999;letter-spacing:.2em;font-size:16px}
 .cb{flex:1;overflow:hidden;padding:20px 20px 0;position:relative}.cb:after{content:"";position:absolute;left:0;right:0;bottom:0;height:70px;background:linear-gradient(transparent,#fff)}
-.lab{font-size:11px;letter-spacing:.14em;color:var(--ink3);margin:0 0 12px}
+.lab{font-size:11px;letter-spacing:.14em;color:var(--ink3);margin:0 0 12px}.lab em{font-style:normal;font-size:9.5px;letter-spacing:.16em;margin-left:6px;color:#b3b3b8}
 .tgs{display:flex;flex-wrap:wrap;gap:8px}.tg{display:inline-flex;align-items:center;gap:10px;background:#f1f1f3;border-radius:9px;padding:9px 11px 9px 13px;font-size:14px;font-weight:700}.tg i{font-style:normal;font-weight:400;color:#999;font-size:13px}.tg.add{color:#999;font-weight:500;background:none;border:1px dashed var(--g3)}
 .qt{font-size:21px;line-height:1.35;font-weight:600;margin:26px 0 8px;letter-spacing:.01em}.qs{font-size:14.5px;line-height:1.8;color:#8a8a8e}
-.sh{display:flex;align-items:center;margin:32px 0 4px}.sh i{font-style:normal;font-size:13px;margin-right:12px}.sh b{font-size:14.5px;letter-spacing:.26em;font-weight:700}.sl{font-size:12.5px;color:var(--ink3);letter-spacing:.05em;margin:0 0 12px 25px}
+.sh{display:flex;align-items:center;margin:32px 0 4px}.sh i{font-style:normal;font-size:13px;margin-right:12px}.sh b{font-size:15.5px;letter-spacing:.04em;font-weight:700}.sh em{font-style:normal;font-size:10.5px;letter-spacing:.22em;font-weight:600;color:var(--ink3);margin-left:9px}.sl{font-size:12.5px;color:var(--ink3);letter-spacing:.05em;margin:0 0 12px 25px}
 .ln{font-size:14px;line-height:2.05;color:#3c3c3f;padding-left:25px}.ln span{color:#9a9aa0;display:inline-block;width:46px}
 .meter{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--ink2);margin-bottom:18px;letter-spacing:.06em}.meter div{flex:1;height:3px;background:var(--g2);border-radius:2px;overflow:hidden}.meter div i{display:block;height:100%;width:82%;background:#111;border-radius:2px}
 /* 表单 */
@@ -1582,7 +1582,7 @@ h1.t{text-align:center;font-size:28px;margin:0;letter-spacing:.06em}p.s{text-ali
 @keyframes cwave{50%{transform:rotate(14deg)}}
 @keyframes cz{0%{opacity:0;transform:translate(0,6px)}40%{opacity:.6}100%{opacity:0;transform:translate(6px,-8px)}}
 @keyframes cbell{50%{transform:rotate(12deg)}}
-@media(prefers-reduced-motion:reduce){.cat{animation:none!important;transition:none!important}}
+@media(prefers-reduced-motion:reduce){.cat,.cat *{animation:none!important;transition:none!important}}
 .cat{width:84px}
 /* 功能清单面板高度随内容增长，避免被手机外框裁掉 */
 .ph.ph-auto{height:auto;min-height:844px}
