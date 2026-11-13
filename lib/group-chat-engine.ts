@@ -98,6 +98,7 @@ import { stripStateAndInnerForPrompt } from "./prompt-sanitizer";
 import { buildGroupRosterMacro } from "./group-admin";
 import { parseOfflineResponse, extractThinkingTag, type ParsedOfflineResponse } from "./chat-offline-storage";
 import { buildProviderRequest, nativeToolProtocolForConfig, toLlmRequestMessages, type LlmRequestMessage, type LlmToolCall } from "./llm-provider-adapter";
+import { resolveThinkingChainMode, resolveThinkingChainTag, noteThinkingChainResult } from "./thinking-chain-policy";
 import type { DebugPromptSnapshot } from "./debug-store";
 import { throwIfAborted } from "./abort-utils";
 import { buildCharacterTimeContext, buildGroupTimeContext } from "./character-time";
@@ -653,8 +654,12 @@ async function runNativeGroupToolLoop(params: {
 }): Promise<string> {
     const { session, llmMessages, config, preset, regexes, nameToId, memberNames, enabledTools, appTags, signal, callbacks } = params;
     const MAX_TOOL_ROUNDS = 5;
-    const onlineThinkingEnabled = preset?.online_thinking_enabled === true;
-    const onlineThinkingTag = preset?.online_thinking_tag?.trim() || "thinking";
+    // 思考过程：默认开、软性请求；连续两条拿不到标签就自动降级回模型原生推理。
+    const thinkingMode = resolveThinkingChainMode(preset, session.id);
+    const thinkingTag = resolveThinkingChainTag(preset);
+    const wantThinkingTag = thinkingMode === "tag";
+    const thinkingChainTag = wantThinkingTag ? thinkingTag : undefined;
+    let gotThinkingTag = false;
     const persistedSession = loadChatSessions().find(item => item.id === session.id);
     let expandedSourceIds = normalizeNativeExpandedToolSourceIds(
         persistedSession?.nativeExpandedToolSourceIds || session.nativeExpandedToolSourceIds,
@@ -682,11 +687,12 @@ async function runNativeGroupToolLoop(params: {
                     appTags,
                     debugSessionId: session.id,
                     signal,
+                    thinkingChainTag,
                 }, {
                     onDelta: (text) => callbacks?.onStreamDelta?.(text),
                     // 流式下 onReasoningDelta 是单段增量：累积后再喂 onReasoning（保持整段请求语义）
-                    // 预设开启「线上标签解析」时不透传原生思维链（改由下方标签提取）
-                    onReasoningDelta: onlineThinkingEnabled ? undefined : (text) => { streamReasoning += text; callbacks?.onReasoning?.(streamReasoning); },
+                    // 原生推理始终透传；若正文里另有思考标签，下方会用标签内容覆盖显示。
+                    onReasoningDelta: (text) => { streamReasoning += text; callbacks?.onReasoning?.(streamReasoning); },
                 });
             } else {
                 result = await sendLLMToolRequest(config, preset, requestMessages, nativeBundle.definitions, regexes, meta, {
@@ -694,6 +700,7 @@ async function runNativeGroupToolLoop(params: {
                     appTags,
                     debugSessionId: session.id,
                     signal,
+                    thinkingChainTag,
                 });
             }
         } catch (err) {
@@ -706,21 +713,22 @@ async function runNativeGroupToolLoop(params: {
         }
         throwIfAborted(signal);
 
-        // 线上思维链标签解析：开启时每轮从正文提取 <tag> 思维链（覆盖原生），并剥离标签后再做后续解析
+        // 思考过程：标签内容优先显示，没拿到标签时用模型原生推理兜底，胶囊不会空。
         let displayContent = result.content;
-        if (onlineThinkingEnabled) {
-            const tagThinking = extractThinkingTag(displayContent, onlineThinkingTag);
-            if (tagThinking) callbacks?.onReasoning?.(tagThinking);
-            displayContent = stripOnlineThinkingTag(displayContent, onlineThinkingTag);
+        const tagThinking = wantThinkingTag ? extractThinkingTag(displayContent, thinkingTag) : "";
+        if (tagThinking) {
+            gotThinkingTag = true;
+            callbacks?.onReasoning?.(tagThinking);
+        } else if (result.reasoning) {
+            callbacks?.onReasoning?.(result.reasoning);
         }
+        if (wantThinkingTag) displayContent = stripOnlineThinkingTag(displayContent, thinkingTag);
         // 剔除预设配置的文本片段（<思考结束> 等残留标签）
         displayContent = stripPresetTexts(displayContent, preset);
         const assistantForToolContext = stripStateAndInnerForPrompt(displayContent);
         if (result.toolCalls.length === 0) {
             throwIfAborted(signal);
-            // 无工具调用的最终轮：把解析到的思维链交给回调（随后由 processGroupParts 挂到本轮首条气泡）
-            // 标签解析开启时已用标签思维链覆盖，此处不再重复喂原生
-            if (result.reasoning && !onlineThinkingEnabled) callbacks?.onReasoning?.(result.reasoning);
+            // 无工具调用的最终轮：思维链已在上方按「标签优先、原生兜底」交给回调
             finalRawOutput = displayContent;
             break;
         }
@@ -729,8 +737,8 @@ async function runNativeGroupToolLoop(params: {
         await callbacks?.onNativeToolAssistantTurn?.({
             content: displayContent,
             rawContent: displayContent,
-            reasoning: onlineThinkingEnabled ? (extractThinkingTag(result.content, onlineThinkingTag) || undefined) : result.reasoning,
-            openRouterReasoningDetails: onlineThinkingEnabled ? undefined : result.openRouterReasoningDetails,
+            reasoning: tagThinking || result.reasoning || undefined,
+            openRouterReasoningDetails: result.openRouterReasoningDetails,
             toolCalls: result.toolCalls,
         });
 
@@ -845,8 +853,8 @@ async function runNativeGroupToolLoop(params: {
         requestMessages.push({
             role: "assistant",
             content: assistantForToolContext,
-            reasoning: onlineThinkingEnabled ? (extractThinkingTag(result.content, onlineThinkingTag) || undefined) : result.reasoning,
-            openRouterReasoningDetails: onlineThinkingEnabled ? undefined : result.openRouterReasoningDetails,
+            reasoning: tagThinking || result.reasoning || undefined,
+            openRouterReasoningDetails: result.openRouterReasoningDetails,
             toolCalls: result.toolCalls,
         });
         const toolExecutionId = createToolExecutionId();
@@ -879,6 +887,8 @@ async function runNativeGroupToolLoop(params: {
             break;
         }
     }
+
+    if (wantThinkingTag) noteThinkingChainResult(session.id, gotThinkingTag);
 
     return finalRawOutput;
 }
@@ -917,9 +927,12 @@ export async function generateGroupChatCompletion(
     const MAX_TOOL_ROUNDS = 5;
     const meta = { characterName: `群聊:${session.groupName || "群聊"}` };
     let finalRawOutput = "";
-    // 线上思维链标签解析：预设开启时从正文提取 <tag> 思维链（覆盖原生），并剥离标签后再做后续解析
-    const onlineThinkingEnabled = preset?.online_thinking_enabled === true;
-    const onlineThinkingTag = preset?.online_thinking_tag?.trim() || "thinking";
+    // 思考过程：默认开、软性请求；连续两条拿不到标签就自动降级回模型原生推理。
+    const thinkingMode = resolveThinkingChainMode(preset, session.id);
+    const thinkingTag = resolveThinkingChainTag(preset);
+    const wantThinkingTag = thinkingMode === "tag";
+    const thinkingChainTag = wantThinkingTag ? thinkingTag : undefined;
+    let gotThinkingTag = false;
 
     if (nativeToolProtocolForConfig(config) && enabledTools.length > 0) {
         finalRawOutput = await runNativeGroupToolLoop({
@@ -956,11 +969,12 @@ export async function generateGroupChatCompletion(
                     debugSessionId: session.id,
                     signal: options?.signal,
                     immediateContent: Boolean(invitation),
+                    thinkingChainTag,
                 }, {
                     onDelta: (text) => callbacks?.onStreamDelta?.(text),
                     // 流式下 onReasoningDelta 是单段增量：累积后再喂 onReasoning（保持整段请求语义）
-                    // 预设开启「线上标签解析」时不透传原生思维链（改由下方标签提取）
-                    onReasoningDelta: onlineThinkingEnabled ? undefined : (text) => { streamReasoning += text; callbacks?.onReasoning?.(streamReasoning); },
+                    // 原生推理始终透传；若正文里另有思考标签，下方会用标签内容覆盖显示。
+                    onReasoningDelta: (text) => { streamReasoning += text; callbacks?.onReasoning?.(streamReasoning); },
                 });
                 filteredOutput = streamResult.content;
             } else {
@@ -969,8 +983,8 @@ export async function generateGroupChatCompletion(
                     appTags,
                     debugSessionId: session.id,
                     signal: options?.signal,
-                    // 预设开启「线上标签解析」时不透传原生思维链（改由下方标签提取）
-                    onReasoning: onlineThinkingEnabled ? undefined : callbacks?.onReasoning,
+                    thinkingChainTag,
+                    onReasoning: callbacks?.onReasoning,
                 });
             }
         } catch (err) {
@@ -983,12 +997,13 @@ export async function generateGroupChatCompletion(
         }
         throwIfAborted(options?.signal);
 
-        // 线上思维链标签解析：开启时每轮从正文提取 <tag> 思维链（覆盖原生），并剥离标签后再做后续解析
-        if (onlineThinkingEnabled) {
-            const tagThinking = extractThinkingTag(filteredOutput, onlineThinkingTag);
-            if (tagThinking) callbacks?.onReasoning?.(tagThinking);
-            filteredOutput = stripOnlineThinkingTag(filteredOutput, onlineThinkingTag);
+        // 思考过程：标签内容优先显示，没拿到标签时保留模型原生推理，胶囊不会空。
+        const tagThinking = wantThinkingTag ? extractThinkingTag(filteredOutput, thinkingTag) : "";
+        if (tagThinking) {
+            gotThinkingTag = true;
+            callbacks?.onReasoning?.(tagThinking);
         }
+        if (wantThinkingTag) filteredOutput = stripOnlineThinkingTag(filteredOutput, thinkingTag);
         // 剔除预设配置的文本片段（<思考结束> 等残留标签），不进入消息/提示词
         filteredOutput = stripPresetTexts(filteredOutput, preset);
 
@@ -1131,11 +1146,12 @@ export async function generateGroupChatCompletion(
                             appTags,
                             debugSessionId: session.id,
                             signal: options?.signal,
+                            thinkingChainTag,
                         }, {
                             onDelta: (text) => callbacks?.onStreamDelta?.(text),
                             // 流式下 onReasoningDelta 是单段增量：累积后再喂 onReasoning（保持整段请求语义）
-                            // 预设开启「线上标签解析」时不透传原生思维链（改由下方标签提取）
-                            onReasoningDelta: onlineThinkingEnabled ? undefined : (text) => { streamReasoning += text; callbacks?.onReasoning?.(streamReasoning); },
+                            // 原生推理始终透传；若正文里另有思考标签，下方会用标签内容覆盖显示。
+                            onReasoningDelta: (text) => { streamReasoning += text; callbacks?.onReasoning?.(streamReasoning); },
                         });
                         finalRawOutput = streamFinal.content;
                     } else {
@@ -1144,17 +1160,18 @@ export async function generateGroupChatCompletion(
                             appTags,
                             debugSessionId: session.id,
                             signal: options?.signal,
-                            // 预设开启「线上标签解析」时不透传原生思维链（改由下方标签提取）
-                            onReasoning: onlineThinkingEnabled ? undefined : callbacks?.onReasoning,
+                            thinkingChainTag,
+                            onReasoning: callbacks?.onReasoning,
                         });
                     }
                     throwIfAborted(options?.signal);
-                    // 线上思维链标签解析：开启时从正文提取 <tag> 思维链并剥离标签
-                    if (onlineThinkingEnabled) {
-                        const tagThinking = extractThinkingTag(finalRawOutput, onlineThinkingTag);
-                        if (tagThinking) callbacks?.onReasoning?.(tagThinking);
-                        finalRawOutput = stripOnlineThinkingTag(finalRawOutput, onlineThinkingTag);
+                    // 思考过程：标签内容优先显示，没拿到标签时保留模型原生推理
+                    const tagThinking = wantThinkingTag ? extractThinkingTag(finalRawOutput, thinkingTag) : "";
+                    if (tagThinking) {
+                        gotThinkingTag = true;
+                        callbacks?.onReasoning?.(tagThinking);
                     }
+                    if (wantThinkingTag) finalRawOutput = stripOnlineThinkingTag(finalRawOutput, thinkingTag);
                     // 剔除预设配置的文本片段（<思考结束> 等残留标签）
                     finalRawOutput = stripPresetTexts(finalRawOutput, preset);
                 } catch {
@@ -1186,6 +1203,8 @@ export async function generateGroupChatCompletion(
             finalResults.push({ ...r, responseText: cleanText });
         }
     }
+
+    if (wantThinkingTag) noteThinkingChainResult(session.id, gotThinkingTag);
 
     if (!options?.skipMemorySummarization) {
         scheduleGroupMemorySummarization(participantIds, chars, history, finalResults.length);

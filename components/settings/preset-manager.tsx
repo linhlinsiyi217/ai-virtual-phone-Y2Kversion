@@ -815,7 +815,7 @@ export function PresetManager({ isActive = true }: { isActive?: boolean } = {}) 
                                                                 className="ui-input"
                                                             />
                                                             <div className="ui-slider-hint">
-                                                                从线上模式 AI 输出中提取思考过程（思维链）的标签字段名。仅当下方「线上思维链解析」开启时生效；关闭时走模型原生思维链。
+                                                                从线上模式（主聊天、群聊）AI 输出里提取思考过程的标签名，一般不用改，默认就是 thinking。
                                                             </div>
                                                         </div>
                                                         <div className="flex items-center justify-between gap-3 col-span-full">
@@ -831,18 +831,8 @@ export function PresetManager({ isActive = true }: { isActive?: boolean } = {}) 
                                                                 />
                                                             </label>
                                                         </div>
-                                                        <div className="flex items-center justify-between gap-3 col-span-full">
-                                                            <div className="flex flex-col gap-1">
-                                                                <label className="ui-slider-label">线上思维链解析</label>
-                                                                <span className="ui-slider-hint">开启后按上方标签字段解析线上思维链；关闭走模型原生思维链（官方默认）</span>
-                                                            </div>
-                                                            <label className="ui-mini-toggle" onClick={(e) => e.stopPropagation()}>
-                                                                <input
-                                                                    type="checkbox"
-                                                                    checked={preset.online_thinking_enabled === true}
-                                                                    onChange={(e) => updatePreset(preset.id, { online_thinking_enabled: e.target.checked })}
-                                                                />
-                                                            </label>
+                                                        <div className="flex flex-col gap-1 col-span-full">
+                                                            <span className="ui-slider-hint">线上模式（主聊天、群聊）的思考过程已统一由上面的「显示思考过程」控制：默认开着，模型连着两次没写就自动改用模型自带的思考，不用再单独开关。</span>
                                                         </div>
                                                         <div className="flex items-center justify-between gap-3 col-span-full">
                                                             <div className="flex flex-col gap-1">
