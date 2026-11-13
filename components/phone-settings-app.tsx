@@ -42,7 +42,8 @@ export const SettingsContext = createContext<{
     setSubpageTitle: (title: string | null) => void;
     setOverrideBack: (action: (() => void) | null) => void;
     setSubpageRightAction: (page: string, action: ReactNode | null) => void;
-}>({ setSubpageTitle: () => { }, setOverrideBack: () => { }, setSubpageRightAction: () => { } });
+    onNotice: (msg: string) => void;
+}>({ setSubpageTitle: () => { }, setOverrideBack: () => { }, setSubpageRightAction: () => { }, onNotice: () => { } });
 
 type SettingsPageProps = {
     onClose: () => void;
@@ -414,7 +415,7 @@ export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
     }, []);
 
     return (
-        <SettingsContext.Provider value={{ setSubpageTitle, setOverrideBack, setSubpageRightAction }}>
+        <SettingsContext.Provider value={{ setSubpageTitle, setOverrideBack, setSubpageRightAction, onNotice }}>
             <PageShell title={title} onBack={handleBack} rightAction={currentPage !== "main" ? subpageRightActions[currentPage] : undefined} bodyRef={pageBodyRef}>
                 {currentPage === "main" && (
                     <div className="page-menu settings-main-menu">

@@ -1,8 +1,10 @@
 "use client";
 
 import { useState, useEffect, useRef, useContext, useCallback, useMemo } from "react";
-import { Plus, Trash2, Download, Database, Play, Upload, ChevronLeft, AlertCircle, Maximize2, X, Replace, Copy, Check } from "lucide-react";
+import { Plus, Trash2, Download, Database, Play, Upload, ChevronLeft, AlertCircle, Maximize2, X, Replace, Copy, Check, Star } from "lucide-react";
 import {
+    loadBindingConfig,
+    saveBindingConfig,
     loadRegexes,
     saveRegexes,
     createRegexGroup,
@@ -212,7 +214,7 @@ export function RegexManager({ isActive = true }: { isActive?: boolean } = {}) {
 
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    const { setSubpageTitle, setOverrideBack, setSubpageRightAction } = useContext(SettingsContext);
+    const { setSubpageTitle, setOverrideBack, setSubpageRightAction, onNotice } = useContext(SettingsContext);
 
     // Initial load
     useEffect(() => {
@@ -273,6 +275,33 @@ export function RegexManager({ isActive = true }: { isActive?: boolean } = {}) {
         setGroups(newGroups);
         saveRegexes(newGroups);
     }, []);
+
+    // 全局默认正则组：显式开关写入 bindingConfig.globalDefaults.regexIds（正则组 id 数组）。
+    // 没单独绑定的会话经 resolveBinding 级联取到；取消后回退「无正则」。
+    const [globalRegexIds, setGlobalRegexIds] = useState<string[]>([]);
+    useEffect(() => {
+        const refresh = () => setGlobalRegexIds(loadBindingConfig().globalDefaults.regexIds || []);
+        refresh();
+        window.addEventListener("settings-bindings-updated", refresh);
+        return () => window.removeEventListener("settings-bindings-updated", refresh);
+    }, [isActive]);
+
+    const toggleGlobalDefaultRegex = useCallback((groupId: string) => {
+        const config = loadBindingConfig();
+        const current = config.globalDefaults.regexIds || [];
+        const isDefault = current.includes(groupId);
+        const nextIds = isDefault ? current.filter(id => id !== groupId) : [...current, groupId];
+        const next = {
+            ...config,
+            globalDefaults: { ...config.globalDefaults, regexIds: nextIds.length > 0 ? nextIds : undefined },
+        };
+        saveBindingConfig(next);
+        setGlobalRegexIds(nextIds);
+        const group = groups.find(g => g.id === groupId);
+        onNotice(isDefault
+            ? `已取消「${group?.name || "正则组"}」的全局默认`
+            : `已把「${group?.name || "正则组"}」设为全局默认，没单独绑定的会话也会启用`);
+    }, [groups, onNotice]);
 
     const rxContainerRef = useRef<HTMLDivElement>(null);
     useEffect(() => {
@@ -576,6 +605,9 @@ export function RegexManager({ isActive = true }: { isActive?: boolean } = {}) {
                                         <div className="min-w-0 flex items-center gap-[6px]">
                                             <Database size={16} className="shrink-0" />
                                             <span className="truncate text-[calc(14.4px*var(--app-text-scale,1))] font-bold leading-tight text-[var(--c-text-title)]">{group.name}</span>
+                                            {globalRegexIds.includes(group.id) && (
+                                                <span className="ui-badge shrink-0" data-variant="action">全局默认</span>
+                                            )}
                                         </div>
                                         <span className="menu-desc truncate">{group.description || `${group.rules?.length || 0} 个规则`}</span>
                                     </div>
@@ -593,6 +625,14 @@ export function RegexManager({ isActive = true }: { isActive?: boolean } = {}) {
                     {activeGroup && (
                         <div className="flex flex-col gap-4 pb-6">
                             <div className="flex justify-center gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => toggleGlobalDefaultRegex(activeGroup.id)}
+                                    className="inline-flex h-10 items-center justify-center gap-1.5 rounded-[20px] border border-black/10 bg-white px-4 text-xs font-bold text-gray-800 shadow-sm transition-all hover:bg-gray-50 hover:shadow-md active:scale-95"
+                                >
+                                    <Star size={15} strokeWidth={1.8} />
+                                    <span>{globalRegexIds.includes(activeGroup.id) ? "取消全局默认" : "设为全局默认"}</span>
+                                </button>
                                 <button
                                     type="button"
                                     onClick={() => handleExport(activeGroup)}

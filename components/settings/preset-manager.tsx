@@ -3,8 +3,10 @@ import { orderedPresetPrompts, presetDisplayGroupKey, createPresetEditorId } fro
 import { normalizeScopeAlternatives } from "@/lib/preset-scope";
 
 import { useState, useEffect, useRef, useContext, useCallback, useMemo } from "react";
-import { Plus, Upload, Download, Trash2, RotateCcw, ChevronLeft, ChevronDown, MessageSquare, AlertCircle, Maximize2, Copy, Replace } from "lucide-react";
+import { Plus, Upload, Download, Trash2, RotateCcw, ChevronLeft, ChevronDown, MessageSquare, AlertCircle, Maximize2, Copy, Replace, Star } from "lucide-react";
 import {
+    loadBindingConfig,
+    saveBindingConfig,
     loadPresets,
     savePresets,
     createPreset,
@@ -110,7 +112,7 @@ export function PresetManager({ isActive = true }: { isActive?: boolean } = {}) 
 
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    const { setSubpageTitle, setOverrideBack, setSubpageRightAction } = useContext(SettingsContext);
+    const { setSubpageTitle, setOverrideBack, setSubpageRightAction, onNotice } = useContext(SettingsContext);
 
     // Initial load
     useEffect(() => {
@@ -433,6 +435,31 @@ export function PresetManager({ isActive = true }: { isActive?: boolean } = {}) 
     // ── 条目左滑操作：复制 / 替换 / 导出 / 删除 ──
     const swipe = useSwipeActions(192, 28);
 
+    // 全局默认预设：显式按钮写入 bindingConfig.globalDefaults.presetId，不自动猜测。
+    // 没单独绑定的会话经 resolveBinding 级联取到它；取消后回退内置预设。
+    const [globalDefaultPresetId, setGlobalDefaultPresetId] = useState<string | undefined>(undefined);
+    useEffect(() => {
+        const refresh = () => setGlobalDefaultPresetId(loadBindingConfig().globalDefaults.presetId);
+        refresh();
+        window.addEventListener("settings-bindings-updated", refresh);
+        return () => window.removeEventListener("settings-bindings-updated", refresh);
+    }, [isActive]);
+
+    const toggleGlobalDefaultPreset = useCallback((presetId: string) => {
+        const config = loadBindingConfig();
+        const isDefault = config.globalDefaults.presetId === presetId;
+        const next = {
+            ...config,
+            globalDefaults: { ...config.globalDefaults, presetId: isDefault ? undefined : presetId },
+        };
+        saveBindingConfig(next);
+        setGlobalDefaultPresetId(next.globalDefaults.presetId);
+        const preset = presets.find(p => p.id === presetId);
+        onNotice(isDefault
+            ? `已取消「${preset?.name || "预设"}」的全局默认，未单独绑定的会话回退内置预设`
+            : `已把「${preset?.name || "预设"}」设为全局默认，没单独绑定的会话都会用它`);
+    }, [presets, onNotice]);
+
     const addGroupPrompt = (preset: PresetConfig, groupId: string) => {
         const fresh: Prompt = {
             identifier: createPresetEditorId("prompt"), name: "新提示词", role: "system", content: "",
@@ -682,6 +709,9 @@ export function PresetManager({ isActive = true }: { isActive?: boolean } = {}) 
                                             {preset.builtIn && (
                                                 <span className="ui-badge shrink-0" data-variant="success">内置</span>
                                             )}
+                                            {preset.id === globalDefaultPresetId && (
+                                                <span className="ui-badge shrink-0" data-variant="action">全局默认</span>
+                                            )}
                                         </div>
                                         <span className="menu-desc truncate">{preset.description || `包含 ${preset.prompts?.length || 0} 个设定条目`}</span>
                                     </div>
@@ -708,6 +738,14 @@ export function PresetManager({ isActive = true }: { isActive?: boolean } = {}) 
                                     >
                                         <Copy size={15} strokeWidth={1.8} />
                                         <span>复制预设</span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => toggleGlobalDefaultPreset(preset.id)}
+                                        className="inline-flex h-10 items-center justify-center gap-1.5 rounded-[20px] border border-black/10 bg-white px-4 text-xs font-bold text-gray-800 shadow-sm transition-all hover:bg-gray-50 hover:shadow-md active:scale-95"
+                                    >
+                                        <Star size={15} strokeWidth={1.8} />
+                                        <span>{globalDefaultPresetId === preset.id ? "取消全局默认" : "设为全局默认"}</span>
                                     </button>
                                     <button
                                         type="button"
