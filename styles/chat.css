@@ -7327,17 +7327,24 @@
   background: rgba(0,0,0,.32);
   /* 翻面透视：没有它 rotateY 只是扁平镜像，看起来像文字压扁 */
   perspective: 1100px;
-  /* 入场动画放在遮罩层：卡片自身的 transform 通道要完整留给翻面，
-     否则动画帧会盖住 rotateY，快速点击翻面会被吞掉 */
-  animation: ivsIn .18s cubic-bezier(.2,1.35,.35,1);
+  /* 遮罩淡入：卡片/弹层的 transform 通道分别留给入场动效与翻面 */
+  animation: ivsFade .18s ease-out;
 }
+@keyframes ivsFade{ from{ opacity:0; } to{ opacity:1; } }
+/* 心声弹层入场动效（美化工坊「出现动效」选择真正生效） */
+.ivs-pop{ animation: ivsPopRise .22s cubic-bezier(.2,1.1,.35,1); }
+.ivs-pop.is-motion-fade{ animation-name: ivsPopFade; }
+.ivs-pop.is-motion-spring{ animation-name: ivsPopSpring; animation-duration: .3s; }
+.ivs-pop.is-motion-none{ animation: none; }
+@keyframes ivsPopRise{ from{ opacity:0; transform: translateY(12px); } to{ opacity:1; transform:none; } }
+@keyframes ivsPopFade{ from{ opacity:0; } to{ opacity:1; } }
+@keyframes ivsPopSpring{ 0%{ opacity:0; transform: scale(.86); } 60%{ opacity:1; transform: scale(1.02); } 100%{ opacity:1; transform:none; } }
 .ivs-card{
   width: min(360px, 100%);
   background: #fff; border-radius: 26px;
   padding: 18px 18px 16px;
   box-shadow: 0 18px 48px rgba(0,0,0,.18);
 }
-@keyframes ivsIn{ from{ opacity:0; transform: translateY(8px) scale(.98);} to{ opacity:1; transform:none; } }
 .ivs-head{ display:flex; align-items:center; gap:10px; }
 .ivs-avatar{ width:44px; height:44px; border-radius:50%; overflow:hidden; background: var(--ui-group,#f4f4f6); flex:none; }
 .ivs-avatar img{ width:100%; height:100%; object-fit:cover; }

@@ -18,10 +18,12 @@ export type InnerVoiceSheetData = {
 export function InnerVoiceSheet({ data, onClose }: { data: InnerVoiceSheetData; onClose: () => void }) {
     const [flipped, setFlipped] = useState(false);
     const [customHtml, setCustomHtml] = useState<string | null>(null);
+    const [motion, setMotion] = useState<"fade" | "rise" | "spring" | "none">("rise");
 
     useEffect(() => {
         try {
             const style = activeStyle();
+            setMotion(style?.motion ?? "rise");
             const tpl = (style?.html || "").trim();
             if (!tpl || tpl === DEFAULT_HTML.trim()) { setCustomHtml(null); return; }
             const values: Record<string, string> = {
@@ -57,7 +59,8 @@ export function InnerVoiceSheet({ data, onClose }: { data: InnerVoiceSheetData; 
             aria-label="心声"
             onClick={onClose}
         >
-            <div className={`ivs-card is-flippable${flipped ? " is-flipped" : ""}`} onClick={e => { e.stopPropagation(); setFlipped(v => !v); }}>
+            <div className={`ivs-pop is-motion-${motion}`}>
+                <div className={`ivs-card is-flippable${flipped ? " is-flipped" : ""}`} onClick={e => { e.stopPropagation(); setFlipped(v => !v); }}>
                 <div className="ivs-face ivs-front">
                     <div className="ivs-head">
                         <span className="ivs-avatar">
@@ -99,6 +102,7 @@ export function InnerVoiceSheet({ data, onClose }: { data: InnerVoiceSheetData; 
                     </div>
                     <div className="ivs-hint">点一下回到心声</div>
                 </div>
+            </div>
             </div>
         </div>
     );
