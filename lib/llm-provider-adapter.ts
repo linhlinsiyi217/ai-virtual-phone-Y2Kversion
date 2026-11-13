@@ -297,17 +297,28 @@ function thinkingInstruction(tag: string): string {
  */
 function withThinkingReminder(messages: LlmRequestMessage[], tag: string): LlmRequestMessage[] {
     const reminder = `（这条回复请先写 <${tag}>…</${tag}> 的内心念头，再写正文。这是最高优先级规则，漏掉视为不合格。）`;
-    for (let i = messages.length - 1; i >= 0; i -= 1) {
-        const message = messages[i];
+    // 主聊天会在消息末尾追加多条系统指令（能力声明、节奏要求等），只提醒在历史区的 user 消息上，
+    // 模型最后看到的就不是这条规则 —— 真机表现为「只有用户嘴上提到思考过程时才写」。
+    // 所以：历史区 user 上保留提醒；若最后一条不是这条 user，再在最末尾补一条简短提醒，
+    // 保证模型“最后看到”的一定是它。末尾 system 在各家构建函数里都会被转成可见的末尾指令，跨家安全。
+    const tailReminder = `【最后提醒·最高优先级】本次回复最开头必须先写 <${tag}>…</${tag}>，之后才写正文，漏掉视为不合格。`;
+    const next = [...messages];
+    let attachedIndex = -1;
+    for (let i = next.length - 1; i >= 0; i -= 1) {
+        const message = next[i];
         if (message.role !== "user") continue;
         const content = typeof message.content === "string"
             ? `${message.content}\n\n${reminder}`
             : [...message.content, { type: "text" as const, text: reminder }];
-        const next = [...messages];
         next[i] = { ...message, content } as LlmRequestMessage;
-        return next;
+        attachedIndex = i;
+        break;
     }
-    return messages;
+    if (attachedIndex < 0) return messages;
+    if (attachedIndex !== next.length - 1) {
+        next.push({ role: "system", content: tailReminder } as LlmRequestMessage);
+    }
+    return next;
 }
 
 export function buildProviderRequest(

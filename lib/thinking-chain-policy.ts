@@ -6,28 +6,26 @@
  * 强注入影响所有对话语气、绕过模型原生 reasoning、模型不写标签时胶囊是空的。
  *
  * 这里把控制权收拢成一个按会话隔离的策略：
- * - tag（默认）：明确要求模型先写一小段 <thinking>；同时保留模型原生推理透传，
+ * - tag（默认）：每一轮都明确要求模型先写一小段 <thinking>；同时保留模型原生推理透传，
  *   标签内容有则覆盖显示，没有也能显示原生推理 —— 胶囊不会空。用户不用自己去开开关。
- * - native（自动降级）：连续两条回复都没拿到 <thinking> 标签后，先停几轮不再要求标签，
- *   完全走模型原生推理；冷却结束后自动再试一次，避免一次失手就永久失去胶囊。
- * - off（用户关闭）：预设里显式关掉「显示思考过程」后固定走原生推理，不再尝试标签。
+ *   曾经做过「连续两条没写就冷却几轮不注入」，但真机证明多数线上模型没有原生推理，
+ *   冷却等于把胶囊关掉，所以 1.8.71 起只要开关开着就每轮都要求。
+ * - off（用户关闭）：预设里显式关掉「显示思考过程」后不再要求标签。
  *
- * 状态只存在内存里、按会话隔离，不写入任何持久化数据。拿到标签会清零计数与冷却；
- * 用户重新打开开关、切换开关或换会话时重新尝试标签模式。
+ * 状态只存在内存里、按会话隔离，不写入任何持久化数据。
+ * 本模块不改变任何消息内容，消息层面的注入在 llm-provider-adapter 里完成。
  * 问答、推送、连通性测试等非聊天链路不调用本模块，不受影响。
  */
 import type { PresetConfig } from "./settings-types";
 
 export type ThinkingChainMode = "tag" | "native" | "off";
 
-/** 连续多少条回复没拿到标签就降级回原生推理 */
+/** 连续多少条回复没拿到标签（仅用于记录，不再触发降级） */
 const MISS_LIMIT = 2;
-/** 降级后先走几条原生推理，再自动重试一次标签；避免一直失手就永久不再出现 */
-const DEGRADE_ROUNDS = 3;
 /** 最多记住多少个会话，避免长期运行无限增长 */
 const MAX_SESSIONS = 256;
 
-type ThinkingChainSessionState = { misses: number; cooldown: number };
+type ThinkingChainSessionState = { misses: number };
 const sessionStates = new Map<string, ThinkingChainSessionState>();
 
 /** 默认开启：只有显式设为 false 才是关闭，保证「不用自己去打开」 */
@@ -40,30 +38,23 @@ export function resolveThinkingChainTag(preset: PresetConfig | null): string {
     return (preset?.online_thinking_tag || preset?.thinking_tag)?.trim() || "thinking";
 }
 
-/** 本次回复该用哪种模式 */
+/**
+ * 本次回复该用哪种模式。
+ * 真机结论（1.8.70 前）：多数线上模型不返回原生推理，一旦因为没写标签而停止注入要求，
+ * 胶囊就整段消失 —— 这正是「只有特意说才出现」的主因之一。
+ * 所以只要开关开着，每一轮都继续要求标签；没拿到标签只做记录，不再中断注入。
+ * 本函数保持纯读（之前在读取时扣减冷却，连提示词预览都会扣，属于副作用 bug）。
+ */
 export function resolveThinkingChainMode(preset: PresetConfig | null, sessionId: string): ThinkingChainMode {
     if (!isThinkingChainEnabled(preset)) return "off";
-    const state = sessionStates.get(sessionId);
-    if (state && state.cooldown > 0) {
-        state.cooldown -= 1;
-        return "native";
-    }
     return "tag";
 }
 
-/** 一次回复结束后调用；hasTag 表示这一轮是否真的从输出里拿到了 <thinking> 内容 */
+/** 一次回复结束后调用；hasTag 表示这一轮是否真的从输出里拿到了 <thinking> 内容。
+ *  misses 只用于记录（将来排查用），不再触发降级/冷却。 */
 export function noteThinkingChainResult(sessionId: string, hasTag: boolean): void {
-    const state = sessionStates.get(sessionId) ?? { misses: 0, cooldown: 0 };
-    if (hasTag) {
-        state.misses = 0;
-        state.cooldown = 0;
-    } else {
-        state.misses += 1;
-        if (state.misses >= MISS_LIMIT) {
-            state.misses = 0;
-            state.cooldown = DEGRADE_ROUNDS;
-        }
-    }
+    const state = sessionStates.get(sessionId) ?? { misses: 0 };
+    state.misses = hasTag ? 0 : state.misses + 1;
     if (!sessionStates.has(sessionId) && sessionStates.size >= MAX_SESSIONS) {
         const oldest = sessionStates.keys().next().value;
         if (oldest !== undefined) sessionStates.delete(oldest);
