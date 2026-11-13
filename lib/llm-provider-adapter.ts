@@ -282,12 +282,32 @@ function customInnerVoiceInstruction(): string {
  */
 function thinkingInstruction(tag: string): string {
     return [
-        "【思考过程】",
-        `在正式回复之前，先输出一段 <${tag}> … </${tag}>。`,
-        "里面用中文写你这一轮真实的考量：你在意什么、准备怎么回应、哪些话不打算说出口。",
-        "二到四句，口语，不要复述设定，不要写给用户看的台词，也不要写“我作为AI”。",
-        `写完 </${tag}> 再开始正式回复；正式回复里不要再出现这个标签。`,
+        "【最高优先级规则 · 思考过程】",
+        `每一条回复都必须先写一段 <${tag}> … </${tag}>，再写正文。这是格式硬要求，不是可选项；漏掉标签视为不合格回复。`,
+        "- 用角色的第一人称中文写此刻真实的念头：在意什么、误读了什么、想说什么又咽回去、身体和情绪有什么反应。",
+        "- 六到十句，像心里话；可以犹豫、跑题、自相矛盾，别急着下结论。",
+        "- 不要复述设定、不要写总结、不要写给用户看的台词，也不要出现“作为AI”“我是模型”这类话。",
+        `- 标签里不要用标题或列表；写完 </${tag}> 立刻开始正文，正文里不要再出现这个标签。`,
     ].join("\n");
+}
+
+/**
+ * 末尾再提醒一次：长人设提示词会把开头的系统规则压掉，模型只会照做「最后一条」指令。
+ * 只改请求副本，不动调用方传进来的消息对象。
+ */
+function withThinkingReminder(messages: LlmRequestMessage[], tag: string): LlmRequestMessage[] {
+    const reminder = `（这条回复请先写 <${tag}>…</${tag}> 的内心念头，再写正文。这是最高优先级规则，漏掉视为不合格。）`;
+    for (let i = messages.length - 1; i >= 0; i -= 1) {
+        const message = messages[i];
+        if (message.role !== "user") continue;
+        const content = typeof message.content === "string"
+            ? `${message.content}\n\n${reminder}`
+            : [...message.content, { type: "text" as const, text: reminder }];
+        const next = [...messages];
+        next[i] = { ...message, content } as LlmRequestMessage;
+        return next;
+    }
+    return messages;
 }
 
 export function buildProviderRequest(
@@ -319,6 +339,7 @@ export function buildProviderRequest(
     // 其余链路（问答、推送兜底、连通性测试等）不传，保持请求干净、语气不被带跑。
     if (options.thinkingChainTag) {
         providerMessages = [{ role: "system", content: thinkingInstruction(options.thinkingChainTag) } as LlmRequestMessage, ...providerMessages];
+        providerMessages = withThinkingReminder(providerMessages, options.thinkingChainTag);
     }
 
     if (providerKind === "anthropic") {
