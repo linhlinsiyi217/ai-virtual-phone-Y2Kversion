@@ -2023,12 +2023,24 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
     // 点这一轮里任意一条 AI 消息的头像，弹的都是同一个。
     const turnVoiceByMessageId = useMemo(() => {
         const map = new Map<string, string>();
-        let current = "";
+        // 按 user 消息切回合：一轮里只要有一条带心声，整轮的气泡都共用它。
+        // 之前只往后传，心声挂在最后一条时，点前面几条头像会取到空串 → 静默无反应。
+        let turn: typeof displayMessages = [];
+        const flush = () => {
+            if (turn.length === 0) return;
+            const voice = turn.find(item => item.innerMonologue?.trim())?.innerMonologue || "";
+            for (const item of turn) map.set(item.id, voice);
+            turn = [];
+        };
         for (const item of displayMessages) {
-            if (item.role === "user") { current = ""; map.set(item.id, ""); continue; }
-            if (!current && item.innerMonologue) current = item.innerMonologue;
-            map.set(item.id, current);
+            if (item.role === "user") {
+                flush();
+                map.set(item.id, "");
+                continue;
+            }
+            turn.push(item);
         }
+        flush();
         return map;
     }, [displayMessages]);
 
@@ -6046,11 +6058,11 @@ export function ChatRoom({ session, onBack, onDeleted, lyricQuote, onLyricQuoteC
                                                     }} className="w-[40px] h-[40px] rounded-[20px] bg-[var(--c-input)] overflow-hidden cursor-pointer"
                                                         onClick={() => {
                                                             const turnVoice = turnVoiceByMessageId.get(msg.id) || msg.innerMonologue || "";
-                                                            if (!turnVoice) return;
+                                                            // 没有心声也弹出来：明确区分「这一轮没写」和「按钮没反应」
                                                             setInnerVoiceSheet({
                                                                 name: senderChar?.name || character?.name || "TA",
                                                                 avatarUrl: senderChar?.avatar || character?.avatar || undefined,
-                                                                voice: turnVoice,
+                                                                voice: turnVoice || "这一轮没有心声。可能是这次回复没有写内心独白，或者这条消息来自旧记录。",
                                                                 stateValues: cardStateValues,
                                                                 timeLabel: msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" }) : undefined,
                                                             });
