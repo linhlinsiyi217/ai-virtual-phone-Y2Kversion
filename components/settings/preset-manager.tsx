@@ -28,6 +28,7 @@ import { PresetScopePicker } from "./preset-scope-picker";
 import { PresetEntryGroups } from "./preset-entry-groups";
 import { PresetGenerationControls } from "./preset-generation-controls";
 import { promptScopeLabel, getPromptScopes } from "@/lib/preset-scope";
+import { resetThinkingChainSessions } from "@/lib/thinking-chain-policy";
 
 function getPromptTagsLabel(p: Prompt, tagProfiles = flattenTagGroups(CONTENT_SCOPE_TAG_GROUPS)): string {
     return promptScopeLabel(p, tagProfiles);
@@ -816,6 +817,19 @@ export function PresetManager({ isActive = true }: { isActive?: boolean } = {}) 
                                                             <div className="ui-slider-hint">
                                                                 从线上模式 AI 输出中提取思考过程（思维链）的标签字段名。仅当下方「线上思维链解析」开启时生效；关闭时走模型原生思维链。
                                                             </div>
+                                                        </div>
+                                                        <div className="flex items-center justify-between gap-3 col-span-full">
+                                                            <div className="flex flex-col gap-1">
+                                                                <label className="ui-slider-label">显示思考过程</label>
+                                                                <span className="ui-slider-hint">主聊天气泡上方那颗「思考过程」小胶囊，默认就有、不用自己去开。关掉后只显示模型自带的思考，不再请模型额外写一段</span>
+                                                            </div>
+                                                            <label className="ui-mini-toggle" onClick={(e) => e.stopPropagation()}>
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={preset.thinking_chain_enabled !== false}
+                                                                    onChange={(e) => { updatePreset(preset.id, { thinking_chain_enabled: e.target.checked }); resetThinkingChainSessions(); }}
+                                                                />
+                                                            </label>
                                                         </div>
                                                         <div className="flex items-center justify-between gap-3 col-span-full">
                                                             <div className="flex flex-col gap-1">

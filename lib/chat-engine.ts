@@ -100,6 +100,7 @@ import {
     resolveBilingualPrompt,
 } from "./bilingual-prompt-defaults";
 import { parseOfflineResponse, extractThinkingTag, type ParsedOfflineResponse } from "./chat-offline-storage";
+import { resolveThinkingChainMode, resolveThinkingChainTag, noteThinkingChainResult } from "./thinking-chain-policy";
 import { buildIMessageTapbackPromptInstruction, buildPokeUsagePrompt } from "./chat-tapback";
 import { buildEchoPrompt } from "./chat-echo";
 import { buildLovePrompt } from "./chat-love";
@@ -924,6 +925,8 @@ export async function sendLLMStreamRequest(
         skipWorldline?: boolean;
         debugSessionId?: string;
         signal?: AbortSignal;
+        /** 主聊天「思考过程」：软性请模型写一段思考标签；不传则不注入 */
+        thinkingChainTag?: string;
     },
     callbacks?: ChatCompletionStreamCallbacks,
 ): Promise<ChatCompletionStreamResult> {
@@ -942,7 +945,7 @@ export async function sendLLMStreamRequest(
         },
     } : undefined;
     const requestMessages = toLlmRequestMessages(afterPlugins.messages);
-    const request = buildProviderRequest(config, effectivePreset, requestMessages, { stream: true });
+    const request = buildProviderRequest(config, effectivePreset, requestMessages, { stream: true, thinkingChainTag: options?.thinkingChainTag });
     publishDebugPromptSnapshot({ request, config, preset: effectivePreset, meta, options, requestKind: "completion" });
     const llmAbort = new AbortController();
     const llmTimeout = setTimeout(() => llmAbort.abort(), 500_000);
@@ -1041,6 +1044,7 @@ export async function sendLLMRequestPreferStream(
             followUpCount: options?.followUpCount,
             debugSessionId: options?.debugSessionId,
             signal: options?.signal,
+            thinkingChainTag: options?.thinkingChainTag,
         }, {
             onDelta: () => { received = true; },
             onReasoningDelta: (text: string) => {
@@ -1086,6 +1090,8 @@ export async function sendLLMRequest(
         skipWorldline?: boolean;
         debugSessionId?: string;
         signal?: AbortSignal;
+        /** 主聊天「思考过程」：软性请模型写一段思考标签；不传则不注入 */
+        thinkingChainTag?: string;
     },
 ): Promise<string> {
     const lifeRequestScope = lifeScope(options?.debugSessionId, messages, options?.signal);
@@ -1093,7 +1099,7 @@ export async function sendLLMRequest(
     const afterPlugins = await applyChatPluginLlmRequest(preset, messages, pluginPurpose, options?.debugSessionId);
     const effectivePreset = afterPlugins.preset;
     const requestMessages = toLlmRequestMessages(afterPlugins.messages);
-    const request = buildProviderRequest(config, effectivePreset, requestMessages);
+    const request = buildProviderRequest(config, effectivePreset, requestMessages, { thinkingChainTag: options?.thinkingChainTag });
     publishDebugPromptSnapshot({ request, config, preset: effectivePreset, meta, options, requestKind: "completion" });
     const requestBodyJson = JSON.stringify(request.body);
     const requestBodySize = requestBodyJson.length;
@@ -1289,6 +1295,8 @@ export async function sendLLMToolStreamRequest(
         signal?: AbortSignal;
         /** 单次最大输出 token：按调用覆盖预设值（工坊输出护栏用） */
         maxTokens?: number;
+        /** 主聊天「思考过程」：软性请模型写一段思考标签；不传则不注入 */
+        thinkingChainTag?: string;
     },
     callbacks?: ChatCompletionStreamCallbacks,
 ): Promise<LLMToolRequestResult> {
@@ -1297,7 +1305,7 @@ export async function sendLLMToolStreamRequest(
     const pluginPurpose = options?.appId ?? "chat";
     const afterPlugins = await applyChatPluginLlmRequest(preset, messages, pluginPurpose, options?.debugSessionId);
     const effectivePreset = afterPlugins.preset;
-    const request = buildProviderRequest(config, effectivePreset, afterPlugins.messages, { tools, stream: true, maxTokens: options?.maxTokens });
+    const request = buildProviderRequest(config, effectivePreset, afterPlugins.messages, { tools, stream: true, maxTokens: options?.maxTokens, thinkingChainTag: options?.thinkingChainTag });
     publishDebugPromptSnapshot({ request, config, preset: effectivePreset, meta, options, requestKind: "native-tools-stream", tools });
     const llmAbort = new AbortController();
     const llmTimeout = setTimeout(() => llmAbort.abort(), 500_000);
@@ -1455,13 +1463,15 @@ export async function sendLLMToolRequest(
         skipWorldline?: boolean;
         debugSessionId?: string;
         signal?: AbortSignal;
+        /** 主聊天「思考过程」：软性请模型写一段思考标签；不传则不注入 */
+        thinkingChainTag?: string;
     },
 ): Promise<LLMToolRequestResult> {
     const lifeRequestScope = lifeScope(options?.debugSessionId, messages, options?.signal);
     const pluginPurpose = options?.appId ?? "chat";
     const afterPlugins = await applyChatPluginLlmRequest(preset, messages, pluginPurpose, options?.debugSessionId);
     const effectivePreset = afterPlugins.preset;
-    const request = buildProviderRequest(config, effectivePreset, afterPlugins.messages, { tools });
+    const request = buildProviderRequest(config, effectivePreset, afterPlugins.messages, { tools, thinkingChainTag: options?.thinkingChainTag });
     publishDebugPromptSnapshot({ request, config, preset: effectivePreset, meta, options, requestKind: "native-tools", tools });
     const llmAbort = new AbortController();
     const llmTimeout = setTimeout(() => llmAbort.abort(), 500_000);
@@ -2388,10 +2398,12 @@ async function generateNativeChatCompletion(
     const expandableSourceKeys = new Set(enabledTools.filter(tool => !isNativeSingleTool(tool)).map(nativeToolSourceKey));
 
     const maxToolRounds = getMaxToolRounds();
-    // 思维链固定显示：不依赖用户在预设里打开开关，任何模型都会被要求先写 <thinking>。
-    // 预设里的开关现在只用来「改标签名」，不再作为显示的前置条件。
-    const onlineThinkingEnabled = true;
-    const onlineThinkingTag = preset?.online_thinking_tag?.trim() || "thinking";
+    // 思考过程：默认开、软性请求；连续两条拿不到标签就自动降级回模型原生推理，用户可在设置里关掉。
+    const thinkingTag = resolveThinkingChainTag(preset);
+    const thinkingMode = resolveThinkingChainMode(preset, session.id);
+    const wantThinkingTag = thinkingMode === "tag";
+    const thinkingChainTag = wantThinkingTag ? thinkingTag : undefined;
+    let gotThinkingTag = false;
     for (let round = 0; round < maxToolRounds; round += 1) {
         let result: LLMToolRequestResult;
         try {
@@ -2410,13 +2422,14 @@ async function generateNativeChatCompletion(
                         followUpCount: options?.followUpCount,
                         debugSessionId: session.id,
                         signal: options?.signal,
+                        thinkingChainTag,
                     },
                     {
                         onDelta: (text) => callbacks?.onStreamDelta?.(text),
                         // 流式下 onReasoningDelta 收到的是单段增量：本地累积后再喂 onReasoning，
                         // 保证下游拿到的是完整思维链（与整段请求的 onReasoning 语义一致）。
-                        // 预设开启「线上标签解析」时不透传原生思维链（改由下方标签提取）
-                        onReasoningDelta: onlineThinkingEnabled ? undefined : (text) => { streamReasoning += text; callbacks?.onReasoning?.(streamReasoning); },
+                        // 原生推理始终透传；若正文里另有思考标签，下方会用标签内容覆盖显示。
+                        onReasoningDelta: (text) => { streamReasoning += text; callbacks?.onReasoning?.(streamReasoning); },
                     },
                 );
             } else {
@@ -2433,6 +2446,7 @@ async function generateNativeChatCompletion(
                         followUpCount: options?.followUpCount,
                         debugSessionId: session.id,
                         signal: options?.signal,
+                        thinkingChainTag,
                     },
                 );
             }
@@ -2448,13 +2462,16 @@ async function generateNativeChatCompletion(
         }
         throwIfAborted(options?.signal);
 
-        // 线上思维链标签解析：开启时从正文提取 <tag> 思维链（覆盖原生），并剥离标签后再做后续解析
+        // 思考过程：标签内容优先显示，没拿到标签时用模型原生推理兜底，胶囊不会空。
         let displayContent = result.content;
-        if (onlineThinkingEnabled) {
-            const tagThinking = extractThinkingTag(displayContent, onlineThinkingTag);
-            if (tagThinking) callbacks?.onReasoning?.(tagThinking);
-            displayContent = stripOnlineThinkingTag(displayContent, onlineThinkingTag);
+        const tagThinking = wantThinkingTag ? extractThinkingTag(displayContent, thinkingTag) : "";
+        if (tagThinking) {
+            gotThinkingTag = true;
+            callbacks?.onReasoning?.(tagThinking);
+        } else if (result.reasoning) {
+            callbacks?.onReasoning?.(result.reasoning);
         }
+        if (wantThinkingTag) displayContent = stripOnlineThinkingTag(displayContent, thinkingTag);
         // 剔除预设配置的文本片段（<思考结束> 等残留标签）
         displayContent = stripPresetTexts(displayContent, preset);
 
@@ -2467,9 +2484,7 @@ async function generateNativeChatCompletion(
 
         if (result.toolCalls.length === 0) {
             throwIfAborted(options?.signal);
-            // 无工具调用的最终轮：把解析到的思维链先交给回调（先于 onTextPart，与非原生路径一致）
-            // 标签解析开启时已在上方用标签思维链覆盖，此处不再重复喂原生
-            if (result.reasoning && !onlineThinkingEnabled) callbacks?.onReasoning?.(result.reasoning);
+            // 无工具调用的最终轮：思维链已在上方按「标签优先、原生兜底」交给回调
             await callbacks?.onTextPart?.(afterActionStrip);
             parts.push({ text: afterActionStrip });
             if (bailoutRef.shortcutHandles.length > 0) bailoutRef.shortcutCompleted = true;
@@ -2480,8 +2495,8 @@ async function generateNativeChatCompletion(
         await callbacks?.onNativeToolAssistantTurn?.({
             content: afterActionStrip,
             rawContent: displayContent,
-            reasoning: onlineThinkingEnabled ? (extractThinkingTag(result.content, onlineThinkingTag) || undefined) : result.reasoning,
-            openRouterReasoningDetails: onlineThinkingEnabled ? undefined : result.openRouterReasoningDetails,
+            reasoning: tagThinking || result.reasoning || undefined,
+            openRouterReasoningDetails: result.openRouterReasoningDetails,
             toolCalls: result.toolCalls,
         });
         if (afterActionStrip) {
@@ -2538,7 +2553,7 @@ async function generateNativeChatCompletion(
                             style: "native",
                             resultMarker,
                             imageMarker,
-                            request: buildProviderRequest(config, preset, snapshotMessages),
+                            request: buildProviderRequest(config, preset, snapshotMessages, { thinkingChainTag }),
                             session,
                             character,
                             userName: userIdentity?.name,
@@ -2690,6 +2705,8 @@ async function generateNativeChatCompletion(
         }
     }
 
+    if (wantThinkingTag) noteThinkingChainResult(session.id, gotThinkingTag);
+
     return { parts };
 }
 
@@ -2788,6 +2805,12 @@ async function generateChatCompletionCore(
     const invitation = !options?.appTags?.includes("offline") && !options?.promptProfile && (!options?.appId || options.appId === "chat")
         ? pendingListeningInvite(session, history) : null;
     const { llmMessages, character, config, preset, regexes, userIdentity, toolsEnabled, enabledTools } = await buildChatPromptMessages(session, history, options);
+    // 思考过程：默认开、软性请求；连续两条拿不到标签就自动降级回模型原生推理，用户可在设置里关掉。
+    const thinkingTag = resolveThinkingChainTag(preset);
+    const thinkingMode = resolveThinkingChainMode(preset, session.id);
+    const wantThinkingTag = thinkingMode === "tag";
+    const thinkingChainTag = wantThinkingTag ? thinkingTag : undefined;
+    let gotThinkingTag = false;
     if (invitation) {
         const observer = createListeningInviteStreamObserver(invitation, { signal: options?.signal, thinkingTags: [preset?.online_thinking_tag || "thinking"], startedAt: inviteStartedAt });
         const original = callbacks;
@@ -2830,7 +2853,7 @@ async function generateChatCompletionCore(
                 characterName: character.name,
                 userName: userIdentity?.name,
                 regexes,
-                request: buildProviderRequest(config, preset, toLlmRequestMessages(bailoutMessages)),
+                request: buildProviderRequest(config, preset, toLlmRequestMessages(bailoutMessages), { thinkingChainTag }),
                 replyAfter: replyAfterMessage
                     ? { localMessageId: replyAfterMessage.id, createdAt: replyAfterMessage.createdAt }
                     : undefined,
@@ -2864,11 +2887,6 @@ async function generateChatCompletionCore(
     const actionContext = { characterId: session.contactId, sessionId: session.id, sourceEngine: "chat" as const, signal: options?.signal };
 
     const maxToolRounds = getMaxToolRounds();
-    const onlineThinking = {
-        enabled: true,
-        tag: preset?.online_thinking_tag?.trim() || "thinking",
-        reasoning: undefined as string | undefined,
-    };
     for (let round = 0; round < maxToolRounds; round++) {
         let filteredOutput: string;
         try {
@@ -2883,11 +2901,12 @@ async function generateChatCompletionCore(
                     debugSessionId: session.id,
                     signal: options?.signal,
                     immediateContent: Boolean(invitation),
+                    thinkingChainTag,
                 }, {
                     onDelta: (text) => callbacks?.onStreamDelta?.(text),
-                    // 流式下 onReasoningDelta 是单段增量：累积后再喂 onReasoning（保持整段请求语义）
-                    // 预设开启「线上标签解析」时不透传原生思维链（改由下方标签提取）
-                    onReasoningDelta: onlineThinking.enabled ? undefined : (text) => { streamReasoning += text; callbacks?.onReasoning?.(streamReasoning); },
+                    // 流式下 onReasoningDelta 是单段增量：累积后再喂 onReasoning（保持整段请求语义）。
+                    // 原生推理始终透传；若正文里另有思考标签，下方会用标签内容覆盖显示。
+                    onReasoningDelta: (text) => { streamReasoning += text; callbacks?.onReasoning?.(streamReasoning); },
                 });
                 filteredOutput = streamResult.content;
             } else {
@@ -2897,8 +2916,8 @@ async function generateChatCompletionCore(
                     followUpCount: options?.followUpCount,
                     debugSessionId: session.id,
                     signal: options?.signal,
-                    // 预设开启「线上标签解析」时不透传原生思维链（改由下方标签提取）
-                    onReasoning: onlineThinking.enabled ? undefined : callbacks?.onReasoning,
+                    thinkingChainTag,
+                    onReasoning: callbacks?.onReasoning,
                 });
             }
         } catch (err) {
@@ -2913,15 +2932,13 @@ async function generateChatCompletionCore(
         }
         throwIfAborted(options?.signal);
 
-        // 线上思维链标签解析：开启时每轮从正文提取 <tag> 思维链（覆盖原生），并剥离标签后再做后续解析
-        if (onlineThinking.enabled) {
-            const tagThinking = extractThinkingTag(filteredOutput, onlineThinking.tag);
-            if (tagThinking) {
-                onlineThinking.reasoning = tagThinking;
-                callbacks?.onReasoning?.(tagThinking);
-            }
-            filteredOutput = stripOnlineThinkingTag(filteredOutput, onlineThinking.tag);
+        // 思考过程：标签内容优先显示，没拿到标签时保留模型原生推理（由上面的回调透传），胶囊不会空。
+        const tagThinking = wantThinkingTag ? extractThinkingTag(filteredOutput, thinkingTag) : "";
+        if (tagThinking) {
+            gotThinkingTag = true;
+            callbacks?.onReasoning?.(tagThinking);
         }
+        if (wantThinkingTag) filteredOutput = stripOnlineThinkingTag(filteredOutput, thinkingTag);
         // 剔除预设配置的文本片段（<思考结束> 等残留标签），不进入消息/提示词
         filteredOutput = stripPresetTexts(filteredOutput, preset);
 
@@ -3036,7 +3053,7 @@ async function generateChatCompletionCore(
                             style: "text",
                             resultMarker,
                             imageMarker,
-                            request: buildProviderRequest(config, preset, toLlmRequestMessages(snapshotMessages)),
+                            request: buildProviderRequest(config, preset, toLlmRequestMessages(snapshotMessages), { thinkingChainTag }),
                             session,
                             character,
                             userName: userIdentity?.name,
@@ -3112,11 +3129,12 @@ async function generateChatCompletionCore(
                             followUpCount: options?.followUpCount,
                             debugSessionId: session.id,
                             signal: options?.signal,
+                            thinkingChainTag,
                         }, {
                             onDelta: (text) => callbacks?.onStreamDelta?.(text),
                             // 流式下 onReasoningDelta 是单段增量：累积后再喂 onReasoning（保持整段请求语义）。
-                            // 预设开启「线上标签解析」时不透传原生思维链（改由下方标签提取）
-                            onReasoningDelta: onlineThinking.enabled ? undefined : (text) => { streamReasoning += text; callbacks?.onReasoning?.(streamReasoning); },
+                            // 原生推理始终透传；若正文里另有思考标签，下方会用标签内容覆盖显示。
+                            onReasoningDelta: (text) => { streamReasoning += text; callbacks?.onReasoning?.(streamReasoning); },
                         });
                         finalOutput = streamFinal.content;
                     } else {
@@ -3126,16 +3144,18 @@ async function generateChatCompletionCore(
                             followUpCount: options?.followUpCount,
                             debugSessionId: session.id,
                             signal: options?.signal,
-                            onReasoning: onlineThinking.enabled ? undefined : callbacks?.onReasoning,
+                            thinkingChainTag,
+                            onReasoning: callbacks?.onReasoning,
                         });
                     }
                     throwIfAborted(options?.signal);
-                    // 线上思维链标签解析：开启时从正文提取 <tag> 思维链并剥离标签
-                    if (onlineThinking.enabled) {
-                        const tagThinking = extractThinkingTag(finalOutput, onlineThinking.tag);
-                        if (tagThinking) callbacks?.onReasoning?.(tagThinking);
-                        finalOutput = stripOnlineThinkingTag(finalOutput, onlineThinking.tag);
+                    // 思考过程：标签内容优先显示，没拿到标签时保留模型原生推理，胶囊不会空。
+                    const tagThinking = wantThinkingTag ? extractThinkingTag(finalOutput, thinkingTag) : "";
+                    if (tagThinking) {
+                        gotThinkingTag = true;
+                        callbacks?.onReasoning?.(tagThinking);
                     }
+                    if (wantThinkingTag) finalOutput = stripOnlineThinkingTag(finalOutput, thinkingTag);
                     // 剔除预设配置的文本片段（<思考结束> 等残留标签）
                     finalOutput = stripPresetTexts(finalOutput, preset);
                     await callbacks?.onTextPart?.(finalOutput);
@@ -3161,6 +3181,8 @@ async function generateChatCompletionCore(
             console.warn("[ChatEngine] Memory counter/summarization failed:", err);
         }
     })();
+
+    if (wantThinkingTag) noteThinkingChainResult(session.id, gotThinkingTag);
 
     return { parts };
 }
@@ -3285,6 +3307,9 @@ export async function previewPromptRequestSnapshot(
     const { llmMessages, character, config, preset, userIdentity, enabledTools } = await buildChatPromptMessages(session, effectiveHistory, options);
     const requestMessages = toLlmRequestMessages(llmMessages);
     const meta = { characterName: character.name, userName: userIdentity?.name };
+    // 预览要和真实请求保持一致：同样按当前会话的降级状态决定是否附上软性思考请求
+    const thinkingMode = resolveThinkingChainMode(preset, session.id);
+    const thinkingChainTag = thinkingMode === "tag" ? resolveThinkingChainTag(preset) : undefined;
 
     if (nativeToolProtocolForConfig(config) && enabledTools.length > 0) {
         const persistedSession = loadChatSessions().find(item => item.id === session.id);
@@ -3296,7 +3321,7 @@ export async function previewPromptRequestSnapshot(
             characterName: character.name,
             userName: userIdentity?.name ?? "用户",
         });
-        const request = buildProviderRequest(config, preset, requestMessages, { tools: nativeBundle.definitions });
+        const request = buildProviderRequest(config, preset, requestMessages, { tools: nativeBundle.definitions, thinkingChainTag });
         return publishDebugPromptSnapshot({
             request,
             config,
@@ -3312,7 +3337,7 @@ export async function previewPromptRequestSnapshot(
         });
     }
 
-    const request = buildProviderRequest(config, preset, requestMessages);
+    const request = buildProviderRequest(config, preset, requestMessages, { thinkingChainTag });
     return publishDebugPromptSnapshot({
         request,
         config,

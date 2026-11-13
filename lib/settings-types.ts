@@ -103,6 +103,9 @@ export type PresetConfig = SettingItemMeta & {
     online_thinking_enabled?: boolean;
     /** 线下模式是否启用思维链标签解析（默认关；关 = 走模型原生 reasoning） */
     offline_thinking_enabled?: boolean;
+    /** 主聊天「显示思考过程」总开关。默认开（不用自己去打开）；显式设为 false 才关闭，
+     *  关闭后固定走模型原生推理，不再请模型额外写思考标签。与上面两个解析开关互不影响。 */
+    thinking_chain_enabled?: boolean;
     /** 模型回复中直接剔除的文本片段列表（字面量删除，不走正则）：如 <思考结束> 等残留标签，
      *  生成时即删除，不进入消息、不进入发给模型的记录。 */
     strip_texts?: string[];

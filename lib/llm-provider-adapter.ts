@@ -72,6 +72,9 @@ type ProviderRequestOptions = {
     tools?: LlmToolDefinition[];
     /** 单次最大输出 token：按调用覆盖预设值（工坊输出护栏用）。不填则沿用预设/各家默认 */
     maxTokens?: number;
+    /** 仅主聊天「思考过程」链路传入：软性请模型先写一段该标签的思考。
+     *  不传 = 完全不注入思维链指令（群聊、问答、推送、连通性测试等都走这里）。 */
+    thinkingChainTag?: string;
 };
 
 const ANTHROPIC_AUTO_MAX_TOKENS = 8192;
@@ -273,19 +276,16 @@ function customInnerVoiceInstruction(): string {
 
 
 /**
- * 通用思维链：开了「线上/线下思维链解析」的预设，在请求里补一条格式要求。
- * 这样不依赖模型原生 reasoning —— 任何模型只要照着写 <thinking>，前端就能显示。
+ * 主聊天「思考过程」的软性请求。
+ * 只在调用方显式传入标签名时才生成，措辞是「如果愿意」而不是「必须先写」，
+ * 避免对所有模型、所有链路强行改写语气。模型不写也没关系：前端会显示原生推理兜底。
  */
-function thinkingFormatInstruction(preset: PresetConfig | null): string {
-    // 固定注入：不管预设开关、不管模型有没有原生思考，都要求先写一段思考。
-    // 预设里的开关退化为「改标签名」。
-    const tag = (preset?.online_thinking_tag || preset?.thinking_tag)?.trim() || "thinking";
+function softThinkingInstruction(tag: string): string {
     return [
-        "【思维链（必须先写）】",
-        `在正式回复之前，先输出一段 <${tag}> … </${tag}>。`,
-        "里面用中文写你这一轮真实的考量：你在意什么、准备怎么回应、哪些话不打算说出口。",
-        "二到四句，口语，不要复述设定，不要写给用户看的台词，也不要写“我作为AI”。",
-        `写完 </${tag}> 再开始正式回复；正式回复里不要再出现这个标签。`,
+        "【关于思考过程（可选）】",
+        `如果你愿意，可以在正式回复前，用 <${tag}> … </${tag}> 写两三句你这一轮的真实考量，`,
+        "口语一点，不用复述设定，也不用写给用户看的台词。",
+        "不写也完全可以，直接开始正式回复就好；正式回复里不要出现这个标签。",
     ].join("\n");
 }
 
@@ -314,9 +314,10 @@ export function buildProviderRequest(
     if (voice) {
         providerMessages = [{ role: "system", content: voice } as LlmRequestMessage, ...providerMessages];
     }
-    const thinkingInstruction = thinkingFormatInstruction(preset);
-    if (thinkingInstruction) {
-        providerMessages = [{ role: "system", content: thinkingInstruction } as LlmRequestMessage, ...providerMessages];
+    // 思维链指令只给主聊天链路：调用方显式带 thinkingChainTag 才注入，且是软性请求。
+    // 其余链路（群聊、问答、推送兜底、连通性测试等）不传，保持请求干净。
+    if (options.thinkingChainTag) {
+        providerMessages = [{ role: "system", content: softThinkingInstruction(options.thinkingChainTag) } as LlmRequestMessage, ...providerMessages];
     }
 
     if (providerKind === "anthropic") {
