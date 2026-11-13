@@ -1166,16 +1166,20 @@ export function buildMascotToolsListPrompt(): string {
     return lines.join("\n");
 }
 
-/** 套件展开后的详细 schema（用于 [获取指令] 响应） */
-export function buildMascotPackageSchemaPrompt(packageLabel: string, protocol: "text" | "native" = "text"): string {
+/** 套件展开后的详细 schema（用于 [获取指令] 响应）。
+ * 4.7：suppressCreateCharacter=true 且展开的是角色卡套件时，不给出「创建角色」的详解，并说明本轮限制。 */
+export function buildMascotPackageSchemaPrompt(packageLabel: string, protocol: "text" | "native" = "text", options?: { suppressCreateCharacter?: boolean }): string {
     const pkg = MASCOT_TOOL_PACKAGES.find(p => p.label === packageLabel || p.id === packageLabel);
     if (!pkg) return `（找不到套件：${packageLabel}）`;
+    const suppressCreate = options?.suppressCreateCharacter === true && pkg.id === "character_pack";
 
     const lines: string[] = [];
     lines.push(`【${pkg.label}】动作详解`);
     lines.push(pkg.description);
+    if (suppressCreate) lines.push("【本轮限制】用户在说「自己的人设/资料」：创建角色已禁用，请用「更新我的资料」承接，把文档原文整段放进 rawText，先不要 apply。");
     lines.push("");
     for (const tool of pkg.subTools) {
+        if (suppressCreate && tool.name === "创建角色") continue;
         lines.push(`◆ ${tool.name}`);
         lines.push(`  说明：${tool.description}`);
         const params = (tool.parameterSchema as Record<string, unknown>).properties as Record<string, Record<string, unknown>> | undefined;
@@ -1327,7 +1331,21 @@ export function getMascotNativeLoaderName(packageId: string): string {
 }
 
 /** 根据已展开的套件 id，构建原生 LLM 工具定义列表 */
-export function getMascotNativeToolDefinitions(expandedPackageIds: string[] = []): LlmToolDefinition[] {
+// ── 4.7 小卷意图判断（与 lib/character-card-parser.ts 的 isOwnProfileIntent 同源）──
+// 用户消息明显在说「自己的资料/人设」时，本轮禁用「创建角色」：
+// 模型路由只能靠提示词，实测不可靠；代码层硬约束才是兜底。
+export function detectPersonaDocIntent(texts: string[]): boolean {
+    return texts.some(text => /我(的)?(人设|资料|设定|档案|信息|自我介绍)|是我自己|本人(的人设|的资料|的设定|人设|资料|设定)|存(到|进|入)我的|这是我(的)?(人设|设定|资料)|我自己的人设|user\s+persona|my\s+(persona|profile|character\s+sheet)/i.test(text));
+}
+
+/** 从会话历史里取最近几条用户消息文本（供意图判断用） */
+export function collectRecentUserTexts(history: Array<{ role: string; text: string }>, count = 3): string[] {
+    return history.filter(m => m.role === "user" && m.text?.trim()).slice(-count).map(m => m.text);
+}
+
+const CREATE_CHARACTER_BLOCKED_ERROR = "这看起来是用户自己的人设/资料，本轮没有执行创建角色。请改用「更新我的资料」，把文档原文整段放进 rawText，先不要 apply，等用户确认。";
+
+export function getMascotNativeToolDefinitions(expandedPackageIds: string[] = [], options?: { suppressCreateCharacter?: boolean }): LlmToolDefinition[] {
     const defs: LlmToolDefinition[] = [];
 
     // 导航工具：始终暴露
@@ -1341,20 +1359,25 @@ export function getMascotNativeToolDefinitions(expandedPackageIds: string[] = []
     const expanded = new Set(expandedPackageIds);
     for (const pkg of MASCOT_TOOL_PACKAGES) {
         if (expanded.has(pkg.id)) {
-            // 已展开 → 暴露所有子工具
+            // 已展开 → 暴露所有子工具（4.7：用户在说自己的人设/资料时，本轮不暴露「创建角色」）
+            const suppressCreate = options?.suppressCreateCharacter === true;
             for (const tool of pkg.subTools) {
+                if (suppressCreate && pkg.id === "character_pack" && tool.name === "创建角色") continue;
                 defs.push({
                     name: getMascotNativeToolName(tool.name),
-                    description: tool.description,
+                    description: suppressCreate && pkg.id === "character_pack" && tool.name === "更新我的资料"
+                        ? "改用户自己的资料（网名、真名、性别、签名、自我介绍、外貌）。用户发来自己的人设/资料文档时必须用这个：把文档原文整段放进 rawText，先不要 apply，等用户确认。"
+                        : tool.description,
                     parameters: tool.parameterSchema,
                 });
             }
         } else {
             // 未展开 → 暴露 loader
             // 注：properties 故意带一个无意义可选字段，避免某些 provider（如 Gemini）把空 args 视为未初始化的 protobuf Struct 而拒绝。
+            const suppressCreate = options?.suppressCreateCharacter === true;
             defs.push({
                 name: getMascotNativeLoaderName(pkg.id),
-                description: `展开「${pkg.label}」动作说明。${pkg.description}`,
+                description: `展开「${pkg.label}」动作说明。${pkg.description}${suppressCreate && pkg.id === "character_pack" ? " 注意：用户正在说「自己的人设/资料」，展开后只可用「更新我的资料」，不要创建角色。" : ""}`,
                 parameters: {
                     type: "object",
                     properties: {
@@ -1390,9 +1413,14 @@ export type MascotToolContext = {
     characterBackupIds?: Set<string>;
 };
 
-/** 执行小卷工具调用 */
-export async function executeMascotToolCall(call: ToolCall, ctx: MascotToolContext): Promise<ToolResult> {
+/** 执行小卷工具调用。
+ * 4.7：options.suppressCreateCharacter=true 时，执行层直接拦截「创建角色」——
+ * 即使模型硬调这个工具，也不会真的建出角色，而是返回引导改用「更新我的资料」。 */
+export async function executeMascotToolCall(call: ToolCall, ctx: MascotToolContext, options?: { suppressCreateCharacter?: boolean }): Promise<ToolResult> {
     try {
+        if (options?.suppressCreateCharacter === true && call.name === "创建角色") {
+            return { name: "创建角色", success: false, error: CREATE_CHARACTER_BLOCKED_ERROR };
+        }
         switch (call.name) {
             // ─── 审美规范 ───
             case "读取审美规范": return handleReadAestheticGuide(call.args);

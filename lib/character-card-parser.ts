@@ -282,8 +282,20 @@ export function parseCharacterCardText(userText: string, assistantText = ""): Pa
     return { name: cleanName(name), persona: persona.slice(0, 16000), personality, ...(briefPersona ? { briefPersona } : {}) };
 }
 
+/**
+ * 4.7 小卷误建角色的源头修复：用户消息明显是在说「自己的资料/人设」。
+ * 命中时 isCharacterWriteIntent 必须返回 false —— 否则用户发自己的人设文档，
+ * 会在模型运行前就被确定性路径直接建成角色（实测出过「孟凡 relation: 大学室友」事故）。
+ * 边缘场景（一句话里既要建角色又要存自己的资料）宁可走模型路由，
+ * 那里有工具抑制 + 提示词规则兜底，不会再被确定性路径误建。
+ */
+export function isOwnProfileIntent(text: string): boolean {
+    return /我(的)?(人设|资料|设定|档案|信息|自我介绍)|是我自己|本人(的人设|的资料|的设定|人设|资料|设定)|存(到|进|入)我的|这是我(的)?(人设|设定|资料)|我自己的人设|user\s+persona|my\s+(persona|profile|character\s+sheet)/i.test(text);
+}
+
 export function isCharacterWriteIntent(text: string): boolean {
-    return /(创建|新建|添加|写入|导入|保存|录入|修改|更新).{0,18}(角色|角色卡|人设|人物档案)|角色卡.{0,10}(写入|导入|保存)|写入人设档案/i.test(text)
+    if (isOwnProfileIntent(text)) return false;
+    return /(创建|新建|添加|写入|导入|保存|录入|修改|更新).{0,18}(角色|角色卡|人设|人物档案)|做成.{0,6}(角色|角色卡)|角色卡.{0,10}(写入|导入|保存)|写入人设档案/i.test(text)
         || (/(PERSONA\s*\/\s*TRAITS|PERSONALITY|角色名\s*[:：]|角色名称\s*[:：]|人设描述\s*[:：])/i.test(text) && text.length >= 30);
 }
 

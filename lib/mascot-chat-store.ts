@@ -22,8 +22,13 @@ import {
 import { isMascotPanelOpen } from "./mascot-state";
 import {
     isCharacterWriteIntent,
+    isOwnProfileIntent,
     parseCharacterCardText,
 } from "./character-card-parser";
+import {
+    collectRecentUserTexts,
+    detectPersonaDocIntent,
+} from "./mascot-tools";
 
 const MASCOT_DB_NAME = "AiPhoneMascotDB";
 const MASCOT_DB_VERSION = 2;
@@ -593,6 +598,13 @@ export async function generateMascotReply({
         expandedPackageIds = inferredPackages;
         saveExpandedPackages(expandedPackageIds);
     }
+    // 4.7 小卷意图判断：本轮用户消息明显在说「自己的资料/人设」时，
+    // 禁用「创建角色」（工具列表、套件详解、执行层三层拦截），
+    // 资料走「更新我的资料」——避免再出现把自己的人设误建成角色的事故。
+    const suppressCreateCharacter = detectPersonaDocIntent([
+        latestVisibleMessage?.text || "",
+        ...collectRecentUserTexts(workingMessages, 3),
+    ]);
     // 每次用户发送消息就是一次独立任务；最多 8 轮工具调用共享同一备份集合。
     const toolCtx: MascotToolContext = {
         pageContext: context,
@@ -605,9 +617,9 @@ export async function generateMascotReply({
         // Deterministic write path for an explicit card/import request. This
         // runs before the model so a pasted card cannot be mistaken for a
         // request to explain the card or to use an unrelated external tool.
-        const directCharacterCall = buildCharacterWriteCall(workingMessages, latestVisibleMessage.text || "");
+        const directCharacterCall = suppressCreateCharacter ? null : buildCharacterWriteCall(workingMessages, latestVisibleMessage.text || "");
         if (directCharacterCall) {
-            const result = await executeMascotToolCall(directCharacterCall, toolCtx);
+            const result = await executeMascotToolCall(directCharacterCall, toolCtx, { suppressCreateCharacter });
             const resultText = result.success
                 ? (result.data || "角色卡已写入")
                 : (result.error || "角色卡写入失败");
@@ -697,13 +709,13 @@ export async function generateMascotReply({
 
             // 有些模型会把“创建角色”误答成一张文本角色卡而不发 tool call。
             // 明确写入请求不能停在草稿：从结构化字段提取最小字段，直接执行真实工具。
-            const fallbackCall = !fallbackHandled && response.toolCalls.length === 0 && response.toolFetches.length === 0
+            const fallbackCall = !fallbackHandled && !suppressCreateCharacter && response.toolCalls.length === 0 && response.toolFetches.length === 0
                 ? buildFallbackCharacterCall(workingMessages, latestVisibleMessage.text || "", response.rawAssistant)
                 : null;
             if (fallbackCall) {
                 fallbackHandled = true;
                 toolCtx.history = workingMessages;
-                const result = await executeMascotToolCall(fallbackCall, toolCtx);
+                const result = await executeMascotToolCall(fallbackCall, toolCtx, { suppressCreateCharacter });
                 const assistantMsg: MascotMsg = {
                     role: "mascot",
                     text: response.reply.join("\n") || "",
@@ -752,7 +764,7 @@ export async function generateMascotReply({
                     expandedPackageIds = touchExpandedPackage(expandedPackageIds, pkg.id);
                     saveExpandedPackages(expandedPackageIds);
 
-                    const guideContent = `「${pkg.label}」已展开，详细动作如下：\n${buildMascotPackageSchemaPrompt(pkg.label, response.protocol)}`;
+                    const guideContent = `「${pkg.label}」已展开，详细动作如下：\n${buildMascotPackageSchemaPrompt(pkg.label, response.protocol, { suppressCreateCharacter })}`;
 
                     if (response.protocol === "native") {
                         const loaderName = getMascotNativeLoaderName(pkg.id);
@@ -810,7 +822,7 @@ export async function generateMascotReply({
 
                     // 复用同一上下文，确保多轮工具调用共享角色备份状态。
                     toolCtx.history = workingMessages;
-                    const result = await executeMascotToolCall(call, toolCtx);
+                    const result = await executeMascotToolCall(call, toolCtx, { suppressCreateCharacter });
                     if (result.success) mascotFillField({ field: call.name, value: result.data || "" });
 
                     const resultText = result.success ? (result.data || "完成") : (result.error || "未知错误");
