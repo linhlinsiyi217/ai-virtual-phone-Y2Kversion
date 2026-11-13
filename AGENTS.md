@@ -142,3 +142,40 @@ doremy 2026-11-06 主分支的 lib/life、components/life 已试合过一轮，�
 - 流程：先在同屏对比里给出 2–3 个真正拉开差距的方向 → 主人选定 → 再落地写代码 → 用真实截图核对。
 - 不允许不参考 oil-ui 就凭感觉改样式；改完要给截图或对比页作为证据。
 - 纯逻辑、接口、文案、数值调整不需要走 oil-ui。
+
+### 多 AI 并行工作规则（两个 AI 同时干活时按这个来）
+
+**目录与分支**（已建好，不要互相破坏）
+
+| 谁 | 工作目录 | 本地分支 | 推送到 |
+|---|---|---|---|
+| A | `/root/workspace/ai-virtual-phone-Y2Kversion` | `main` | `origin main` |
+| B | `/root/workspace/y2k-bunny` | `ai/bunny` | `origin main`（refspec） |
+
+**各自推送，不需要谁合并。B 的方式：**
+
+```bash
+cd /root/workspace/y2k-bunny
+git fetch origin
+git rebase origin/main          # 先把自己放到最新 main 上
+# …改代码、写日志、跑 tsc…
+git add -A && git commit -m "..."
+git rebase origin/main          # 提交后再对一次，避免 non-fast-forward
+git push origin ai/bunny:main   # 注意冒号：本地 ai/bunny → 远端 main
+```
+
+A 的方式就是普通的 `git push origin main`。
+
+**铁规矩**
+
+1. **推之前必须 `git fetch` + `git rebase origin/main`**，否则会被拒绝（non-fast-forward）。**不要用 `push --force`**。
+2. 唯一会撞的两个文件：`public/update-log.json`、`package.json`。rebase 冲突时：**两条日志都保留、版本号取更大的往上加**，不要删对方的记录。
+3. **不要同时改同一个文件**（尤其 `components/chat/chat-room.tsx`）。要改先打招呼。
+4. **不要同时跑 `next build`**（内存不够，两个会一起卡死）。`tsc` 可以同时跑。
+5. **不要执行 `npm install`**：两个目录的 `node_modules` 是同一个软链接，一边装会影响到另一边。
+6. 每次推 main 都会触发一次 Vercel 部署 → **一条活做完再推**，不要推半成品。
+
+**文件归属建议**
+
+- A：`lib/mascot-*`、`lib/inner-voice-*`、`lib/ticket-*`、`components/settings/*`、`android-shell/*`
+- B：`components/character/*`、`styles/character-*.css`、`components/photos|lysn|twitter/*`
