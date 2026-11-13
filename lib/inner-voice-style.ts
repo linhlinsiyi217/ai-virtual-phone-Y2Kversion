@@ -3,6 +3,9 @@
  * 默认两套：日常（增强版）、小剧场。数据存本机，可导出/导入 JSON。
  */
 
+import { loadChatContacts, loadChatMessages, loadChatSessions } from "./chat-storage";
+import { loadCharacters } from "./character-storage";
+
 export type InnerVoiceField = { key: string; hint: string };
 
 export type InnerVoiceStyle = {
@@ -149,10 +152,64 @@ const SAMPLE: Record<string, string> = {
     "{{好感度}}": "94",
 };
 
-export function renderPreview(html: string): string {
+export function renderPreview(html: string, values?: Record<string, string>): string {
+    const table = values ? { ...SAMPLE, ...values } : SAMPLE;
     let out = html;
-    for (const [k, v] of Object.entries(SAMPLE)) out = out.split(k).join(v);
+    for (const [k, v] of Object.entries(table)) out = out.split(k).join(v);
     return sanitize(out);
+}
+
+/** 最近一条真实心声（供美化工坊预览用）：按会话更新时间从新到旧找。 */
+export type LatestVoiceRecord = {
+    name: string;
+    avatarUrl: string;
+    timeLabel: string;
+    /** 心声整段原文；解析出的「键：值」行也会逐键放进这个表。 */
+    values: Record<string, string>;
+};
+
+/** 把 [内心] 块原文按「心情：xxx」这类行拆开；识别不出行的内容整体当心声。 */
+export function parseVoiceValues(raw: string): Record<string, string> {
+    const out: Record<string, string> = {};
+    const proseLines: string[] = [];
+    for (const line of raw.split(/\n+/)) {
+        const m = line.match(/^\s*([^：:\n]{1,12})[：:]\s*(.+?)\s*$/);
+        if (m && m[1].trim() && m[2].trim()) out[m[1].trim()] = m[2].trim();
+        else if (line.trim()) proseLines.push(line.trim());
+    }
+    if (proseLines.length && !out["心声"]) out["心声"] = proseLines.join("\n");
+    return out;
+}
+
+export function findLatestVoiceRecord(): LatestVoiceRecord | null {
+    try {
+        const sessions = [...loadChatSessions()].sort((a, b) => (b.updatedAt || "").localeCompare(a.updatedAt || ""));
+        for (const session of sessions) {
+            const messages = loadChatMessages(session.id, 120);
+            for (let i = messages.length - 1; i >= 0; i -= 1) {
+                const msg = messages[i];
+                const voice = (msg.innerMonologue || "").trim();
+                if (!voice || msg.role !== "assistant") continue;
+                const contactId = session.contactId;
+                const contact = loadChatContacts().find(c => c.id === contactId);
+                const character = loadCharacters().find(ch => ch.id === contact?.characterId);
+                const name = session.isGroup && msg.senderName
+                    ? msg.senderName
+                    : character?.name || msg.senderName || "TA";
+                const avatarUrl = character?.avatar || "";
+                const timeLabel = msg.createdAt
+                    ? new Date(msg.createdAt).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" })
+                    : "";
+                const values = parseVoiceValues(voice);
+                values["char"] = name;
+                values["time"] = timeLabel || values["time"] || "";
+                return { name, avatarUrl, timeLabel, values };
+            }
+        }
+        return null;
+    } catch {
+        return null;
+    }
 }
 
 /** 用真实数据填进用户模板；调用方负责净化。 */

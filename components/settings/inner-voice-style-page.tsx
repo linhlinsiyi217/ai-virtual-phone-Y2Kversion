@@ -10,16 +10,27 @@ import {
     saveActiveStyleId,
     newStyle,
     renderPreview,
+    findLatestVoiceRecord,
+    type LatestVoiceRecord,
 } from "@/lib/inner-voice-style";
 import { exportTicket, readTicket } from "@/lib/ticket-png";
 import { saveFileToDevice } from "@/lib/device-save";
 
-export function InnerVoiceStylePage({ onNotice }: { onNotice?: (text: string) => void }) {
+export function InnerVoiceStylePage() {
     const [styles, setStyles] = useState<InnerVoiceStyle[]>(DEFAULT_STYLES);
     const [activeId, setActiveId] = useState("default");
     const [draft, setDraft] = useState<InnerVoiceStyle | null>(null);
     const [previewKey, setPreviewKey] = useState(0);
+    const [previewSource, setPreviewSource] = useState<"sample" | "real">("sample");
+    const [realRecord, setRealRecord] = useState<LatestVoiceRecord | null>(null);
+    const [notice, setNotice] = useState<string | null>(null);
     const fileRef = useRef<HTMLInputElement>(null);
+
+    // 页面内轻提示：美化工坊外层没有统一的 toast 通道，这里自给自足
+    const notify = (text: string) => {
+        setNotice(text);
+        window.setTimeout(() => setNotice(cur => (cur === text ? null : cur)), 2600);
+    };
 
     useEffect(() => {
         const list = loadStyles();
@@ -38,17 +49,36 @@ export function InnerVoiceStylePage({ onNotice }: { onNotice?: (text: string) =>
         setDraft(prev => (prev ? { ...prev, ...patch } : prev));
     };
 
+    // 字段增删改：key 决定模板里的 {{占位符}} 与模型输出行，hint 写进提示词帮助模型理解
+    const updateField = (index: number, patch: Partial<{ key: string; hint: string }>) => {
+        if (!draft) return;
+        const fields = draft.fields.map((f, i) => (i === index ? { ...f, ...patch } : f));
+        updateDraft({ fields });
+    };
+    const addField = () => {
+        if (!draft) return;
+        if (draft.fields.length >= 8) { notify("字段最多 8 个，够用了"); return; }
+        const used = new Set(draft.fields.map(f => f.key));
+        let name = "新字段";
+        for (let n = 2; used.has(name); n += 1) name = `新字段${n}`;
+        updateDraft({ fields: [...draft.fields, { key: name, hint: "写清楚这个字段要填什么" }] });
+    };
+    const removeField = (index: number) => {
+        if (!draft) return;
+        updateDraft({ fields: draft.fields.filter((_, i) => i !== index) });
+    };
+
     const saveDraft = () => {
         if (!draft) return;
         persist(styles.map(s => (s.id === draft.id ? draft : s)));
-        onNotice?.("已保存");
+        notify("已保存");
     };
 
     const useStyle = () => {
         if (!draft) return;
         saveActiveStyleId(draft.id);
         setActiveId(draft.id);
-        onNotice?.("已设为当前使用");
+        notify("已设为当前使用");
     };
 
     const create = () => {
@@ -71,7 +101,7 @@ export function InnerVoiceStylePage({ onNotice }: { onNotice?: (text: string) =>
         setDraft(base[0]);
         saveActiveStyleId(base[0].id);
         setActiveId(base[0].id);
-        onNotice?.("已恢复默认");
+        notify("已恢复默认");
     };
 
     const exportJson = async () => {
@@ -90,11 +120,11 @@ export function InnerVoiceStylePage({ onNotice }: { onNotice?: (text: string) =>
             });
             const name = `y2k-innerVoice-${draft.name}-${new Date().toISOString().slice(0, 10)}.png`;
             const where = await saveFileToDevice(blob, name);
-            if (where === "device") onNotice?.("已保存到「下载」目录");
-            else if (where === "download") onNotice?.("已开始下载");
-            else onNotice?.("导出失败：这台设备存不了文件");
+            if (where === "device") notify("已保存到「下载」目录");
+            else if (where === "download") notify("已开始下载");
+            else notify("导出失败：这台设备存不了文件");
         } catch {
-            onNotice?.("导出失败");
+            notify("导出失败");
         }
     };
 
@@ -107,7 +137,7 @@ export function InnerVoiceStylePage({ onNotice }: { onNotice?: (text: string) =>
                 const item: InnerVoiceStyle = { ...style, id: `style_${Date.now().toString(36)}` };
                 persist([...styles, item]);
                 setDraft(item);
-                onNotice?.("已导入这张票");
+                notify("已导入这张票");
                 return;
             }
             const text = await file.text();
@@ -117,18 +147,39 @@ export function InnerVoiceStylePage({ onNotice }: { onNotice?: (text: string) =>
             const item: InnerVoiceStyle = { ...style, id: `style_${Date.now().toString(36)}` };
             persist([...styles, item]);
             setDraft(item);
-            onNotice?.("已导入");
+            notify("已导入");
         } catch {
-            onNotice?.("这个文件读不出来");
+            notify("这个文件读不出来");
         }
     };
 
-    const previewHtml = useMemo(() => (draft ? renderPreview(draft.html) : ""), [draft, previewKey]);
+    const switchPreview = (source: "sample" | "real") => {
+        if (source === "real") {
+            const record = findLatestVoiceRecord();
+            if (!record) {
+                notify("还没有真实心声：先去聊天里让 TA 写一次内心独白");
+                return;
+            }
+            setRealRecord(record);
+            setPreviewSource("real");
+            setPreviewKey(k => k + 1);
+        } else {
+            setPreviewSource("sample");
+            setPreviewKey(k => k + 1);
+        }
+    };
+
+    const previewHtml = useMemo(() => {
+        if (!draft) return "";
+        if (previewSource === "real" && realRecord) return renderPreview(draft.html, realRecord.values);
+        return renderPreview(draft.html);
+    }, [draft, previewKey, previewSource, realRecord]);
 
     if (!draft) return null;
 
     return (
         <div className="ivs-page">
+            {notice ? <div className="ivs-toast" role="status">{notice}</div> : null}
             {/* 顶部：当前在改哪一套 */}
             <section className="ivs-card ivs-card-sets">
                 <div className="ivs-card-head">
@@ -180,16 +231,31 @@ export function InnerVoiceStylePage({ onNotice }: { onNotice?: (text: string) =>
             <section className="ivs-card">
                 <div className="ivs-card-head">
                     <h3 className="ivs-card-title">字段</h3>
-                    <span className="ivs-card-sub">模型要输出的内容项</span>
+                    <span className="ivs-card-sub">模型要输出的内容项，可增删改</span>
                 </div>
                 <div className="ivs-list">
                     {draft.fields.map((f, i) => (
-                        <div className="ivs-list-row" key={f.key + i}>
-                            <span className="ivs-list-key">{`{{${f.key}}}`}</span>
-                            <span className="ivs-list-hint">{f.hint}</span>
+                        <div className="ivs-list-row ivs-list-row-edit" key={i}>
+                            <span className="ivs-list-key">{`{{`}</span>
+                            <input
+                                className="ivs-input ivs-field-key"
+                                value={f.key}
+                                placeholder="字段名"
+                                onChange={e => updateField(i, { key: e.target.value })}
+                            />
+                            <span className="ivs-list-key">{`}}`}</span>
+                            <input
+                                className="ivs-input ivs-field-hint"
+                                value={f.hint}
+                                placeholder="这个字段要填什么"
+                                onChange={e => updateField(i, { hint: e.target.value })}
+                            />
+                            <button type="button" className="ivs-field-del" aria-label={`删除字段 ${f.key}`} onClick={() => removeField(i)}>×</button>
                         </div>
                     ))}
                 </div>
+                <button type="button" className="ivs-set ivs-set-add ivs-field-add" onClick={addField}>＋ 添加字段</button>
+                <p className="ivs-note">改动后记得点「保存」；模板里用 <code>{`{{字段名}}`}</code> 取值，模型会按这里的字段逐行输出。</p>
             </section>
 
             {/* 模板 */}
@@ -216,8 +282,15 @@ export function InnerVoiceStylePage({ onNotice }: { onNotice?: (text: string) =>
             <section className="ivs-card">
                 <div className="ivs-card-head">
                     <h3 className="ivs-card-title">预览</h3>
-                    <button type="button" className="ivs-link" onClick={() => setPreviewKey(k => k + 1)}>重新预览</button>
+                    <div className="ivs-chips">
+                        <button type="button" className={`ivs-chip${previewSource === "sample" ? " is-on" : ""}`} onClick={() => switchPreview("sample")}>示例</button>
+                        <button type="button" className={`ivs-chip${previewSource === "real" ? " is-on" : ""}`} onClick={() => switchPreview("real")}>最近一条</button>
+                        <button type="button" className="ivs-link" onClick={() => setPreviewKey(k => k + 1)}>刷新</button>
+                    </div>
                 </div>
+                {previewSource === "real" && realRecord ? (
+                    <p className="ivs-note">取自与「{realRecord.name}」的最新一条心声{realRecord.timeLabel ? `（${realRecord.timeLabel}）` : ""}</p>
+                ) : null}
                 <div className="ivs-preview" dangerouslySetInnerHTML={{ __html: previewHtml }} />
             </section>
 

@@ -244,30 +244,38 @@ function stripVisionParts(messages: LlmRequestMessage[]): LlmRequestMessage[] {
  * 心声美化：用户若把「心声写法」改过，就在这里补一条系统说明。
  * 没改过（还是默认那套）就什么都不加，保持原有请求完全不变。
  */
-function customInnerVoiceInstruction(): string {
+export function customInnerVoiceInstruction(): string {
     if (typeof window === "undefined") return "";
     try {
         const raw = window.localStorage.getItem("y2k:inner-voice-styles");
         const activeId = window.localStorage.getItem("y2k:inner-voice-active") || "default";
         if (!raw) return "";
-        const list = JSON.parse(raw) as Array<{ id: string; prompt?: string; scenePrompt?: string }>;
+        const list = JSON.parse(raw) as Array<{ id: string; prompt?: string; scenePrompt?: string; fields?: Array<{ key: string; hint?: string }> }>;
         const hit = Array.isArray(list) ? list.find(item => item.id === activeId) : undefined;
         if (!hit || !hit.prompt) return "";
         const text = hit.prompt.trim();
         if (!text) return "";
+        // 输出格式按用户配置的字段动态生成；没配置字段时退回内置三样
+        const fieldKeys = (Array.isArray(hit.fields) ? hit.fields : [])
+            .map(f => (f?.key || "").trim())
+            .filter(Boolean);
+        const sampleKeys = fieldKeys.length > 0 ? fieldKeys : ["心情", "心声", "好感度"];
+        const sampleValue = (key: string): string => {
+            if (/好感度/.test(key)) return "68";
+            if (/心声|内心/.test(key)) return "……（按上面的写法）";
+            return "……";
+        };
         // 必须包在 [内心] 里，解析器只认这个壳；否则标签会原样显示在气泡里
         return [
             "【心声写法】",
             text,
             "",
             "【输出格式（必须遵守）】",
-            "上面这些内容要放进 [内心] ... [/内心] 这一对标签里，标签内按字段换行写，例如：",
+            "上面这些内容要放进 [内心] ... [/内心] 这一对标签里，标签内按字段换行写，每个字段一行、写成「字段名：内容」，例如：",
             "[内心]",
-            "心情：有点烦",
-            "心声：……（按上面的写法）",
-            "好感度：68",
+            ...sampleKeys.map((key) => `${key}：${sampleValue(key)}`),
             "[/内心]",
-            "不要用别的标签，也不要省略这对标签。",
+            "不要用别的标签，也不要省略这对标签；字段名就用上面列出的这些。",
         ].join("\n");
     } catch {
         return "";

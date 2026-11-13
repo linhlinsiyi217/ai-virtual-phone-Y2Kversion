@@ -5891,6 +5891,15 @@ button.settings-overview-row { cursor: pointer; }
 .ivs-list-row:first-child{ border-top:none; }
 .ivs-list-key{ font-size:14px; font-weight:600; }
 .ivs-list-hint{ font-size:12px; color:var(--ui-muted,#6e6e73); }
+
+/* 字段编辑行：字段名 / 说明 / 删除，横向排 */
+.ivs-list-row-edit{ flex-direction:row; align-items:center; gap:6px; }
+.ivs-list-row-edit .ivs-field-key{ width:88px; flex:none; padding:8px 10px; font-size:14px; font-weight:600; text-align:center; }
+.ivs-list-row-edit .ivs-field-hint{ flex:1; min-width:0; padding:8px 10px; font-size:12px; color:var(--ui-muted,#6e6e73); }
+.ivs-list-row-edit .ivs-list-key{ flex:none; font-size:12px; color:var(--ui-muted,#6e6e73); }
+.ivs-field-del{ flex:none; width:28px; height:28px; border:none; border-radius:50%; background:var(--ui-group,#f4f4f6); color:var(--ui-muted,#6e6e73); font-size:16px; line-height:1; cursor:pointer; }
+.ivs-field-add{ margin-top:10px; width:100%; font-size:13px; }
+.ivs-toast{ position:fixed; left:50%; bottom:96px; transform:translateX(-50%); max-width:82%; padding:10px 16px; border-radius:999px; background:rgba(20,20,22,.88); color:#fff; font-size:13px; line-height:18px; z-index:60; pointer-events:none; }
 .ivs-motion{ display:flex; align-items:center; gap:10px; margin-top:12px; }
 .ivs-motion-label{ font-size:13px; color:var(--ui-muted,#6e6e73); }
 .ivs-link{ margin-left:auto; border:none; background:transparent; color:var(--ui-ink,#0a0a0a); font-size:13px; text-decoration:underline; }

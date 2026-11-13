@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { StateValue } from "@/lib/chat-storage";
-import { activeStyle, fillTemplate, sanitizeTemplate, DEFAULT_HTML } from "@/lib/inner-voice-style";
+import { activeStyle, fillTemplate, parseVoiceValues, sanitizeTemplate, DEFAULT_HTML } from "@/lib/inner-voice-style";
 
 /** 心声（内心独白）弹窗：点角色头像打开，点空白处关闭。 */
 export type InnerVoiceSheetData = {
@@ -26,6 +26,9 @@ export function InnerVoiceSheet({ data, onClose }: { data: InnerVoiceSheetData; 
             setMotion(style?.motion ?? "rise");
             const tpl = (style?.html || "").trim();
             if (!tpl || tpl === DEFAULT_HTML.trim()) { setCustomHtml(null); return; }
+            // 心声原文里「心情：xxx」「好感度：68」这类行拆出来，连同自定义字段一起填进模板；
+            // 解析出的行优先于状态面板同名值（它是这一轮模型亲手写的）
+            const lineValues = parseVoiceValues(data.voice);
             const values: Record<string, string> = {
                 char: data.name,
                 user: "",
@@ -39,6 +42,8 @@ export function InnerVoiceSheet({ data, onClose }: { data: InnerVoiceSheetData; 
                 "好感度": String((data.stateValues || []).find(v => v.name === "好感度")?.value ?? ""),
             };
             for (const v of data.stateValues || []) values[v.name] = String(v.value);
+            for (const [k, v] of Object.entries(lineValues)) values[k] = v;
+            values["心声"] = data.voice;
             setCustomHtml(sanitizeTemplate(fillTemplate(tpl, values)));
         } catch {
             setCustomHtml(null);
