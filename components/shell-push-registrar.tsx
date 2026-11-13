@@ -15,10 +15,27 @@ import { ensureShellSubscription, isShellEnvironment } from "@/lib/push-client";
 import { startNotificationReplyBridge } from "@/lib/notification-reply";
 import { startUserShotBridge, syncScreenshotShareTargets } from "@/lib/screenshot";
 
+type ShellPushLifecycleBridge = {
+  setPushAccountReady?: (ready: boolean) => void;
+};
+
+function setNativePushAccountReady(ready: boolean): void {
+  try {
+    const bridge = (window as unknown as { AndroidShell?: ShellPushLifecycleBridge }).AndroidShell;
+    bridge?.setPushAccountReady?.(ready);
+  } catch {
+    // 旧版 APK 没有这个方法时保持网页可用；更新 APK 后自动启用新逻辑。
+  }
+}
+
 export function ShellPushRegistrar() {
   useEffect(() => {
     if (!isShellEnvironment()) return;
+    // 能渲染到这里说明账号门控已经通过。此时 Cookie 已落到 WebView，
+    // 再启动原生长连接不会在登录页提前冒出“未登录”常驻通知。
+    setNativePushAccountReady(true);
     void ensureShellSubscription();
+    return () => setNativePushAccountReady(false);
   }, []);
 
   // 通知栏「直接回复」的接收端。挂在这里是因为它和推送订阅同源：

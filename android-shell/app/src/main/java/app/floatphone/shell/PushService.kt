@@ -38,13 +38,35 @@ class PushService : Service() {
         private const val CH_MESSAGES = "shell_messages"
         private const val CH_CALLS = "shell_calls"
         private const val NOTIF_FG_ID = 1
+        private const val PREFS = "shell_push_state"
+        private const val KEY_ACCOUNT_READY = "account_ready"
         private var running = false
+        @Volatile private var lastKeepAliveText: String? = null
+
+        fun isAccountReady(context: Context): Boolean =
+            context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                .getBoolean(KEY_ACCOUNT_READY, false)
+
+        fun setAccountReady(context: Context, ready: Boolean) {
+            context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                .edit()
+                .putBoolean(KEY_ACCOUNT_READY, ready)
+                .apply()
+            if (!ready) stop(context)
+        }
 
         fun start(context: Context) {
+            if (!isAccountReady(context)) return
             if (running) return
             val intent = Intent(context, PushService::class.java)
             if (Build.VERSION.SDK_INT >= 26) context.startForegroundService(intent)
             else context.startService(intent)
+        }
+
+        fun stop(context: Context) {
+            context.stopService(Intent(context, PushService::class.java))
+            context.getSystemService(NotificationManager::class.java)?.cancel(NOTIF_FG_ID)
+            lastKeepAliveText = null
         }
     }
 
@@ -65,7 +87,9 @@ class PushService : Service() {
         super.onCreate()
         running = true
         createChannels()
-        startForeground(NOTIF_FG_ID, buildKeepAliveNotification("等待连接…"))
+        val initialText = lastKeepAliveText ?: "正在连接…"
+        lastKeepAliveText = initialText
+        startForeground(NOTIF_FG_ID, buildKeepAliveNotification(initialText))
         thread(name = "shell-push-loop") { connectionLoop() }
     }
 
@@ -75,6 +99,13 @@ class PushService : Service() {
         stopped = true
         running = false
         socket?.cancel()
+        if (Build.VERSION.SDK_INT >= 24) {
+            stopForeground(STOP_FOREGROUND_REMOVE)
+        } else {
+            @Suppress("DEPRECATION")
+            stopForeground(true)
+        }
+        getSystemService(NotificationManager::class.java).cancel(NOTIF_FG_ID)
         super.onDestroy()
     }
 
@@ -84,7 +115,12 @@ class PushService : Service() {
         while (!stopped) {
             val config = fetchConfig()
             if (config == null) {
-                // 按真实原因给文案：以前三种情况都写成「未登录或站点不可达」，看不出该去做什么
+                // 没有登录身份时没有任何后台推送可接，继续保活只会让系统反复
+                // 展示一条无用通知。停掉服务，等网页真正登录后再由桥重新开启。
+                if (lastConfigFailure == ConfigFailure.NOT_LOGGED_IN) {
+                    setAccountReady(this, false)
+                    break
+                }
                 updateKeepAlive(lastConfigReason)
                 sleepSec(60); continue
             }
@@ -103,11 +139,14 @@ class PushService : Service() {
     /** 借 WebView 的登录 Cookie 调站点接口获取连接参数。 */
     /** 上一次取配置失败的原因；用于常驻通知文案，避免一句笼统的话看不出该怎么办。 */
     private var lastConfigReason = "正在连接站点…"
+    private enum class ConfigFailure { NOT_LOGGED_IN, SITE_UNREACHABLE, NOT_CONFIGURED }
+    private var lastConfigFailure: ConfigFailure? = null
 
     private fun fetchConfig(): PushConfig? = runCatching {
         val cookie = CookieManager.getInstance().getCookie(MainActivity.SITE_URL)
         if (cookie.isNullOrEmpty()) {
             lastConfigReason = "未登录，打开应用登录账号"
+            lastConfigFailure = ConfigFailure.NOT_LOGGED_IN
             return null
         }
 
@@ -126,28 +165,34 @@ class PushService : Service() {
         val me = getJson("/api/auth/me")
         if (me == null) {
             lastConfigReason = "站点连不上，正在重试…"
+            lastConfigFailure = ConfigFailure.SITE_UNREACHABLE
             return null
         }
         val userId = me.optJSONObject("account")?.optString("id").orEmpty()
         if (userId.isEmpty()) {
             lastConfigReason = "未登录，打开应用登录账号"
+            lastConfigFailure = ConfigFailure.NOT_LOGGED_IN
             return null
         }
         val online = getJson("/api/online/config")
         if (online == null) {
             lastConfigReason = "站点连不上，正在重试…"
+            lastConfigFailure = ConfigFailure.SITE_UNREACHABLE
             return null
         }
         if (!online.optBoolean("configured")) {
             lastConfigReason = "在线服务未配置，去设置里完成云服务部署"
+            lastConfigFailure = ConfigFailure.NOT_CONFIGURED
             return null
         }
         val url = online.optString("supabaseUrl")
         val key = online.optString("anonKey")
         if (url.isEmpty() || key.isEmpty()) {
             lastConfigReason = "在线服务未配置，去设置里完成云服务部署"
+            lastConfigFailure = ConfigFailure.NOT_CONFIGURED
             return null
         }
+        lastConfigFailure = null
         registerShellSubscription(cookie, userId)
         PushConfig(url.trimEnd('/'), key, userId)
     }.getOrNull()
@@ -304,11 +349,14 @@ class PushService : Service() {
             .setContentTitle("小手机")
             .setContentText(text)
             .setOngoing(true)
+            .setOnlyAlertOnce(true)
             .setContentIntent(contentIntent())
             .setPriority(NotificationCompat.PRIORITY_MIN)
             .build()
 
     private fun updateKeepAlive(text: String) {
+        if (lastKeepAliveText == text) return
+        lastKeepAliveText = text
         getSystemService(NotificationManager::class.java)
             .notify(NOTIF_FG_ID, buildKeepAliveNotification(text))
     }

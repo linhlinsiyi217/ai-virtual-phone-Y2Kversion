@@ -396,7 +396,6 @@ class MainActivity : AppCompatActivity() {
 
         // 冷启动带深链（如来电接听）直接加载目标；否则加载首页
         webView.loadUrl(consumeOpenUrl(intent) ?: SITE_URL)
-        ensurePushService()
     }
 
     /** singleTask：App 已在运行时（如全屏来电页接听）通过 onNewIntent 送达深链 */
@@ -567,6 +566,18 @@ class MainActivity : AppCompatActivity() {
     inner class ShellBridge {
         @JavascriptInterface
         fun getVersion(): String = VERSION
+
+        /**
+         * 网页账号门控完成后再开启后台推送；登出时立即停掉服务与常驻通知。
+         * 不再在 Activity 冷启动时抢跑，否则登录 Cookie 尚未产生就会被误判为未登录。
+         */
+        @JavascriptInterface
+        fun setPushAccountReady(ready: Boolean) {
+            runOnUiThread {
+                PushService.setAccountReady(this@MainActivity, ready)
+                if (ready) ensurePushService()
+            }
+        }
 
         /**
          * 网页侧导出的文件（票据 PNG、备份等）经这里落到公共「下载」目录。
