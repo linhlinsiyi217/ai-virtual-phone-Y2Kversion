@@ -40,7 +40,7 @@ class PushService : Service() {
         private const val NOTIF_FG_ID = 1
         private const val PREFS = "shell_push_state"
         private const val KEY_ACCOUNT_READY = "account_ready"
-        private var running = false
+        @Volatile private var running = false
         @Volatile private var lastKeepAliveText: String? = null
 
         fun isAccountReady(context: Context): Boolean =
@@ -52,8 +52,14 @@ class PushService : Service() {
                 .edit()
                 .putBoolean(KEY_ACCOUNT_READY, ready)
                 .apply()
-            if (!ready) stop(context)
+            if (ready) PushWatchdogReceiver.schedule(context)
+            else {
+                PushWatchdogReceiver.cancel(context)
+                stop(context)
+            }
         }
+
+        fun isRunning(): Boolean = running
 
         fun start(context: Context) {
             if (!isAccountReady(context)) return
@@ -90,10 +96,19 @@ class PushService : Service() {
         val initialText = lastKeepAliveText ?: "正在连接…"
         lastKeepAliveText = initialText
         startForeground(NOTIF_FG_ID, buildKeepAliveNotification(initialText))
+        PushWatchdogReceiver.schedule(this)
         thread(name = "shell-push-loop") { connectionLoop() }
     }
 
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int = START_STICKY
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        PushWatchdogReceiver.schedule(this)
+        return START_STICKY
+    }
+
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        if (isAccountReady(this)) PushWatchdogReceiver.scheduleSoon(this)
+        super.onTaskRemoved(rootIntent)
+    }
 
     override fun onDestroy() {
         stopped = true
@@ -106,6 +121,7 @@ class PushService : Service() {
             stopForeground(true)
         }
         getSystemService(NotificationManager::class.java).cancel(NOTIF_FG_ID)
+        if (isAccountReady(this)) PushWatchdogReceiver.scheduleSoon(this)
         super.onDestroy()
     }
 

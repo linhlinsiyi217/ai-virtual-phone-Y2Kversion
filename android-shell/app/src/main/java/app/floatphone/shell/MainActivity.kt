@@ -2,11 +2,13 @@ package app.floatphone.shell
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.app.AlarmManager
 import android.app.DownloadManager
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.ContentValues
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -17,6 +19,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
+import android.os.PowerManager
 import android.provider.MediaStore
 import android.provider.Settings
 import android.util.Base64
@@ -44,6 +47,7 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import org.json.JSONObject
 import java.io.File
 import java.io.FileOutputStream
 
@@ -55,7 +59,7 @@ class MainActivity : AppCompatActivity() {
 
     companion object {
         val SITE_URL: String = BuildConfig.SITE_URL
-        const val VERSION = "1.0.10"
+        const val VERSION = "1.0.14"
         /** 来电接听等场景的站内深链（必须以 SITE_URL 开头，否则忽略） */
         const val EXTRA_OPEN_URL = "open_url"
         /** 外部 App（如桌宠）唤起本壳用的自定义 scheme：floatshell://open?url=<站内地址> */
@@ -1250,6 +1254,94 @@ class MainActivity : AppCompatActivity() {
                         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
                 )
             }
+        }
+
+        /** 读取的都是真实系统状态，网页只负责展示，不用本地开关冒充已授权。 */
+        @JavascriptInterface
+        fun getBackgroundProtectionStatus(): String {
+            val power = getSystemService(PowerManager::class.java)
+            val alarms = getSystemService(AlarmManager::class.java)
+            val notifications = getSystemService(NotificationManager::class.java)
+            val exactAlarmAllowed = Build.VERSION.SDK_INT < Build.VERSION_CODES.S || alarms.canScheduleExactAlarms()
+            return JSONObject()
+                .put("accountReady", PushService.isAccountReady(this@MainActivity))
+                .put("serviceRunning", PushService.isRunning())
+                .put("watchdogScheduled", PushWatchdogReceiver.isScheduled(this@MainActivity))
+                .put("batteryOptimizationIgnored", power.isIgnoringBatteryOptimizations(packageName))
+                .put("notificationsEnabled", notifications.areNotificationsEnabled())
+                .put("exactAlarmAllowed", exactAlarmAllowed)
+                .put("manufacturer", Build.MANUFACTURER.orEmpty())
+                .put("sdk", Build.VERSION.SDK_INT)
+                .toString()
+        }
+
+        /** 打开通知权限页；Android 13+ 的运行时授权与渠道开关都能在这里看到。 */
+        @JavascriptInterface
+        fun openNotificationSettings() {
+            runCatching {
+                startActivity(
+                    Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                        .putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                )
+            }.onFailure { openAppSettings() }
+        }
+
+        /** 允许 15 分钟自检在 Doze 下尽量准时；拒绝也仍保留系统的非精确调度。 */
+        @JavascriptInterface
+        fun requestExactAlarmPermission() {
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return
+            val alarm = getSystemService(AlarmManager::class.java)
+            if (alarm.canScheduleExactAlarms()) return
+            runCatching {
+                startActivity(
+                    Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, Uri.parse("package:$packageName"))
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                )
+            }.onFailure { openAppSettings() }
+        }
+
+        /**
+         * 国产 ROM 的「自启动/后台运行」没有统一 Android API，只能进入厂商真实设置页。
+         * 找不到对应页面时回退到应用详情，不会假装已经开启。
+         */
+        @JavascriptInterface
+        fun openAutoStartSettings(): Boolean {
+            val manufacturer = Build.MANUFACTURER.orEmpty().lowercase()
+            val candidates = when {
+                manufacturer.contains("xiaomi") || manufacturer.contains("redmi") -> listOf(
+                    "com.miui.securitycenter" to "com.miui.permcenter.autostart.AutoStartManagementActivity",
+                )
+                manufacturer.contains("huawei") -> listOf(
+                    "com.huawei.systemmanager" to "com.huawei.systemmanager.startupmgr.ui.StartupNormalAppListActivity",
+                    "com.huawei.systemmanager" to "com.huawei.systemmanager.optimize.process.ProtectActivity",
+                )
+                manufacturer.contains("honor") -> listOf(
+                    "com.hihonor.systemmanager" to "com.hihonor.systemmanager.startupmgr.ui.StartupNormalAppListActivity",
+                )
+                manufacturer.contains("oppo") || manufacturer.contains("realme") || manufacturer.contains("oneplus") -> listOf(
+                    "com.coloros.safecenter" to "com.coloros.safecenter.startupapp.StartupAppListActivity",
+                    "com.oplus.battery" to "com.oplus.powermanager.fuelgaue.PowerUsageModelActivity",
+                )
+                manufacturer.contains("vivo") || manufacturer.contains("iqoo") -> listOf(
+                    "com.vivo.permissionmanager" to "com.vivo.permissionmanager.activity.BgStartUpManagerActivity",
+                    "com.iqoo.secure" to "com.iqoo.secure.ui.phoneoptimize.AddWhiteListActivity",
+                )
+                manufacturer.contains("samsung") -> listOf(
+                    "com.samsung.android.lool" to "com.samsung.android.sm.ui.battery.BatteryActivity",
+                )
+                else -> emptyList()
+            }
+            for ((pkg, cls) in candidates) {
+                val opened = runCatching {
+                    startActivity(
+                        Intent().setComponent(ComponentName(pkg, cls)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                    )
+                }.isSuccess
+                if (opened) return true
+            }
+            openAppSettings()
+            return false
         }
 
         /**
