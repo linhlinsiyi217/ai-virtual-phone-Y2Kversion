@@ -39,6 +39,7 @@ if (logs[1] && !gt(top.version, logs[1].version)) fail('最新一条的版本号
 const CODE = /`|\.(css|tsx?|jsx?|json|html|mjs)\b|className|function\s*\(|=>|<\/?\w+>|\{\s*\w+\s*:|\b(const|let|var|import|export|px|z-index|padding|margin|flex|props|state|hook)\b/i;
 (top.apps || []).forEach((a) => {
   if (!a.app) fail('有一块 apps 缺少应用名 app');
+  if (!Array.isArray(a.changes) || !a.changes.length) fail('「' + (a.app || '?') + '」没有写任何 changes 明细（只有 type/text 的明细列表才会显示在更新日志页和更新弹窗里，缺了会显示空白）');
   (a.changes || []).forEach((c, i) => {
     const where = '「' + (a.app || '?') + '」第 ' + (i + 1) + ' 条';
     if (!['new', 'improve', 'fix'].includes(c.type)) fail(where + '：type 只能是 new / improve / fix');
