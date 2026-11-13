@@ -7,6 +7,7 @@ import { loadUserIdentities, saveUserIdentities } from "@/lib/settings-storage";
 import { createIdentityId } from "@/lib/identity-space";
 import { deletePhoneIdentity } from "@/lib/identity-lifecycle";
 import { UserPortraitSettings } from "./user-portrait-settings";
+import { ConfirmDialog } from "@/components/ui/modal";
 
 export type UserIdentity = {
     id: string;
@@ -70,6 +71,7 @@ function fileToDataUrl(file: File, maxSize = 640, quality = .86): Promise<string
 export function UserIdentitySettings() {
     const [identities, setIdentities] = useState<UserIdentity[]>([]);
     const [activeId, setActiveId] = useState("");
+    const [pendingDelete, setPendingDelete] = useState<UserIdentity | null>(null);
 
     useEffect(() => {
         const saved = loadUserIdentities();
@@ -185,15 +187,33 @@ export function UserIdentitySettings() {
                 <div className="profile-v2-group">
                     {identities.map(item => <div className="profile-v2-profile-row" key={item.id}>
                         <button className="profile-v2-profile-main" onClick={() => setActiveId(item.id)}>
-                            <span className="account-mini-avatar">{item.avatarUrl ? <img src={item.avatarUrl} alt="" /> : item.name.slice(0, 1)}</span>
-                            <span><b>{item.nickname || item.name}</b><small>{item.id === active.id ? "当前资料" : item.signature || "本机资料"}</small></span>
+                            <span className="account-mini-avatar">{item.avatarUrl ? <img src={item.avatarUrl} alt="" /> : (item.nickname || item.name).slice(0, 1)}</span>
+                            <span>
+                                <b>{item.nickname || item.name}</b>
+                                <small>
+                                    {item.id === active.id ? "当前使用" : "点一下切换"}
+                                    {item.realName ? ` · 真名 ${item.realName}` : ""}
+                                </small>
+                            </span>
                             {item.id === active.id ? <Check size={18} /> : <ChevronRight size={18} />}
                         </button>
-                        {identities.length > 1 ? <button className="profile-v2-delete" onClick={() => void remove(item.id)} aria-label={`删除${item.name}`}><Trash2 size={17} /></button> : null}
+                        {identities.length > 1 ? <button className="profile-v2-delete" onClick={() => setPendingDelete(item)} aria-label={`删除${item.nickname || item.name}`}><Trash2 size={17} /></button> : null}
                     </div>)}
                 </div>
             </section>
-            <p className="profile-v2-footnote">修改后即时生效。</p>
+            <p className="profile-v2-footnote">修改后即时生效。真名只有熟识的人知道，网名对外显示。</p>
+
+            {pendingDelete ? (
+                <ConfirmDialog
+                    title="删除这份人设？"
+                    message={`「${pendingDelete.nickname || pendingDelete.name}」会被删除，用这份人设聊过的记录不会一起删掉。`}
+                    icon={Trash2}
+                    confirmLabel="删除"
+                    variant="danger"
+                    onCancel={() => setPendingDelete(null)}
+                    onConfirm={() => { const id = pendingDelete.id; setPendingDelete(null); void remove(id); }}
+                />
+            ) : null}
         </div>
     );
 }
