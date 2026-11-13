@@ -276,16 +276,17 @@ function customInnerVoiceInstruction(): string {
 
 
 /**
- * 主聊天「思考过程」的软性请求。
- * 只在调用方显式传入标签名时才生成，措辞是「如果愿意」而不是「必须先写」，
- * 避免对所有模型、所有链路强行改写语气。模型不写也没关系：前端会显示原生推理兜底。
+ * 只给调用方显式带标签名的链路（普通聊天、群聊）用，别的链路不注入，避免带跑语气。
+ * 措辞必须是明确要求：上一版写成「可选、不写也完全可以」后，模型几乎一律不写，
+ * 小胶囊就再也不出现。这里恢复成「先写再回复」，同时由前端兜底原生推理。
  */
-function softThinkingInstruction(tag: string): string {
+function thinkingInstruction(tag: string): string {
     return [
-        "【关于思考过程（可选）】",
-        `如果你愿意，可以在正式回复前，用 <${tag}> … </${tag}> 写两三句你这一轮的真实考量，`,
-        "口语一点，不用复述设定，也不用写给用户看的台词。",
-        "不写也完全可以，直接开始正式回复就好；正式回复里不要出现这个标签。",
+        "【思考过程】",
+        `在正式回复之前，先输出一段 <${tag}> … </${tag}>。`,
+        "里面用中文写你这一轮真实的考量：你在意什么、准备怎么回应、哪些话不打算说出口。",
+        "二到四句，口语，不要复述设定，不要写给用户看的台词，也不要写“我作为AI”。",
+        `写完 </${tag}> 再开始正式回复；正式回复里不要再出现这个标签。`,
     ].join("\n");
 }
 
@@ -314,10 +315,10 @@ export function buildProviderRequest(
     if (voice) {
         providerMessages = [{ role: "system", content: voice } as LlmRequestMessage, ...providerMessages];
     }
-    // 思维链指令只给主聊天链路：调用方显式带 thinkingChainTag 才注入，且是软性请求。
-    // 其余链路（群聊、问答、推送兜底、连通性测试等）不传，保持请求干净。
+    // 思维链指令只给聊天链路：调用方显式带 thinkingChainTag 才注入。
+    // 其余链路（问答、推送兜底、连通性测试等）不传，保持请求干净、语气不被带跑。
     if (options.thinkingChainTag) {
-        providerMessages = [{ role: "system", content: softThinkingInstruction(options.thinkingChainTag) } as LlmRequestMessage, ...providerMessages];
+        providerMessages = [{ role: "system", content: thinkingInstruction(options.thinkingChainTag) } as LlmRequestMessage, ...providerMessages];
     }
 
     if (providerKind === "anthropic") {

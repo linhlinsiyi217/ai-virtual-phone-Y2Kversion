@@ -832,7 +832,7 @@ export function PresetManager({ isActive = true }: { isActive?: boolean } = {}) 
                                                             </label>
                                                         </div>
                                                         <div className="flex flex-col gap-1 col-span-full">
-                                                            <span className="ui-slider-hint">线上模式（主聊天、群聊）的思考过程已统一由上面的「显示思考过程」控制：默认开着，模型连着两次没写就自动改用模型自带的思考，不用再单独开关。</span>
+                                                            <span className="ui-slider-hint">线上模式（主聊天、群聊）的思考过程已统一由上面的「显示思考过程」控制：默认开着；模型连着两次没写，会先改用模型自带的思考，过几条再自动试一次。</span>
                                                         </div>
                                                         <div className="flex items-center justify-between gap-3 col-span-full">
                                                             <div className="flex flex-col gap-1">
