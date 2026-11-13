@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import type { CSSProperties, PointerEvent as ReactPointerEvent, ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { AlertCircle, ChevronLeft, Code, Image as ImageIcon, MessageSquare, MoreHorizontal, RotateCcw, Sparkles, Trash2, UserRound } from "lucide-react";
+import { AlertCircle, ChevronLeft, Code, FileText, Image as ImageIcon, MessageSquare, MoreHorizontal, RotateCcw, Sparkles, Trash2, UserRound } from "lucide-react";
 import { PageShell } from "@/components/ui/page-shell";
 import { ConfirmDialog } from "@/components/ui/modal";
 import { MediaPreviewOverlay } from "@/components/chat/media-preview-overlay";
@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/form";
 import CSSSchemeBar from "@/components/ui/css-scheme-picker";
 import { SessionCustomCSS } from "@/components/ui/session-custom-css";
 import { CHAT_SESSION_CSS_EXAMPLE } from "@/lib/css-examples";
+import { readMascotFile, buildFilePreamble } from "@/lib/mascot-file-read";
 import {
     clearMascotToolHistoryMessages,
     createMascotSession,
@@ -462,6 +463,9 @@ export function MascotChatRoom({ onBack, onDeleted }: MascotChatRoomProps) {
     const [backgroundUrl, setBackgroundUrl] = useState("");
     const [inputText, setInputText] = useState("");
     const [pendingImages, setPendingImages] = useState<string[]>([]);
+    // 小卷「看文件」：文本/文档类附件，发送时拼进消息正文
+    const [pendingDocs, setPendingDocs] = useState<Array<{ name: string; text: string }>>([]);
+    const [docNotes, setDocNotes] = useState<string[]>([]);
     const [imagePreviewCache, setImagePreviewCache] = useState<Record<string, string>>({});
     const [showEmojiPanel, setShowEmojiPanel] = useState(false);
     const [showInfo, setShowInfo] = useState(false);
@@ -665,6 +669,23 @@ export function MascotChatRoom({ onBack, onDeleted }: MascotChatRoomProps) {
         }
     }, []);
 
+    const handlePickDocs = useCallback(async (files: File[]) => {
+        if (!files.length) return;
+        const images = files.filter(f => f.type.startsWith("image/"));
+        if (images.length) await handlePickImages(images);
+        const notes: string[] = [];
+        const next: Array<{ name: string; text: string }> = [];
+        for (const file of files) {
+            if (file.type.startsWith("image/")) continue;
+            const result = await readMascotFile(file);
+            if (result.kind === "image") { notes.push(`${result.name}：这是图片，用旁边的图片按钮发`); continue; }
+            if (result.text) next.push({ name: result.name, text: result.text });
+            else if (result.note) notes.push(`${result.name}：${result.note}`);
+        }
+        if (next.length) setPendingDocs(prev => [...prev, ...next].slice(0, 6));
+        setDocNotes(notes.length ? notes : []);
+    }, [handlePickImages]);
+
     const resizeTextarea = () => {
         const ta = textareaRef.current;
         if (!ta) return;
@@ -685,12 +706,16 @@ export function MascotChatRoom({ onBack, onDeleted }: MascotChatRoomProps) {
             stopMascotGeneration();
             return;
         }
-        const text = inputText.trim();
+        const rawText = inputText.trim();
+        const fileText = buildFilePreamble(pendingDocs);
+        const text = [fileText, rawText].filter(Boolean).join("\n\n");
         if (!text && pendingImages.length === 0) return;
         setInputText("");
         textareaRef.current?.style.setProperty("height", "auto");
         const images = pendingImages;
         setPendingImages([]);
+        setPendingDocs([]);
+        setDocNotes([]);
         setShowEmojiPanel(false);
         await sendMascotMessage({ text, images, context });
     };
@@ -1108,6 +1133,22 @@ export function MascotChatRoom({ onBack, onDeleted }: MascotChatRoomProps) {
             </div>
 
             <div className="chat-input-bar chat-room-main-pane flex flex-col" data-ui="input">
+                {(pendingDocs.length > 0 || docNotes.length > 0) && (
+                    <div className="mascot-pending-strip mascot-pending-docs">
+                        {pendingDocs.map((doc, idx) => (
+                            <span key={`${doc.name}-${idx}`} className="mascot-doc-chip">
+                                <FileText size={14} strokeWidth={1.8} />
+                                <b>{doc.name}</b>
+                                <button type="button" onClick={() => setPendingDocs(prev => prev.filter((_, i) => i !== idx))} aria-label="移除">×</button>
+                            </span>
+                        ))}
+                        {docNotes.map((note, idx) => (
+                            <span key={`note-${idx}`} className="mascot-doc-chip is-note" onClick={() => setDocNotes(prev => prev.filter((_, i) => i !== idx))}>
+                                {note}
+                            </span>
+                        ))}
+                    </div>
+                )}
                 {pendingImages.length > 0 && (
                     <div className="mascot-pending-strip">
                         {pendingImages.map((ref, idx) => {
@@ -1175,6 +1216,22 @@ export function MascotChatRoom({ onBack, onDeleted }: MascotChatRoomProps) {
                             }}
                         />
                     </label>
+                    <label
+                        className="ui-bare-btn text-[var(--c-text)]"
+                        title="发文件给小卷（文本、docx、zip、图片都行）"
+                    >
+                        <FileText size={24} strokeWidth={1.5} />
+                        <input
+                            type="file"
+                            multiple
+                            className="hidden"
+                            onChange={(event) => {
+                                const files = event.currentTarget.files ? Array.from(event.currentTarget.files) : [];
+                                event.currentTarget.value = "";
+                                void handlePickDocs(files);
+                            }}
+                        />
+                    </label>
                     <button
                         type="button"
                         onClick={() => setShowEmojiPanel((prev) => !prev)}
@@ -1186,7 +1243,7 @@ export function MascotChatRoom({ onBack, onDeleted }: MascotChatRoomProps) {
                     <button
                         type="button"
                         onClick={() => void handleSend()}
-                        disabled={!chat.isThinking && !inputText.trim() && pendingImages.length === 0}
+                        disabled={!chat.isThinking && !inputText.trim() && pendingImages.length === 0 && pendingDocs.length === 0}
                         className="ui-bare-btn text-[var(--c-text)]"
                         aria-label={chat.isThinking ? "停止生成" : "发送"}
                     >

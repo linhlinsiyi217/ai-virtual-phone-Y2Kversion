@@ -7391,3 +7391,15 @@
   .ivs-card:not(.is-flipped) .ivs-back{ display:none; }
   .ivs-card.is-flipped .ivs-front{ visibility:hidden; }
 }
+
+/* 小卷：待发送的文档附件 */
+.mascot-pending-docs{ flex-wrap:wrap; gap:6px; }
+.mascot-doc-chip{
+  display:inline-flex; align-items:center; gap:6px;
+  max-width:100%; padding:5px 10px; border-radius:12px;
+  background: var(--c-input,#f0f0f2); color: var(--c-text);
+  font-size:12.5px; line-height:1.3;
+}
+.mascot-doc-chip b{ font-weight:500; max-width:150px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.mascot-doc-chip button{ border:none; background:transparent; color:var(--c-sub,#8a8a8e); font-size:14px; padding:0 2px; }
+.mascot-doc-chip.is-note{ background: rgba(216,63,135,.08); color:#a8356a; cursor:pointer; }
