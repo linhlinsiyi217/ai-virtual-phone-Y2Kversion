@@ -42,6 +42,9 @@ class PushService : Service() {
         private const val KEY_ACCOUNT_READY = "account_ready"
         @Volatile private var running = false
         @Volatile private var lastKeepAliveText: String? = null
+        @Volatile private var connectionState = "stopped"
+        @Volatile private var lastConnectedAt = 0L
+        @Volatile private var lastMessageAt = 0L
 
         fun isAccountReady(context: Context): Boolean =
             context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -60,6 +63,9 @@ class PushService : Service() {
         }
 
         fun isRunning(): Boolean = running
+        fun connectionState(): String = connectionState
+        fun lastConnectedAt(): Long = lastConnectedAt
+        fun lastMessageAt(): Long = lastMessageAt
 
         fun start(context: Context) {
             if (!isAccountReady(context)) return
@@ -92,6 +98,7 @@ class PushService : Service() {
     override fun onCreate() {
         super.onCreate()
         running = true
+        connectionState = "connecting"
         createChannels()
         val initialText = lastKeepAliveText ?: "正在连接…"
         lastKeepAliveText = initialText
@@ -113,6 +120,7 @@ class PushService : Service() {
     override fun onDestroy() {
         stopped = true
         running = false
+        connectionState = "stopped"
         socket?.cancel()
         if (Build.VERSION.SDK_INT >= 24) {
             stopForeground(STOP_FOREGROUND_REMOVE)
@@ -134,15 +142,23 @@ class PushService : Service() {
                 // 没有登录身份时没有任何后台推送可接，继续保活只会让系统反复
                 // 展示一条无用通知。停掉服务，等网页真正登录后再由桥重新开启。
                 if (lastConfigFailure == ConfigFailure.NOT_LOGGED_IN) {
+                    connectionState = "stopped"
                     setAccountReady(this, false)
                     break
+                }
+                connectionState = when (lastConfigFailure) {
+                    ConfigFailure.SITE_UNREACHABLE -> "site_unreachable"
+                    ConfigFailure.NOT_CONFIGURED -> "not_configured"
+                    else -> "reconnecting"
                 }
                 updateKeepAlive(lastConfigReason)
                 sleepSec(60); continue
             }
+            connectionState = "connecting"
             updateKeepAlive("已连接，等待角色消息")
             val closedNormally = runSocket(config)
             if (stopped) break
+            connectionState = "reconnecting"
             updateKeepAlive("连接断开，重连中…")
             sleepSec(if (closedNormally) 3 else backoffSec)
             backoffSec = (backoffSec * 2).coerceAtMost(120)
@@ -251,6 +267,8 @@ class PushService : Service() {
 
         val listener = object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
+                connectionState = "connected"
+                lastConnectedAt = System.currentTimeMillis()
                 val join = JSONObject()
                     .put("topic", topic)
                     .put("event", "phx_join")
@@ -291,6 +309,7 @@ class PushService : Service() {
                     val payload = msg.optJSONObject("payload") ?: return
                     if (payload.optString("event") != "notify") return
                     val body = payload.optJSONObject("payload") ?: return
+                    lastMessageAt = System.currentTimeMillis()
                     val title = body.optString("title").ifEmpty { "小手机" }
                     val text2 = body.optString("body").ifEmpty { "有新消息" }
                     // 来电：全屏来电通知（任何一步失败回落普通通知，主路不受影响）
@@ -310,10 +329,12 @@ class PushService : Service() {
 
             override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
                 normal = true
+                connectionState = "reconnecting"
                 synchronized(lock) { done = true; lock.notifyAll() }
             }
 
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
+                connectionState = "reconnecting"
                 synchronized(lock) { done = true; lock.notifyAll() }
             }
         }

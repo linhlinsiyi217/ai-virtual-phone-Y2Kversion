@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useLayoutEffect, useCallback, useRef, createContext, type CSSProperties, type ReactNode } from "react";
-import { Activity, Check, ChevronRight, Clock, Database, FileText, Fingerprint, Globe, HardDrive, Image, Info, KeyRound, Laptop, Layers, Link2, Loader2, LogOut, MessageSquare, Mic, SlidersHorizontal, UserCircle, Wrench, X, CloudUpload, PhoneCall, Zap, CalendarDays, Camera, LayoutTemplate, Palette } from "lucide-react";
+import { Activity, Check, ChevronRight, Clock, Database, FileText, Fingerprint, Globe, HardDrive, Image, Info, KeyRound, Laptop, Layers, Link2, Loader2, LogOut, MessageSquare, Mic, SlidersHorizontal, UserCircle, Wrench, X, CloudUpload, PhoneCall, Zap, CalendarDays, Camera, LayoutTemplate, Palette, ShieldCheck } from "lucide-react";
 import { ConfirmDialog } from "./ui/modal";
 import { useAccount } from "@/lib/account-context";
 import { isSelfHostedModeEnabled } from "@/lib/self-hosting";
@@ -29,13 +29,13 @@ import { CloudServicesPage } from "./settings/cloud-services-setup";
 import { ToolboxSettings } from "./settings/toolbox-settings";
 import { ModerationCenter } from "./settings/moderation-center";
 import { AgentComputerSettings } from "./settings/agent-computer-settings";
+import { BackgroundProtection } from "./settings/background-protection";
 import { fetchIsAdmin } from "@/lib/moderation-client";
 import { PageShell } from "./ui/page-shell";
 import { CardGrid, FeaturedCard, type CardItem, type FeaturedCardItem } from "./ui/card-grid";
 import { GlassIcon } from "./ui/glass-icon";
 import { Toggle } from "./ui/form";
 import { loadChatAppSettings, saveChatAppSettings } from "@/lib/chat-storage";
-import { loadKeepAlive, saveKeepAlive } from "@/lib/weixin-storage";
 import { BINDING_ACCENTS, CONTENT_APP_ACCENTS } from "@/lib/ui-accent-colors";
 
 export const SettingsContext = createContext<{
@@ -74,7 +74,8 @@ type SubPage =
     | "systemCalendar"
     | "screenshot"
     | "widget"
-    | "innerVoice";
+    | "innerVoice"
+    | "protection";
 
 const SETTINGS_MENU = [
     { id: "api", icon: HardDrive, label: "API 设置", desc: "大模型接口", iconColor: BINDING_ACCENTS.api , glass: "api" },
@@ -95,16 +96,13 @@ const SETTINGS_MENU = [
     { id: "systemCalendar", icon: CalendarDays, label: "系统日历", desc: "让角色知道你的日程", iconColor: BINDING_ACCENTS.memory , glass: "" },
     { id: "screenshot", icon: Camera, label: "截屏", desc: "让角色看一眼你的屏幕", iconColor: BINDING_ACCENTS.voice , glass: "" },
     { id: "widget", icon: LayoutTemplate, label: "桌面小组件", desc: "角色留在桌面上的话", iconColor: BINDING_ACCENTS.memory , glass: "" },
+    { id: "protection", icon: ShieldCheck, label: "网页保护", desc: "网页运行与安卓 APK 后台消息保护", iconColor: BINDING_ACCENTS.memory, glass: "" },
     { id: "identity", icon: UserCircle, label: "用户身份", desc: "个人信息", iconColor: BINDING_ACCENTS.identity , glass: "identity" },
     { id: "about", icon: Info, label: "更新日志", desc: "版本与历史更新", iconColor: BINDING_ACCENTS.memory , glass: "about" },
 ] as const;
 
 const realtimeIconStyle = {
     "--icon-color": CONTENT_APP_ACCENTS.calendar,
-} as CSSProperties;
-
-const keepAliveIconStyle = {
-    "--icon-color": CONTENT_APP_ACCENTS.chat,
 } as CSSProperties;
 
 const promptViewerIconStyle = {
@@ -137,7 +135,6 @@ export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
     const [quickActionEnabled, setQuickActionEnabled] = useState(false);
     const [floatingDockEnabled, setFloatingDockEnabled] = useState(false);
     const [floatingDockSheetOpen, setFloatingDockSheetOpen] = useState(false);
-    const [keepAlive, setKeepAlive] = useState(false);
     // 角色电脑：施工中弹窗（返回 / 仍要看看）
     const pageBodyRef = useRef<HTMLDivElement | null>(null);
 
@@ -268,14 +265,6 @@ export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
         onNotice(next ? "已开启悬浮球贴边收拢" : "已关闭悬浮球贴边收拢");
     }, [onNotice]);
 
-    const handleKeepAliveChange = useCallback((next: boolean) => {
-        setKeepAlive(next);
-        saveKeepAlive(next);
-        // use-weixin-bridge 监听这个事件来起停保活（与微信 Bot 的启用状态无关）
-        window.dispatchEvent(new CustomEvent("weixin-config-changed"));
-        onNotice(next ? "已开启后台保活" : "已关闭后台保活");
-    }, [onNotice]);
-
     const imageGenerationItem = SETTINGS_MENU.find(i => i.id === "imageGeneration")!;
     const imageGenerationFeaturedItem: FeaturedCardItem = {
         id: imageGenerationItem.id,
@@ -357,6 +346,8 @@ export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
                 return <ToolboxSettings />;
             case "agentComputer":
                 return <AgentComputerSettings onNotice={onNotice} />;
+            case "protection":
+                return <BackgroundProtection onOpenCloudServices={() => setCurrentPage("cloud")} onNotice={onNotice} />;
             case "moderation":
                 return <ModerationCenter onNotice={onNotice} />;
             case "identity":
@@ -389,7 +380,6 @@ export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
         setPromptViewerEnabled(settings.promptViewerEnabled === true);
         setQuickActionEnabled(settings.quickActionEnabled === true);
         setFloatingDockEnabled(settings.floatingDockEnabled === true);
-        setKeepAlive(loadKeepAlive());
     }, []);
 
     // Listen for mascot navigation mode (e.g. jump to worldbook/regex tab)
@@ -475,16 +465,7 @@ export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
                                 </div>
                                 <Toggle checked={timeAware} onChange={handleTimeAwareChange} className="settings-toggle-control" />
                             </div>
-                            <div className="app-card card-featured settings-toggle-card">
-                                <span className="card-icon card-icon-glass">
-                                    <GlassIcon name="keep-alive" />
-                                </span>
-                                <div className="card-featured-body">
-                                    <div className="card-featured-label">后台保活</div>
-                                    <div className="card-featured-desc">切到后台时尽量保持网页运行，主动消息与轮询不中断</div>
-                                </div>
-                                <Toggle checked={keepAlive} onChange={handleKeepAliveChange} className="settings-toggle-control" />
-                            </div>
+                            <FeaturedCard item={makeCardItem(SETTINGS_MENU.find(item => item.id === "protection")!) as FeaturedCardItem} />
                         </div>
                         {isAdmin ? (
                             <div className="settings-moderation-section">

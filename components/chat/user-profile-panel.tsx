@@ -34,7 +34,6 @@ import { kvGet, kvSet, kvRemove } from "@/lib/kv-db";
 import { formatWalletAmount, getWalletBalance, loadWalletState, WALLET_UPDATED_EVENT } from "@/lib/wallet-storage";
 import { ChatFallbackAvatar } from "./chat-fallback-avatar";
 import { ChatBeautyCenter } from "./chat-beauty-center";
-import { AndroidBackgroundProtection } from "./android-background-protection";
 import {
     Loader2,
     Bell,
@@ -1426,7 +1425,6 @@ function OfflinePushSettingsPage({ onBack }: { onBack: () => void }) {
                                 ? "App 版自带推送通道，已自动接管离线推送；保持系统通知权限开启即可，可点「测试」验证。"
                                 : offlinePushState === "unsupported" ? "当前环境不支持。iOS 请先添加到主屏幕，从主屏幕打开后再开启。" : "")}
                         </p>
-                        {isShellApp && <AndroidBackgroundProtection />}
                     </>
                 )}
                 <p className="menu-group-desc mx-2">定时主动消息</p>
