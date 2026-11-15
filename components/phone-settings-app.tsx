@@ -96,7 +96,7 @@ const SETTINGS_MENU = [
     { id: "systemCalendar", icon: CalendarDays, label: "系统日历", desc: "让角色知道你的日程", iconColor: BINDING_ACCENTS.memory , glass: "" },
     { id: "screenshot", icon: Camera, label: "截屏", desc: "让角色看一眼你的屏幕", iconColor: BINDING_ACCENTS.voice , glass: "" },
     { id: "widget", icon: LayoutTemplate, label: "桌面小组件", desc: "角色留在桌面上的话", iconColor: BINDING_ACCENTS.memory , glass: "" },
-    { id: "protection", icon: ShieldCheck, label: "网页保护", desc: "网页运行与安卓 APK 后台消息保护", iconColor: BINDING_ACCENTS.memory, glass: "" },
+    { id: "protection", icon: ShieldCheck, label: "后台保护", desc: "网页运行与安卓 APK 后台消息保护", iconColor: BINDING_ACCENTS.memory, glass: "" },
     { id: "identity", icon: UserCircle, label: "用户身份", desc: "个人信息", iconColor: BINDING_ACCENTS.identity , glass: "identity" },
     { id: "about", icon: Info, label: "更新日志", desc: "版本与历史更新", iconColor: BINDING_ACCENTS.memory , glass: "about" },
 ] as const;

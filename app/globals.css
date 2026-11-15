@@ -56,6 +56,7 @@
 @import "../styles/monochrome-account.css";
 @import "../styles/photos.css";
 @import "../styles/character-archive.css";
+@import "../styles/keep-alive.css";
 
 @theme {
   /* 间距 (4px 基准) */

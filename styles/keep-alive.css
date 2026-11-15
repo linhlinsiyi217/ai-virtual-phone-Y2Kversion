@@ -1,0 +1,538 @@
+/* 后台保护页面样式（ka- 前缀，作用域限定在 .ka-wrap 内） */
+
+.ka-wrap {
+  --ka-bg: #f4f4f6;
+  --ka-card: #fff;
+  --ka-ink: #111;
+  --ka-ink2: #7d7d84;
+  --ka-ink3: #b3b3b9;
+  --ka-line: #ececef;
+  --ka-chip: #f1f1f3;
+  --ka-ok: #1fb86b;
+  --ka-okbg: #e7f7ee;
+  --ka-warn: #b26a00;
+  --ka-warnbg: #fff3df;
+  --ka-bad: #d4493f;
+  --ka-badbg: #fdecea;
+  padding: 4px 12px 28px;
+  color: var(--ka-ink);
+}
+
+.ka-back {
+  border: none;
+  background: none;
+  padding: 6px 2px;
+  font-size: 14px;
+  color: var(--ka-ink2);
+  cursor: pointer;
+}
+
+.ka-card {
+  background: var(--ka-card);
+  border-radius: 22px;
+  border: 0.5px solid var(--ka-line);
+  overflow: hidden;
+}
+
+.ka-hero {
+  margin-top: 10px;
+  padding: 20px 18px 18px;
+  position: relative;
+}
+
+.ka-cat {
+  position: absolute;
+  right: 14px;
+  top: 12px;
+  width: 68px;
+  fill: none;
+  stroke: var(--ka-ink);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.ka-k {
+  font-size: 13px;
+  color: var(--ka-ink2);
+  letter-spacing: 0.12em;
+}
+
+.ka-big {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.ka-big b {
+  font-size: 56px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+
+.ka-big span {
+  font-size: 22px;
+  color: var(--ka-ink3);
+  font-weight: 500;
+}
+
+.ka-seg {
+  display: flex;
+  gap: 6px;
+  margin: 16px 0 12px;
+}
+
+.ka-seg u {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--ka-chip);
+  text-decoration: none;
+}
+
+.ka-seg u.on {
+  background: var(--ka-ok);
+}
+
+.ka-hero p {
+  font-size: 12.5px;
+  color: var(--ka-ink2);
+  line-height: 1.7;
+}
+
+.ka-acts {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.ka-pill {
+  height: 42px;
+  border-radius: 21px;
+  border: none;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 0 20px;
+  background: var(--ka-chip);
+  color: var(--ka-ink);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.ka-pill.d {
+  background: var(--ka-ink);
+  color: var(--ka-card);
+}
+
+.ka-pill.f {
+  flex: 1;
+}
+
+.ka-pill.d:disabled {
+  opacity: 0.6;
+}
+
+.ka-sec {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin: 22px 6px 8px;
+}
+
+.ka-sec span {
+  font-size: 13px;
+  color: var(--ka-ink2);
+}
+
+.ka-sec em {
+  font-style: normal;
+  font-size: 10.5px;
+  letter-spacing: 0.24em;
+  color: var(--ka-ink3);
+}
+
+.ka-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 16px;
+  position: relative;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: none;
+  font: inherit;
+  color: inherit;
+}
+
+.ka-row-btn {
+  cursor: pointer;
+}
+
+.ka-row + .ka-row::before {
+  content: "";
+  position: absolute;
+  left: 52px;
+  right: 16px;
+  top: 0;
+  height: 0.5px;
+  background: var(--ka-line);
+}
+
+.ka-ic {
+  width: 22px;
+  height: 22px;
+  flex: none;
+  stroke: var(--ka-ink);
+  fill: none;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.ka-tx {
+  flex: 1;
+  min-width: 0;
+}
+
+.ka-tx b {
+  display: block;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.ka-tx span {
+  display: block;
+  font-size: 12.5px;
+  color: var(--ka-ink2);
+  line-height: 1.55;
+  margin-top: 3px;
+}
+
+.ka-tx small {
+  display: block;
+  font-size: 11px;
+  color: var(--ka-ink3);
+  margin-top: 5px;
+  letter-spacing: 0.04em;
+}
+
+.ka-tx small::before {
+  content: "";
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--ka-ok);
+  margin-right: 6px;
+  vertical-align: 1px;
+}
+
+.ka-chip {
+  flex: none;
+  height: 32px;
+  padding: 0 13px;
+  border-radius: 16px;
+  font-size: 12.5px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--ka-chip);
+  color: var(--ka-ink);
+  border: none;
+  cursor: pointer;
+}
+
+.ka-chip.ok {
+  color: var(--ka-ink2);
+  font-weight: 500;
+  background: none;
+}
+
+.ka-chip.ok::before {
+  content: "✓";
+  color: var(--ka-ok);
+  font-weight: 700;
+}
+
+.ka-chip.go::after {
+  content: "›";
+  color: var(--ka-ink3);
+  font-size: 15px;
+}
+
+.ka-chip.wait {
+  background: none;
+  color: var(--ka-ink2);
+  font-weight: 400;
+  padding: 0;
+}
+
+.ka-chip.wait::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ka-ink3);
+}
+
+.ka-chip.old {
+  background: var(--ka-warnbg);
+  color: var(--ka-warn);
+}
+
+.ka-chip.bad {
+  background: var(--ka-badbg);
+  color: var(--ka-bad);
+}
+
+.ka-sw {
+  width: 48px;
+  height: 30px;
+  border-radius: 15px;
+  border: none;
+  background: #d9d9de;
+  position: relative;
+  flex: none;
+  cursor: pointer;
+  transition: background 160ms ease;
+}
+
+.ka-sw i {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  transition: transform 160ms ease;
+}
+
+.ka-sw.on {
+  background: var(--ka-ok);
+}
+
+.ka-sw.on i {
+  transform: translateX(18px);
+}
+
+.ka-arr {
+  color: var(--ka-ink3);
+  font-size: 19px;
+}
+
+.ka-foot {
+  font-size: 11.5px;
+  color: var(--ka-ink2);
+  line-height: 1.8;
+  margin: 20px 6px 0;
+}
+
+.ka-tl {
+  padding: 4px 16px 6px;
+}
+
+.ka-stp {
+  display: flex;
+  gap: 12px;
+  padding: 13px 0;
+  position: relative;
+}
+
+.ka-stp + .ka-stp::before {
+  content: "";
+  position: absolute;
+  left: 11px;
+  top: -13px;
+  height: 26px;
+  width: 1.5px;
+  background: var(--ka-line);
+}
+
+.ka-stp .ka-d {
+  width: 23px;
+  height: 23px;
+  border-radius: 50%;
+  border: 1.5px solid var(--ka-ink3);
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+  margin-top: 1px;
+}
+
+.ka-stp b {
+  font-size: 14.5px;
+  font-weight: 600;
+  display: block;
+}
+
+.ka-stp span {
+  font-size: 12px;
+  color: var(--ka-ink2);
+  display: block;
+  margin-top: 2px;
+}
+
+.ka-stp.doing .ka-d {
+  border-color: var(--ka-ink);
+  animation: ka-pulse 1s infinite;
+}
+
+.ka-stp.done .ka-d {
+  background: var(--ka-ok);
+  border-color: var(--ka-ok);
+}
+
+.ka-stp.done .ka-d::before {
+  content: "✓";
+}
+
+@keyframes ka-pulse {
+  50% { box-shadow: 0 0 0 5px var(--ka-chip); }
+}
+
+.ka-res {
+  margin: 6px 14px 14px;
+  padding: 13px 15px;
+  border-radius: 18px;
+  background: var(--ka-okbg);
+  font-size: 12.5px;
+  line-height: 1.65;
+}
+
+.ka-res b {
+  display: block;
+  font-size: 14.5px;
+  color: var(--ka-ok);
+  margin-bottom: 2px;
+}
+
+.ka-res.bad {
+  background: var(--ka-badbg);
+}
+
+.ka-res.bad b {
+  color: var(--ka-bad);
+}
+
+.ka-res ol {
+  padding-left: 18px;
+  margin-top: 6px;
+  color: var(--ka-ink2);
+}
+
+.ka-pad {
+  padding: 4px 14px 16px;
+}
+
+.ka-pad .ka-pill.d {
+  width: 100%;
+}
+
+.ka-row-btns {
+  display: flex;
+  gap: 10px;
+  padding: 0 14px 16px;
+}
+
+.ka-row-btns .ka-pill {
+  flex: 1;
+  min-width: 0;
+  padding: 0 10px;
+}
+
+.ka-mt12 { margin-top: 12px; }
+.ka-mt14 { margin-top: 14px; }
+
+.ka-note {
+  font-size: 12.5px;
+  color: var(--ka-ink2);
+  line-height: 1.65;
+  margin: 8px 6px 0;
+}
+
+.ka-empty {
+  padding: 28px 16px;
+  text-align: center;
+  font-size: 12.5px;
+  color: var(--ka-ink3);
+}
+
+.ka-log {
+  padding: 14px 16px;
+  position: relative;
+  display: flex;
+  gap: 12px;
+}
+
+.ka-log + .ka-log::before {
+  content: "";
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  top: 0;
+  height: 0.5px;
+  background: var(--ka-line);
+}
+
+.ka-log time {
+  font-size: 11.5px;
+  color: var(--ka-ink3);
+  width: 42px;
+  flex: none;
+  font-variant-numeric: tabular-nums;
+  padding-top: 2px;
+}
+
+.ka-log b {
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.ka-log span {
+  display: block;
+  font-size: 11.5px;
+  color: var(--ka-ink2);
+  line-height: 1.55;
+  margin-top: 2px;
+}
+
+.ka-tag {
+  display: inline-block !important;
+  font-size: 10.5px;
+  font-weight: 600;
+  padding: 1px 7px;
+  border-radius: 8px;
+  margin-left: 6px;
+  vertical-align: 1px;
+}
+
+.ka-tag.ok { background: var(--ka-okbg); color: var(--ka-ok); }
+.ka-tag.bad { background: var(--ka-badbg); color: var(--ka-bad); }
+.ka-tag.old { background: var(--ka-warnbg); color: var(--ka-warn); }
+
+@media (prefers-color-scheme: dark) {
+  .ka-wrap {
+    --ka-bg: #0c0c0d;
+    --ka-card: #19191b;
+    --ka-ink: #f3f3f4;
+    --ka-ink2: #95959b;
+    --ka-ink3: #58585e;
+    --ka-line: #2a2a2d;
+    --ka-chip: #262629;
+    --ka-okbg: #12301f;
+    --ka-warnbg: #33260f;
+    --ka-badbg: #341a17;
+  }
+  .ka-sw { background: #3a3a3e; }
+}
