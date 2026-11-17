@@ -18,6 +18,7 @@ import { hasPendingMcpOAuthCallback } from "@/lib/tool-executor";
 import { shouldRequestPwaFullscreen } from "@/lib/pwa-display-mode";
 import { phoneSessionParent } from "@/lib/phone-session-protocol";
 import { PhoneSessionLoading } from "./phone-session-host";
+import { PhoneLockScreen } from "./phone-lock-screen";
 
 const TEXT = {
   loading: "\u52A0\u8F7D\u4E2D...",
@@ -233,6 +234,8 @@ export function MainApp({ resumeAfterIdentitySwitch = false }: { resumeAfterIden
   const [hydrated, setHydrated] = useState(false);
   const [startupError, setStartupError] = useState("");
   const [splashDismissed, setSplashDismissed] = useState(resumeAfterIdentitySwitch);
+  // 锁屏：没设密码时 PhoneLockScreen 会立刻放行
+  const [lockPassed, setLockPassed] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -289,6 +292,8 @@ export function MainApp({ resumeAfterIdentitySwitch = false }: { resumeAfterIden
         <SplashScreen ready={hydrated} error={startupError} onEnter={() => setSplashDismissed(true)} />
       ) : !hydrated ? (
         <PhoneSessionLoading error={startupError} onRetry={() => window.location.reload()} />
+      ) : !lockPassed ? (
+        <PhoneLockScreen ready={hydrated} onEnter={() => setLockPassed(true)} />
       ) : (
         <main className="app-root">
           <MusicProvider>

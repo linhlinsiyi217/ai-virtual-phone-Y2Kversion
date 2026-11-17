@@ -5786,7 +5786,8 @@ button.settings-overview-row { cursor: pointer; }
   transform-origin: center;
   transition: transform 420ms cubic-bezier(.22, 1.6, .32, 1), background-color 160ms ease, opacity 160ms ease;
 }
-.jelly-button:active { transform: scaleX(1.025) scaleY(.94); opacity: .82; }
+/* 按下反馈收小：原来挤压感太强，点起来发飘 */
+.jelly-button:active { transform: scale(0.982); opacity: .9; }
 .settings-advanced { display: flex; flex-direction: column; gap: 18px; margin-top: 14px; }
 .settings-advanced > h2 { margin: 0 4px; font-size: 24px; line-height: 30px; font-weight: 720; letter-spacing: -.03em; }
 .settings-advanced-section { display: flex; flex-direction: column; gap: 9px; }

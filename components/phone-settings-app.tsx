@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useLayoutEffect, useCallback, useRef, createContext, type CSSProperties, type ReactNode } from "react";
-import { Activity, Check, ChevronRight, Clock, Database, FileText, Fingerprint, Globe, HardDrive, Image, Info, KeyRound, Laptop, Layers, Link2, Loader2, LogOut, MessageSquare, Mic, SlidersHorizontal, UserCircle, Wrench, X, CloudUpload, PhoneCall, Zap, CalendarDays, Camera, LayoutTemplate, Palette, ShieldCheck } from "lucide-react";
+import { Activity, Check, ChevronRight, Clock, Database, FileText, Fingerprint, Globe, HardDrive, Image, Info, KeyRound, Laptop, Layers, Link2, Loader2, LogOut, MessageSquare, Mic, SlidersHorizontal, UserCircle, Wrench, X, CloudUpload, PhoneCall, Zap, CalendarDays, Camera, LayoutTemplate, Palette, LockKeyhole, ShieldCheck } from "lucide-react";
 import { ConfirmDialog } from "./ui/modal";
 import { useAccount } from "@/lib/account-context";
 import { isSelfHostedModeEnabled } from "@/lib/self-hosting";
@@ -22,6 +22,7 @@ import { DeviceActionSettings } from "./device-action/device-action-settings";
 import { SystemCalendarSettings } from "./system-calendar/system-calendar-settings";
 import { ScreenshotSettings } from "./screenshot/screenshot-settings";
 import { WidgetSettings } from "./widget/widget-settings";
+import { PhoneLockSettings } from "@/components/chat/phone-lock-settings";
 import { InnerVoiceStylePage } from "./settings/inner-voice-style-page";
 import { BindingManager } from "./settings/binding-manager";
 import { WeixinSettings } from "./settings/weixin-settings";
@@ -75,7 +76,8 @@ type SubPage =
     | "screenshot"
     | "widget"
     | "innerVoice"
-    | "protection";
+    | "protection"
+    | "lockScreen";
 
 const SETTINGS_MENU = [
     { id: "api", icon: HardDrive, label: "API 设置", desc: "大模型接口", iconColor: BINDING_ACCENTS.api , glass: "api" },
@@ -95,6 +97,7 @@ const SETTINGS_MENU = [
     { id: "deviceAction", icon: Zap, label: "操作设备", desc: "让角色帮你开灯、调音量、打开应用", iconColor: BINDING_ACCENTS.voice , glass: "" },
     { id: "systemCalendar", icon: CalendarDays, label: "系统日历", desc: "让角色知道你的日程", iconColor: BINDING_ACCENTS.memory , glass: "" },
     { id: "screenshot", icon: Camera, label: "截屏", desc: "让角色看一眼你的屏幕", iconColor: BINDING_ACCENTS.voice , glass: "" },
+    { id: "lockScreen", icon: LockKeyhole, label: "手机锁屏", desc: "启用锁屏、设置密码与壁纸", iconColor: BINDING_ACCENTS.identity , glass: "" },
     { id: "widget", icon: LayoutTemplate, label: "桌面小组件", desc: "角色留在桌面上的话", iconColor: BINDING_ACCENTS.memory , glass: "" },
     { id: "protection", icon: ShieldCheck, label: "后台保护", desc: "网页运行与安卓 APK 后台消息保护", iconColor: BINDING_ACCENTS.memory, glass: "" },
     { id: "identity", icon: UserCircle, label: "用户身份", desc: "个人信息", iconColor: BINDING_ACCENTS.identity , glass: "identity" },
@@ -340,6 +343,8 @@ export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
                 return <SystemCalendarSettings onNotice={onNotice} />;
             case "screenshot":
                 return <ScreenshotSettings onNotice={onNotice} />;
+            case "lockScreen":
+                return <div className="page-menu"><PhoneLockSettings /></div>;
             case "widget":
                 return <WidgetSettings onNotice={onNotice} />;
             case "toolbox":
@@ -446,7 +451,7 @@ export function PhoneSettingsApp({ onClose, onNotice }: SettingsPageProps) {
                             </div>
                             <div className="mt-[10px]">
                                 <CardGrid
-                                    items={SETTINGS_MENU.filter(item => ["weixin", "toolbox", "callOverlay", "perception", "deviceAction", "systemCalendar", "screenshot", "widget"].includes(item.id)).map(makeCardItem)}
+                                    items={SETTINGS_MENU.filter(item => ["weixin", "toolbox", "callOverlay", "perception", "deviceAction", "systemCalendar", "screenshot", "lockScreen", "widget"].includes(item.id)).map(makeCardItem)}
                                 />
                             </div>
                             <div className="mt-[10px]">
