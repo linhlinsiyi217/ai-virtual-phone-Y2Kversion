@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowRight } from "lucide-react";
 
 import { AccountGate } from "@/components/auth/account-gate";
@@ -18,7 +18,6 @@ import { hasPendingMcpOAuthCallback } from "@/lib/tool-executor";
 import { shouldRequestPwaFullscreen } from "@/lib/pwa-display-mode";
 import { phoneSessionParent } from "@/lib/phone-session-protocol";
 import { PhoneSessionLoading } from "./phone-session-host";
-import { PhoneLockScreen } from "./phone-lock-screen";
 
 const TEXT = {
   loading: "\u52A0\u8F7D\u4E2D...",
@@ -153,29 +152,82 @@ async function warmBuiltinFonts(shouldStop: () => boolean): Promise<void> {
 }
 
 function SplashScreen({ ready = false, onEnter, error }: { ready?: boolean; onEnter?: () => void; error?: string }) {
+  // 「长按唤醒」：按住中心光点，光环撑满整屏后开屏。松手会缩回去。
+  const [holding, setHolding] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [entered, setEntered] = useState(false);
+  const rafRef = useRef<number | null>(null);
+  const startedAt = useRef(0);
+  const HOLD_MS = 760;
+
+  const stop = useCallback(() => {
+    if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+    rafRef.current = null;
+    setHolding(false);
+  }, []);
+
+  const tick = useCallback(() => {
+    const elapsed = performance.now() - startedAt.current;
+    const next = Math.min(1, elapsed / HOLD_MS);
+    setProgress(next);
+    if (next >= 1) {
+      stop();
+      setProgress(1);
+      setEntered(true);
+      return;
+    }
+    rafRef.current = requestAnimationFrame(tick);
+  }, [stop]);
+
+  const begin = useCallback(() => {
+    if (!ready || entered || holding) return;
+    startedAt.current = performance.now() - progress * HOLD_MS;
+    setHolding(true);
+    rafRef.current = requestAnimationFrame(tick);
+  }, [entered, holding, progress, ready, tick]);
+
+  const release = useCallback(() => {
+    if (entered) return;
+    stop();
+    setProgress(0);
+  }, [entered, stop]);
+
+  useEffect(() => () => { if (rafRef.current !== null) cancelAnimationFrame(rafRef.current); }, []);
+  useEffect(() => {
+    if (!entered) return;
+    const timer = window.setTimeout(() => onEnter?.(), 620);
+    return () => window.clearTimeout(timer);
+  }, [entered, onEnter]);
+
   return (
     <main className="app-root splash-root">
-      <section
-        className="phone-shell-wrap splash-shell-wrap"
-        aria-label={TEXT.loading}
-      >
-        <div className="phone-case">
-          <div className="phone-frame">
-            <div className="phone-shell splash-phone-screen">
-              {error && <p role="alert" className="absolute bottom-20 left-6 right-6 rounded-2xl bg-white/90 p-4 text-center text-sm text-slate-700 dark:bg-slate-900/90 dark:text-slate-200">{error}</p>}
-              <button
-                type="button"
-                className={ready ? "splash-enter-button splash-enter-button-show" : "splash-enter-button"}
-                onClick={onEnter}
-                disabled={!ready}
-                aria-label="Enter"
-              >
-                <ArrowRight size={18} strokeWidth={1.8} />
-              </button>
-            </div>
-          </div>
+      <div className={`splash-wake${entered ? " is-entered" : ""}${holding ? " is-holding" : ""}`}>
+        <div className="splash-wake-grain" aria-hidden />
+        <div className="splash-wake-halo" style={{ ["--wake-progress" as string]: progress }} aria-hidden />
+
+        <button
+          type="button"
+          className="splash-wake-target"
+          aria-label={ready ? "长按唤醒" : "正在准备"}
+          disabled={!ready || entered}
+          onPointerDown={(e) => { e.currentTarget.setPointerCapture?.(e.pointerId); begin(); }}
+          onPointerUp={release}
+          onPointerCancel={release}
+          onPointerLeave={release}
+          onKeyDown={(e) => { if (e.key === " " || e.key === "Enter") begin(); }}
+          onKeyUp={release}
+        >
+          <span className="splash-wake-core" aria-hidden />
+          <span className="splash-wake-ring" style={{ ["--wake-progress" as string]: progress }} aria-hidden />
+        </button>
+
+        <div className="splash-wake-copy">
+          <p className="splash-wake-title">{entered ? "欢迎回来" : ready ? (holding ? "别松手" : "长按唤醒") : "正在准备…"}</p>
+          <p className="splash-wake-sub">{entered ? "" : ready ? "按住中间的光点" : "数据加载中"}</p>
         </div>
-      </section>
+
+        {error && <p role="alert" className="splash-wake-error">{error}</p>}
+      </div>
     </main>
   );
 }
@@ -234,8 +286,6 @@ export function MainApp({ resumeAfterIdentitySwitch = false }: { resumeAfterIden
   const [hydrated, setHydrated] = useState(false);
   const [startupError, setStartupError] = useState("");
   const [splashDismissed, setSplashDismissed] = useState(resumeAfterIdentitySwitch);
-  // 锁屏：没设密码时 PhoneLockScreen 会立刻放行
-  const [lockPassed, setLockPassed] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -292,8 +342,6 @@ export function MainApp({ resumeAfterIdentitySwitch = false }: { resumeAfterIden
         <SplashScreen ready={hydrated} error={startupError} onEnter={() => setSplashDismissed(true)} />
       ) : !hydrated ? (
         <PhoneSessionLoading error={startupError} onRetry={() => window.location.reload()} />
-      ) : !lockPassed ? (
-        <PhoneLockScreen ready={hydrated} onEnter={() => setLockPassed(true)} />
       ) : (
         <main className="app-root">
           <MusicProvider>

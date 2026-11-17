@@ -1,0 +1,128 @@
+/* 开屏：长按唤醒 */
+.splash-root { background: #06060a; }
+
+.splash-wake {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background:
+    radial-gradient(120% 90% at 50% 40%, #17171f 0%, #0a0a0f 55%, #050508 100%);
+  color: #f5f5f7;
+  transition: opacity .55s ease, transform .55s ease;
+}
+
+.splash-wake-grain {
+  position: absolute;
+  inset: -20%;
+  opacity: .16;
+  background-image: radial-gradient(rgba(255,255,255,.5) 1px, transparent 1px);
+  background-size: 3px 3px;
+  animation: splashGrain 6s steps(6) infinite;
+  pointer-events: none;
+}
+@keyframes splashGrain {
+  0%, 100% { transform: translate3d(0,0,0); }
+  50% { transform: translate3d(-6px, 4px, 0); }
+}
+
+.splash-wake-halo {
+  position: absolute;
+  width: 92vmin;
+  height: 92vmin;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,255,255,.09) 0%, rgba(255,255,255,0) 62%);
+  transform: scale(calc(.55 + var(--wake-progress, 0) * .75));
+  opacity: calc(.5 + var(--wake-progress, 0) * .5);
+  transition: transform .12s linear, opacity .2s ease;
+  pointer-events: none;
+}
+
+.splash-wake-target {
+  position: relative;
+  width: 132px;
+  height: 132px;
+  border: none;
+  background: transparent;
+  color: inherit;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+.splash-wake-target:disabled { cursor: default; }
+
+.splash-wake-core {
+  position: absolute;
+  width: 74px;
+  height: 74px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #ffffff 0%, #d9d9e6 45%, #8d8d9c 100%);
+  box-shadow: 0 0 40px rgba(255,255,255,.28), 0 0 120px rgba(160,170,255,.22);
+  animation: splashBreathe 3.4s ease-in-out infinite;
+}
+@keyframes splashBreathe {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 40px rgba(255,255,255,.22), 0 0 110px rgba(160,170,255,.18); }
+  50% { transform: scale(1.06); box-shadow: 0 0 54px rgba(255,255,255,.34), 0 0 150px rgba(160,170,255,.26); }
+}
+.splash-wake.is-holding .splash-wake-core {
+  animation: none;
+  transform: scale(calc(1 + var(--wake-progress, 0) * .18));
+  transition: transform .1s linear;
+}
+
+.splash-wake-ring {
+  position: absolute;
+  width: 118px;
+  height: 118px;
+  border-radius: 50%;
+  background: conic-gradient(#ffffff calc(var(--wake-progress, 0) * 360deg), rgba(255,255,255,.12) 0);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px));
+  opacity: calc(.35 + var(--wake-progress, 0) * .65);
+}
+
+.splash-wake-copy {
+  position: absolute;
+  bottom: 19vh;
+  text-align: center;
+  padding: 0 24px;
+}
+.splash-wake-title {
+  font-size: 17px;
+  letter-spacing: .28em;
+  text-indent: .28em;
+  font-weight: 300;
+  color: rgba(255,255,255,.92);
+}
+.splash-wake-sub {
+  margin-top: 8px;
+  font-size: 12px;
+  letter-spacing: .12em;
+  color: rgba(255,255,255,.42);
+}
+.splash-wake-error {
+  position: absolute;
+  left: 24px;
+  right: 24px;
+  bottom: 10vh;
+  text-align: center;
+  font-size: 13px;
+  color: #ff8a8a;
+}
+
+/* 唤醒完成：整屏亮一下再淡出 */
+.splash-wake.is-entered { animation: splashFlash .62s ease forwards; }
+@keyframes splashFlash {
+  0% { opacity: 1; filter: brightness(1); }
+  35% { opacity: 1; filter: brightness(2.1); }
+  100% { opacity: 0; filter: brightness(2.6); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .splash-wake-grain, .splash-wake-core { animation: none; }
+  .splash-wake.is-entered { animation-duration: .2s; }
+}

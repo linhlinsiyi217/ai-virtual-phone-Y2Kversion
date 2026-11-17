@@ -57,6 +57,7 @@
 @import "../styles/photos.css";
 @import "../styles/character-archive.css";
 @import "../styles/keep-alive.css";
+@import "../styles/splash-wake.css";
 
 @theme {
   /* 间距 (4px 基准) */
